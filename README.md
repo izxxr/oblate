@@ -4,7 +4,7 @@ Oblate is a Python library that provides modern and robust interface for data an
 Focused around simplicity and flexibility, Oblate has the following features:
 
 - Intuitive and modern object oriented interface
-- Built in support for primitive and commonly used data types and structures
+- Built in support for commonly used data structures
 - Easily extendible to suit every use case
 - Robust with no compromise on performance
 
