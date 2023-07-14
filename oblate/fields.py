@@ -156,7 +156,7 @@ class Field(Generic[_RawT, _SerializedT]):
         """The list of validators for this field."""
         return self._validators.copy()
 
-    def copy(self: Field[_RawT, _SerializedT], **overrides: Any) -> Field[_RawT, _SerializedT]:
+    def copy(self: Field[_RawT, _SerializedT], *, validators: bool = True, **overrides: Any) -> Field[_RawT, _SerializedT]:
         """Copies a field.
 
         This method is useful when you want to reuse complex fields from
@@ -176,6 +176,9 @@ class Field(Generic[_RawT, _SerializedT]):
 
         Parameters
         ----------
+        validators: :class:`bool`
+            Whether to copy field validators. When this is True, validators
+            from the target field are also copied.
         **overrides:
             The keyword arguments to overriding certain attributes of field. This
             may not support all attributes of a field. Supported overrides are
@@ -188,6 +191,9 @@ class Field(Generic[_RawT, _SerializedT]):
         """
         field = copy.copy(self)
         field._clear_state()
+
+        if not validators:
+            field._validators.clear()
 
         for arg, val in overrides.items():
             if not arg in self.__valid_overrides__:

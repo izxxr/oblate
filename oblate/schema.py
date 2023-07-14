@@ -43,7 +43,7 @@ class Schema:
         self._init_from_kwargs(kwargs)
 
     def is_initialized(self) -> bool:
-        """Indicates whether the Schema has been initialized.
+        """Indicates whether the schema has been initialized.
 
         This only returns True when all fields have been set
         and validated.
@@ -58,12 +58,6 @@ class Schema:
                 field._value = None
         else:
             field._value = field.value_set(value, True)
-
-    def _run_validators(self, field: Field[Any, Any], value: Any) -> None:
-        for validator in field.validators:
-            validated = validator(self, value)
-            if not validated:
-                raise RuntimeError(f'Validation failed for the field {field._name!r}')
 
     def _init_from_kwargs(self, kwargs: Dict[str, Any]) -> None:
         fields = self.__fields__.copy()
@@ -85,8 +79,8 @@ class Schema:
                 raise TypeError(f'Missing value for the required field {self.__class__.__qualname__}.{name}')
 
         for field, value in validators:
-            self._run_validators(field, value)
-        
+            field._run_validators(field, value)
+
         self._initialized = True
 
     def __init_subclass__(cls) -> None:
