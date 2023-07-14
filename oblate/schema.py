@@ -41,6 +41,15 @@ class Schema:
     def __init__(self, **kwargs: Any) -> None:
         self._init_from_kwargs(kwargs)
 
+    def _assign_field_value(self, value: Any, field: Field[Any, Any]) -> None:
+        if value is None:
+            if not field.none:
+                raise RuntimeError('Value for this field cannot be None')
+            else:
+                field._value = None
+        else:
+            field._value = field.value_set(value, True)
+
     def _init_from_kwargs(self, kwargs: Dict[str, Any]) -> None:
         fields = self.__fields__.copy()
         for arg, value in kwargs.items():
@@ -49,13 +58,7 @@ class Schema:
             except KeyError:
                 raise TypeError(f'Invalid keyword argument {arg!r} passed to {self.__class__.__qualname__}()') from None
             else:
-                if value is None:
-                    if not field.none:
-                        raise RuntimeError('Value for this field cannot be None')
-                    else:
-                        field._value = None
-                else:
-                    field._value = field.value_set(value, True)
+                self._assign_field_value(value, field)
 
         for name, field in fields.items():
             if field.missing:
