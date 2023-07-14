@@ -35,6 +35,9 @@ __all__ = (
     'Field',
     'String',
     'Integer',
+    'Boolean',
+    'Float',
+    'Object',
 )
 
 _RawT = TypeVar('_RawT')
@@ -313,3 +316,24 @@ class Float(Field[Any, float]):
             return float(value)
         except Exception:
             raise RuntimeError('Value for this field must be an float-convertable value.')
+
+
+class Object(Field[Any, 'Schema']):
+    """Field that allows nesting of schemas.
+
+    Parameters
+    ----------
+    schema_tp: Type[:class:`Schema`]
+        The schema to represent in this field.
+    """
+    def __init__(self, schema_tp: Type[Schema], **kwargs: Any) -> None:
+        self._schema_tp = schema_tp
+        super().__init__(**kwargs)
+
+    def value_set(self, value: Any, init: bool) -> Schema:
+        from oblate.schema import Schema
+
+        if not isinstance(value, self._schema_tp):
+            raise RuntimeError(f'Value for this field must be a {self._schema_tp.__qualname__} object.')
+
+        return value
