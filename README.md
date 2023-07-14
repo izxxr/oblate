@@ -17,5 +17,5 @@ Try prefixing the above command with `python -m` if you don't have `pip` on `PAT
 doesn't work for some reason.
 
 ## Documentation
-[Oblate's documentation](https://oblate.readthedocs.io) includes examples and pages to get you started
-with using Oblate for your project along with details on all the features Oblate has.
+[Oblate's documentation](https://oblate.readthedocs.io) includes examples and pages to get
+you started with using Oblate for your project along with details on all the features Oblate has.
