@@ -38,6 +38,7 @@ from typing import (
 )
 from typing_extensions import Self
 from oblate.utils import MISSING
+from oblate.exceptions import ValidationError
 
 import copy
 
@@ -97,18 +98,89 @@ class Field(Generic[_RawT, _SerializedT]):
         self._validators = []
         self._clear_state()
 
-    def _clear_state(self, validators: bool = True) -> None:
+    @overload
+    def __get__(self, instance: Literal[None], owner: Type[Schema]) -> Self:
+        ...
+
+    @overload
+    def __get__(self, instance: Schema, owner: Type[Schema]) -> _SerializedT:
+        ...
+
+    def __get__(self, instance: Optional[Schema], owner: Type[Schema]) -> Union[_SerializedT, Self]:
+        if instance is None:
+            return self
+        if self._value is MISSING:
+            raise AttributeError(f'No value available for field {owner.__qualname__}.{self._name}')
+        return self._value
+
+    def __set__(self, instance: Schema, value: Any) -> None:
+        self._run_validators(value)
+        self._value = self.value_set(value, False)
+
+    def _clear_state(self) -> None:
         self._schema: Type[Schema] = MISSING
         self._name: str = MISSING
         self._value = MISSING
 
-    def _run_validators(self, value: Any) -> None:
+    def _run_validators(self, value: Any) -> List[ValidationError]:
         schema = self._schema
+        errors = []
 
         for validator in self._validators:
-            validated = validator(schema, value)
-            if not validated:
-                raise RuntimeError(f'Validation failed for field {self._name!r}')
+            try:
+                validated = validator(schema, value)
+                if not validated:
+                    raise ValidationError(f'Validation failed for field {self._name!r}')
+            except ValidationError as err:
+                err._bind(self)
+                errors.append(err)
+
+        return errors
+
+    def _proper_name(self) -> str:
+        return f'{self._schema.__qualname__}.{self._name}'
+
+    @property
+    def validators(self) -> List[ValidatorCallbackT[_SchemaT]]:
+        """The list of validators for this field."""
+        return self._validators.copy()
+
+    @property
+    def schema(self) -> Type[Schema]:
+        """The :class:`Schema` class that this field belongs to."""
+        # self._schema should never be MISSING as it is a late-binding
+        return self._schema
+
+    @property
+    def name(self) -> str:
+        """The name for this class that this field belongs to."""
+        # self._name should never be MISSING as it is a late-binding
+        return self._name
+
+    def value_set(self, value: Any, init: bool, /) -> _SerializedT:
+        """A method called when a value is being set.
+
+        This method is called when a :class:`Schema` is initialized
+        using keyword arguments or when a value is being set on a
+        Schema manually. This is **not** called when a schema is
+        loaded using raw data.
+
+        You can use this method to validate a value. The returned
+        value should be the value to set on the field.
+
+        Parameters
+        ----------
+        value:
+            The value to set.
+        init: :class:`bool`
+            Whether the method is called due to initialization. This is True
+            when Schema is initialized and False when value is being set.
+        
+        Returns
+        -------
+        The value to set.
+        """
+        ...
 
     def add_validator(self, callback: ValidatorCallbackT[_SchemaT]) -> None:
         """Adds a validator for this field.
@@ -151,10 +223,6 @@ class Field(Generic[_RawT, _SerializedT]):
         except ValueError:
             pass
 
-    @property
-    def validators(self) -> List[ValidatorCallbackT[_SchemaT]]:
-        """The list of validators for this field."""
-        return self._validators.copy()
 
     def copy(self: Field[_RawT, _SerializedT], *, validators: bool = True, **overrides: Any) -> Field[_RawT, _SerializedT]:
         """Copies a field.
@@ -203,62 +271,6 @@ class Field(Generic[_RawT, _SerializedT]):
 
         return field
 
-    def value_set(self, value: Any, init: bool, /) -> _SerializedT:
-        """A method called when a value is being set.
-
-        This method is called when a :class:`Schema` is initialized
-        using keyword arguments or when a value is being set on a
-        Schema manually. This is **not** called when a schema is
-        loaded using raw data.
-
-        You can use this method to validate a value. The returned
-        value should be the value to set on the field.
-
-        Parameters
-        ----------
-        value:
-            The value to set.
-        init: :class:`bool`
-            Whether the method is called due to initialization. This is True
-            when Schema is initialized and False when value is being set.
-        
-        Returns
-        -------
-        The value to set.
-        """
-        ...
-
-    @overload
-    def __get__(self, instance: Literal[None], owner: Type[Schema]) -> Self:
-        ...
-
-    @overload
-    def __get__(self, instance: Schema, owner: Type[Schema]) -> _SerializedT:
-        ...
-
-    def __get__(self, instance: Optional[Schema], owner: Type[Schema]) -> Union[_SerializedT, Self]:
-        if instance is None:
-            return self
-        if self._value is MISSING:
-            raise AttributeError(f'No value available for field {owner.__qualname__}.{self._name}')
-        return self._value
-
-    def __set__(self, instance: Schema, value: Any) -> None:
-        self._run_validators(value)
-        self._value = self.value_set(value, False)
-
-    @property
-    def schema(self) -> Type[Schema]:
-        """The :class:`Schema` class that this field belongs to."""
-        # self._schema should never be MISSING as it is a late-binding
-        return self._schema
-
-    @property
-    def name(self) -> str:
-        """The name for this class that this field belongs to."""
-        # self._name should never be MISSING as it is a late-binding
-        return self._name
-
 
 ## -- Primitive data types -- ##
 
@@ -277,7 +289,7 @@ class String(Field[Any, str]):
 
     def value_set(self, value: Any, init: bool) -> str:
         if not isinstance(value, str) and self.strict:
-            raise RuntimeError('Value for this field must be of string data type.')
+            raise ValidationError('Value for this field must be of string data type.')
 
         return str(value)
 
@@ -297,12 +309,12 @@ class Integer(Field[Any, int]):
 
     def value_set(self, value: Any, init: bool) -> int:
         if not isinstance(value, int) and self.strict:
-            raise RuntimeError('Value for this field must be of integer data type.')
+            raise ValidationError('Value for this field must be of integer data type.')
 
         try:
             return int(value)
         except Exception:
-            raise RuntimeError('Value for this field must be an integer-convertable value.')
+            raise ValidationError('Value for this field must be an integer-convertable value.') from None
 
 
 class Boolean(Field[Any, bool]):
@@ -363,7 +375,7 @@ class Boolean(Field[Any, bool]):
 
     def value_set(self, value: Any, init: bool) -> bool:
         if not isinstance(value, bool) and self.strict:
-            raise RuntimeError('Value for this field must be of boolean type.')
+            raise ValidationError('Value for this field must be of boolean type.')
 
         value = str(value)
         if value in self._true_values:
@@ -371,7 +383,7 @@ class Boolean(Field[Any, bool]):
         if value in self._false_values:
             return False
         else:
-            raise RuntimeError('Value for this field must be a boolean-convertable value.')
+            raise ValidationError('Value for this field must be a boolean-convertable value.')
 
 
 class Float(Field[Any, float]):
@@ -389,12 +401,12 @@ class Float(Field[Any, float]):
 
     def value_set(self, value: Any, init: bool) -> float:
         if not isinstance(value, float) and self.strict:
-            raise RuntimeError('Value for this field must be a floating point number.')
+            raise ValidationError('Value for this field must be a floating point number.')
 
         try:
             return float(value)
         except Exception:
-            raise RuntimeError('Value for this field must be an float-convertable value.')
+            raise ValidationError('Value for this field must be an float-convertable value.') from None
 
 
 class Object(Field[Any, 'Schema']):
@@ -411,6 +423,6 @@ class Object(Field[Any, 'Schema']):
 
     def value_set(self, value: Any, init: bool) -> Schema:
         if not isinstance(value, self._schema_tp):
-            raise RuntimeError(f'Value for this field must be a {self._schema_tp.__qualname__} object.')
+            raise ValidationError(f'Value for this field must be a {self._schema_tp.__qualname__} object.')
 
         return value
