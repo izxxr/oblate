@@ -39,7 +39,16 @@ class Schema:
     __fields__: Dict[str, Field]
 
     def __init__(self, **kwargs: Any) -> None:
+        self._initialized = False
         self._init_from_kwargs(kwargs)
+
+    def is_initialized(self) -> bool:
+        """Indicates whether the Schema has been initialized.
+
+        This only returns True when all fields have been set
+        and validated.
+        """
+        return self._initialized
 
     def _assign_field_value(self, value: Any, field: Field[Any, Any]) -> None:
         if value is None:
@@ -77,6 +86,8 @@ class Schema:
 
         for field, value in validators:
             self._run_validators(field, value)
+        
+        self._initialized = True
 
     def __init_subclass__(cls) -> None:
         cls.__fields__ = {}
