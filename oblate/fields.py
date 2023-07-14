@@ -331,8 +331,6 @@ class Object(Field[Any, 'Schema']):
         super().__init__(**kwargs)
 
     def value_set(self, value: Any, init: bool) -> Schema:
-        from oblate.schema import Schema
-
         if not isinstance(value, self._schema_tp):
             raise RuntimeError(f'Value for this field must be a {self._schema_tp.__qualname__} object.')
 
