@@ -50,8 +50,15 @@ class Schema:
         else:
             field._value = field.value_set(value, True)
 
+    def _run_validators(self, field: Field[Any, Any], value: Any) -> None:
+        for validator in field.validators:
+            validated = validator(self, value)
+            if not validated:
+                raise RuntimeError(f'Validation failed for the field {field._name!r}')
+
     def _init_from_kwargs(self, kwargs: Dict[str, Any]) -> None:
         fields = self.__fields__.copy()
+        validators = []
         for arg, value in kwargs.items():
             try:
                 field = fields.pop(arg)
@@ -59,12 +66,17 @@ class Schema:
                 raise TypeError(f'Invalid keyword argument {arg!r} passed to {self.__class__.__qualname__}()') from None
             else:
                 self._assign_field_value(value, field)
+                if field.validators:
+                    validators.append((field, value))
 
         for name, field in fields.items():
             if field.missing:
                 field._value = maybe_callable(field.default)
             else:
                 raise TypeError(f'Missing value for the required field {self.__class__.__qualname__}.{name}')
+
+        for field, value in validators:
+            self._run_validators(field, value)
 
     def __init_subclass__(cls) -> None:
         cls.__fields__ = {}

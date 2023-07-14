@@ -22,7 +22,20 @@
 
 from __future__ import annotations
 
-from typing import Any, Type, TypeVar, Generic, Optional, Union, Literal, Sequence, overload, TYPE_CHECKING
+from typing import (
+    Any,
+    Type,
+    TypeVar,
+    Generic,
+    Optional,
+    Union,
+    Literal,
+    Sequence,
+    Callable,
+    List,
+    overload,
+    TYPE_CHECKING,
+)
 from typing_extensions import Self
 from oblate.utils import MISSING
 
@@ -30,6 +43,8 @@ import copy
 
 if TYPE_CHECKING:
     from oblate.schema import Schema
+
+    ValidatorCallbackT = Callable[['_SchemaT', Any], bool]
 
 __all__ = (
     'Field',
@@ -40,6 +55,8 @@ __all__ = (
     'Object',
 )
 
+
+_SchemaT = TypeVar('_SchemaT', bound='Schema')
 _RawT = TypeVar('_RawT')
 _SerializedT = TypeVar('_SerializedT')
 
@@ -77,12 +94,67 @@ class Field(Generic[_RawT, _SerializedT]):
         self.missing = missing or (default is not MISSING)
         self.none = none
         self.default = default
+        self._validators = []
         self._clear_state()
 
-    def _clear_state(self) -> None:
+    def _clear_state(self, validators: bool = True) -> None:
         self._schema: Type[Schema] = MISSING
         self._name: str = MISSING
         self._value = MISSING
+
+    def _run_validators(self, value: Any) -> None:
+        schema = self._schema
+
+        for validator in self._validators:
+            validated = validator(schema, value)
+            if not validated:
+                raise RuntimeError(f'Validation failed for field {self._name!r}')
+
+    def add_validator(self, callback: ValidatorCallbackT[_SchemaT]) -> None:
+        """Adds a validator for this field.
+
+        Instead of using this method, consider using the :meth:`.validate`
+        method for a simpler interface.
+
+        Parameters
+        ----------
+        callback:
+            The validator callback function.
+        """
+        self._validators.append(callback)
+
+    def validate(self) -> Callable[[ValidatorCallbackT[_SchemaT]], ValidatorCallbackT[_SchemaT]]:
+        """A decorator for registering a validator for this field.
+
+        This is a much simpler interface for the :meth:`.add_validator`
+        method. The decorated function takes a single parameter apart
+        from self and that is the value to validate.
+        """
+        def __decorator(func: ValidatorCallbackT[_SchemaT]) -> ValidatorCallbackT[_SchemaT]:
+            self.add_validator(func)
+            return func
+        return __decorator
+
+    def remove_validator(self, callback: ValidatorCallbackT[_SchemaT]) -> None:
+        """Removes a validator.
+
+        This method does not raise any error if the given callback
+        function does not exist as a validator.
+
+        Parameters
+        ----------
+        callback:
+            The validator callback function.
+        """
+        try:
+            self._validators.remove(callback)
+        except ValueError:
+            pass
+
+    @property
+    def validators(self) -> List[ValidatorCallbackT[_SchemaT]]:
+        """The list of validators for this field."""
+        return self._validators.copy()
 
     def copy(self: Field[_RawT, _SerializedT], **overrides: Any) -> Field[_RawT, _SerializedT]:
         """Copies a field.
@@ -165,7 +237,8 @@ class Field(Generic[_RawT, _SerializedT]):
             raise AttributeError(f'No value available for field {owner.__qualname__}.{self._name}')
         return self._value
 
-    def __set__(self, instance: Schema, value: _SerializedT) -> None:
+    def __set__(self, instance: Schema, value: Any) -> None:
+        self._run_validators(value)
         self._value = self.value_set(value, False)
 
     @property
