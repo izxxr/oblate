@@ -33,12 +33,13 @@ from typing import (
     Sequence,
     Callable,
     List,
+    Mapping,
     overload,
     TYPE_CHECKING,
 )
 from typing_extensions import Self
 from oblate.utils import MISSING
-from oblate.exceptions import ValidationError
+from oblate.exceptions import ValidationError, SchemaValidationFailed
 
 import copy
 
@@ -114,16 +115,21 @@ class Field(Generic[_RawT, _SerializedT]):
         return self._value
 
     def __set__(self, instance: Schema, value: Any) -> None:
-        self._run_validators(value)
-        self._value = self.value_set(value, False)
+        errors = self._run_validators(instance, value)
+        try:
+            self._value = self.value_set(value, False)
+        except ValidationError as err:
+            err._bind(self)
+            errors.append(err)
+        if errors:
+            raise SchemaValidationFailed(errors)
 
     def _clear_state(self) -> None:
         self._schema: Type[Schema] = MISSING
         self._name: str = MISSING
         self._value = MISSING
 
-    def _run_validators(self, value: Any) -> List[ValidationError]:
-        schema = self._schema
+    def _run_validators(self, schema: Schema, value: Any) -> List[ValidationError]:
         errors = []
 
         for validator in self._validators:
@@ -179,6 +185,47 @@ class Field(Generic[_RawT, _SerializedT]):
         Returns
         -------
         The value to set.
+        """
+        ...
+
+    def value_load(self, value: _RawT) -> _SerializedT:
+        """A method called when a value is being serialized.
+
+        This method is called when a :class:`Schema` is initialized
+        using raw data.
+
+        You can use this method to validate or serialize a value. The
+        returned value should be the value to set on the field.
+
+        Parameters
+        ----------
+        value:
+            The value to serialize.
+
+        Returns
+        -------
+        The serialized value.
+        """
+        ...
+
+    def value_dump(self, value: _SerializedT) -> _RawT:
+        """A method called when a value is being deserialized.
+
+        This method is called when a :class:`Schema` is being
+        deserialized using :meth:`Schema.dump` method.
+
+        You can use this method to validate or deserialize a value. The
+        returned value should be the value to include in the deserialized
+        data.
+
+        Parameters
+        ----------
+        value:
+            The value to deserialize.
+
+        Returns
+        -------
+        The deserialized value.
         """
         ...
 
@@ -287,11 +334,20 @@ class String(Field[Any, str]):
         self.strict = strict
         super().__init__(**kwargs)
 
-    def value_set(self, value: Any, init: bool) -> str:
+    def _process_value(self, value: Any) -> str:
         if not isinstance(value, str) and self.strict:
             raise ValidationError('Value for this field must be of string data type.')
 
         return str(value)
+
+    def value_set(self, value: Any, init: bool) -> str:
+        return self._process_value(value)
+
+    def value_load(self, value: Any) -> str:
+        return self._process_value(value)
+
+    def value_dump(self, value: Any) -> str:
+        return value
 
 
 class Integer(Field[Any, int]):
@@ -307,7 +363,7 @@ class Integer(Field[Any, int]):
         self.strict = strict
         super().__init__(**kwargs)
 
-    def value_set(self, value: Any, init: bool) -> int:
+    def _process_value(self, value: Any) -> int:
         if not isinstance(value, int) and self.strict:
             raise ValidationError('Value for this field must be of integer data type.')
 
@@ -315,6 +371,15 @@ class Integer(Field[Any, int]):
             return int(value)
         except Exception:
             raise ValidationError('Value for this field must be an integer-convertable value.') from None
+
+    def value_set(self, value: Any, init: bool) -> int:
+        return self._process_value(value)
+
+    def value_load(self, value: Any) -> int:
+        return self._process_value(value)
+
+    def value_dump(self, value: Any) -> int:
+        return value
 
 
 class Boolean(Field[Any, bool]):
@@ -373,7 +438,7 @@ class Boolean(Field[Any, bool]):
 
         super().__init__(**kwargs)
 
-    def value_set(self, value: Any, init: bool) -> bool:
+    def _process_value(self, value: Any) -> bool:
         if not isinstance(value, bool) and self.strict:
             raise ValidationError('Value for this field must be of boolean type.')
 
@@ -384,6 +449,15 @@ class Boolean(Field[Any, bool]):
             return False
         else:
             raise ValidationError('Value for this field must be a boolean-convertable value.')
+
+    def value_set(self, value: Any, init: bool) -> bool:
+        return self._process_value(value)
+
+    def value_load(self, value: Any) -> bool:
+        return self._process_value(value)
+
+    def value_dump(self, value: Any) -> bool:
+        return value
 
 
 class Float(Field[Any, float]):
@@ -399,7 +473,7 @@ class Float(Field[Any, float]):
         self.strict = strict
         super().__init__(**kwargs)
 
-    def value_set(self, value: Any, init: bool) -> float:
+    def _process_value(self, value: Any) -> float:
         if not isinstance(value, float) and self.strict:
             raise ValidationError('Value for this field must be a floating point number.')
 
@@ -408,8 +482,17 @@ class Float(Field[Any, float]):
         except Exception:
             raise ValidationError('Value for this field must be an float-convertable value.') from None
 
+    def value_set(self, value: Any, init: bool) -> float:
+        return self._process_value(value)
 
-class Object(Field[Any, 'Schema']):
+    def value_load(self, value: Any) -> float:
+        return self._process_value(value)
+
+    def value_dump(self, value: Any) -> float:
+        return value
+
+
+class Object(Field[Mapping[str, Any], _SchemaT]):
     """Field that allows nesting of schemas.
 
     Parameters
@@ -417,12 +500,21 @@ class Object(Field[Any, 'Schema']):
     schema_tp: Type[:class:`Schema`]
         The schema to represent in this field.
     """
-    def __init__(self, schema_tp: Type[Schema], **kwargs: Any) -> None:
+    def __init__(self, schema_tp: Type[_SchemaT], **kwargs: Any) -> None:
         self._schema_tp = schema_tp
         super().__init__(**kwargs)
 
-    def value_set(self, value: Any, init: bool) -> Schema:
+    def value_set(self, value: Any, init: bool) -> _SchemaT:
         if not isinstance(value, self._schema_tp):
             raise ValidationError(f'Value for this field must be a {self._schema_tp.__qualname__} object.')
 
         return value
+
+    def value_load(self, value: Mapping[str, Any]) -> _SchemaT:
+        try:
+            return self._schema_tp._from_nested_object(value)
+        except SchemaValidationFailed as err:
+            raise ValidationError(err.raw()) from None
+
+    def value_dump(self, value: Schema) -> Mapping[str, Any]:
+        return value.dump()

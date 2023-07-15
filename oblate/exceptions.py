@@ -43,13 +43,19 @@ class ValidationError(OblateException):
 
     Parameters
     ----------
-    message: :class:`str`
+    message:
         The error message.
     """
-    def __init__(self, message: str) -> None:
+    def __init__(self, message: Any) -> None:
         self._field: Optional[Field] = None
         self._message = message
         super().__init__(message)
+
+    @property
+    def field(self) -> Optional[Field]:
+        """The :class:`Field` associated to this error. If None, this error
+        is not related to a specific field."""
+        return self._field
 
     def _bind(self, field: Field) -> None:
         self._field = field
@@ -64,31 +70,29 @@ class SchemaValidationFailed(OblateException):
         self._errors = errors
         super().__init__('Validation failed for this schema:\n' + self._format())
 
-    def _format(self) -> str:
-        raw = self.raw()
+    @property
+    def errors(self) -> List[ValidationError]:
+        """The list of :class:`ValidationError` that caused this exception."""
+        return self._errors.copy()
+
+    def _format(self, error: Optional[Any] = None, indent: int = 0) -> str:
+        if not error:
+            error = self._raw_internal()
+
         builder = []
-        builder.extend('Error: \n'.join(raw['errors']))
 
-        for field, errors in raw['field_errors'].items():
-            builder.append(f'In field {field}:')
-            for error in errors:
-                builder.append(f'  - {error}')
+        for field, errors in error['field_errors'].items():
+            builder.append(f'{"  "*indent}In field {field}:')
+            for sub_error in errors:
+                if isinstance(sub_error, dict):
+                    builder.append(self._format(sub_error, indent=indent+2))
+                else:
+                    builder.append(f'{"  "*(indent+2)}Error: {sub_error}')
 
+        builder.extend([f'{"  "*indent}Error: {e}' for e in error['errors']])
         return '\n'.join(builder)
 
-    def raw(self) -> Dict[str, Any]:
-        """Converts the error to raw format.
-
-        This converts the error into a dictionary having two keys:
-
-        - ``errors``
-        - ``field_errors``
-
-        The ``errors`` key has validation error messages that are not related
-        to a specific field. ``field_errors`` is a dictionary with key being
-        the field to which the error belongs and value is the list of error
-        messages for that field.
-        """
+    def _raw_internal(self) -> Dict[str, Any]:
         out = {
             'errors': [],
             'field_errors': {}
@@ -106,3 +110,18 @@ class SchemaValidationFailed(OblateException):
                     field_errors.append(error._message)
 
         return out
+
+    def raw(self) -> Dict[str, Any]:
+        """Converts the error to raw format.
+
+        This converts the error into a dictionary having two keys:
+
+        - ``errors``
+        - ``field_errors``
+
+        The ``errors`` key has validation error messages that are not related
+        to a specific field. ``field_errors`` is a dictionary with key being
+        the field to which the error belongs and value is the list of error
+        messages for that field.
+        """
+        return self._raw_internal()
