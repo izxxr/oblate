@@ -99,6 +99,16 @@ class Field(Generic[_RawT, _SerializedT]):
         'default',
     )
 
+    __slots__ = (
+        'missing',
+        'none',
+        'default',
+        '_validators',
+        '_value',
+        '_schema',
+        '_name',
+    )
+
     def __init__(
             self,
             *,
@@ -351,6 +361,10 @@ class String(Field[Any, str]):
         Whether to only allow string data types. If this is set to False,
         any value is type casted to string. Defaults to True.
     """
+    __slots__ = (
+        'strict',
+    )
+
     def __init__(self, *, strict: bool = True, **kwargs: Any) -> None:
         self.strict = strict
         super().__init__(**kwargs)
@@ -380,6 +394,10 @@ class Integer(Field[Any, int]):
         Whether to only allow integer data types. If this is set to False,
         any integer-castable value is type casted to integer. Defaults to True.
     """
+    __slots__ = (
+        'strict',
+    )
+
     def __init__(self, *, strict: bool = True, **kwargs: Any) -> None:
         self.strict = strict
         super().__init__(**kwargs)
@@ -436,6 +454,12 @@ class Boolean(Field[Any, bool]):
         'NO', 'No', 'no', '0'
     )
 
+    __slots__ = (
+        'strict',
+        '_true_values',
+        '_false_values',
+    )
+
     def __init__(
             self,
             *,
@@ -490,6 +514,10 @@ class Float(Field[Any, float]):
         Whether to only allow float data types. If this is set to False,
         any float-castable value is type casted to float. Defaults to True.
     """
+    __slots__ = (
+        'strict',
+    )
+
     def __init__(self, *, strict: bool = True, **kwargs: Any) -> None:
         self.strict = strict
         super().__init__(**kwargs)
@@ -521,6 +549,10 @@ class Object(Field[Mapping[str, Any], _SchemaT]):
     schema_tp: Type[:class:`Schema`]
         The schema to represent in this field.
     """
+    __slots__ = (
+        '_schema_tp',
+    )
+
     def __init__(self, schema_tp: Type[_SchemaT], **kwargs: Any) -> None:
         self._schema_tp = schema_tp
         super().__init__(**kwargs)
@@ -558,6 +590,12 @@ class Partial(Field[Mapping[str, Any], _SchemaT]):
     exclude: Sequence[:class:`str`]
         The list of fields to exclude from partial schema.
     """
+    __slots__ = (
+        '_schema_tp',
+        'include',
+        'exclude',
+    )
+
     def __init__(
             self,
             schema_tp: Type[_SchemaT],

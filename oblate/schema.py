@@ -52,6 +52,12 @@ class Schema:
 
     __fields__: Dict[str, Field]
 
+    __slots__ = (
+        '_initialized',
+        '_partial',
+        '_partial_included_fields',
+    )
+
     def __init__(self, data: Optional[Mapping[str, Any]] = None, **kwargs: Any) -> None:
         if data is not None:
             if kwargs:
