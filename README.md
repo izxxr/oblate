@@ -7,6 +7,7 @@ Focused around simplicity and flexibility, Oblate has the following features:
 - Built in support for commonly used data structures
 - Easily extendible to suit every use case
 - Robust with no compromise on performance
+- Properly type hinted to maximize the developer experience
 
 ## Installation
 Oblate is available on [PyPi](https://pypi.org/project/oblate) and can be installed using `pip`.
