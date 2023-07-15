@@ -109,10 +109,12 @@ class Schema:
             partial_included_fields: Set[str] = MISSING,
         ) -> None:
 
+        self._initialized = False
         self._partial = partial
         self._partial_included_fields = partial_included_fields
-        self._initialized = False
         self._prepare(data, include=partial_included_fields, from_data=from_data)
+        self._initialized = True
+        self.after_init_hook(data, from_data)
 
     def _assign_field_value(self, value: Any, field: Field[Any, Any], from_data: bool = False) -> None:
         if value is None:
@@ -182,7 +184,22 @@ class Schema:
             cls = config.get_validation_fail_exception()
             raise cls(errors, self)
 
-        self._initialized = True
+    def after_init_hook(self, data: Mapping[str, Any], is_data: bool, /):
+        """A hook called when the schema has successfully initialized.
+
+        This is meant to be overriden in subclasses and does nothing
+        by default.        
+
+        Parameters
+        ----------
+        data: Mapping[:class:`str`, Any]
+            The data used to initialize the model. This either corresponds
+            to the value of data argument in ``Schema.__init__()`` or the
+            keyword arguments passed.
+        is_data: :class:`bool`
+            Whether the ``data`` parameter value corresponds to the ``data``
+            argument in ``Schema.__init__()``.
+        """
 
     def is_initialized(self) -> bool:
         """Indicates whether the schema has been initialized.

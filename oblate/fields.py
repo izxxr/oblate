@@ -370,10 +370,13 @@ class String(Field[Any, str]):
         super().__init__(**kwargs)
 
     def _process_value(self, value: Any) -> str:
-        if not isinstance(value, str) and self.strict:
-            raise ValidationError('Value for this field must be of string data type.')
+        if not isinstance(value, str):
+            if self.strict:
+                raise ValidationError('Value for this field must be of string data type.')
 
-        return str(value)
+            return str(value)
+        else:
+            return value
 
     def value_set(self, value: Any, init: bool) -> str:
         return self._process_value(value)
@@ -403,13 +406,15 @@ class Integer(Field[Any, int]):
         super().__init__(**kwargs)
 
     def _process_value(self, value: Any) -> int:
-        if not isinstance(value, int) and self.strict:
-            raise ValidationError('Value for this field must be of integer data type.')
-
-        try:
-            return int(value)
-        except Exception:
-            raise ValidationError('Value for this field must be an integer-convertable value.') from None
+        if not isinstance(value, int):
+            if self.strict:
+                raise ValidationError('Value for this field must be of integer data type.')
+            try:
+                return int(value)
+            except Exception:
+                raise ValidationError('Value for this field must be an integer-convertable value.') from None
+        else:
+            return value 
 
     def value_set(self, value: Any, init: bool) -> int:
         return self._process_value(value)
@@ -484,16 +489,18 @@ class Boolean(Field[Any, bool]):
         super().__init__(**kwargs)
 
     def _process_value(self, value: Any) -> bool:
-        if not isinstance(value, bool) and self.strict:
-            raise ValidationError('Value for this field must be of boolean type.')
-
-        value = str(value)
-        if value in self._true_values:
-            return True
-        if value in self._false_values:
-            return False
+        if not isinstance(value, bool):
+            if self.strict:
+                raise ValidationError('Value for this field must be of boolean type.')
+            value = str(value)
+            if value in self._true_values:
+                return True
+            if value in self._false_values:
+                return False
+            else:
+                raise ValidationError('Value for this field must be a boolean-convertable value.')
         else:
-            raise ValidationError('Value for this field must be a boolean-convertable value.')
+            return value
 
     def value_set(self, value: Any, init: bool) -> bool:
         return self._process_value(value)
@@ -523,13 +530,15 @@ class Float(Field[Any, float]):
         super().__init__(**kwargs)
 
     def _process_value(self, value: Any) -> float:
-        if not isinstance(value, float) and self.strict:
-            raise ValidationError('Value for this field must be a floating point number.')
-
-        try:
-            return float(value)
-        except Exception:
-            raise ValidationError('Value for this field must be an float-convertable value.') from None
+        if not isinstance(value, float):
+            if self.strict:
+                raise ValidationError('Value for this field must be a floating point number.')
+            try:
+                return float(value)
+            except Exception:
+                raise ValidationError('Value for this field must be an float-convertable value.') from None
+        else:
+            return value
 
     def value_set(self, value: Any, init: bool) -> float:
         return self._process_value(value)
