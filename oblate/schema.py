@@ -22,7 +22,7 @@
 
 from __future__ import annotations
 
-from typing import Optional, Mapping, Dict, Any
+from typing import Optional, Mapping, Dict, Set, Any
 from typing_extensions import Self
 from oblate import config
 from oblate.fields import Field
@@ -53,13 +53,15 @@ class Schema:
     __fields__: Dict[str, Field]
 
     def __init__(self, data: Optional[Mapping[str, Any]] = None, **kwargs: Any) -> None:
-        self._initialized = False
         if data is not None:
             if kwargs:
                 raise TypeError('Cannot mix data argument with keyword arguments')
-            self._prepare(data, from_data=True)
+            from_data = True
         else:
-            self._prepare(kwargs)
+            data = kwargs
+            from_data= False
+
+        self._init(data, from_data=from_data)
 
     def __init_subclass__(cls) -> None:
         cls.__fields__ = {}
@@ -75,8 +77,36 @@ class Schema:
     def _from_nested_object(cls, data: Mapping[str, Any]) -> Self:
         if not isinstance(data, collections.abc.Mapping):
             raise ValidationError(f'Value for this field must be a {cls.__qualname__} object.')
-        
+
         return cls(data)
+    
+    @classmethod
+    def _from_partial(cls, data: Mapping[str, Any], include: Set[str], from_data: bool = False) -> Self:
+        if not isinstance(data, collections.abc.Mapping):
+            raise ValidationError(f'Value for this field must be a partial {cls.__qualname__} object.')
+
+        self = cls.__new__(cls)  # Bypass Schema.__init__()
+        self._init(
+            data,
+            from_data=from_data,
+            partial=True,
+            partial_included_fields=include,
+        )
+
+        return self
+
+    def _init(
+            self, 
+            data: Mapping[str, Any],
+            from_data: bool = False,
+            partial: bool = False,
+            partial_included_fields: Set[str] = MISSING,
+        ) -> None:
+
+        self._partial = partial
+        self._partial_included_fields = partial_included_fields
+        self._initialized = False
+        self._prepare(data, include=partial_included_fields, from_data=from_data)
 
     def _assign_field_value(self, value: Any, field: Field[Any, Any], from_data: bool = False) -> None:
         if value is None:
@@ -91,7 +121,18 @@ class Schema:
         else:
             field._value = field.value_set(value, True)
 
-    def _prepare(self, data: Mapping[str, Any], from_data: bool = False) -> None:
+    def _transform_to_partial(self, include: Set[str]) -> None:
+        if self._partial:
+            return
+
+        for name, field in self.__fields__.items():
+            if name not in include and field._value is not MISSING:
+                raise ValidationError('This field cannot be set in this partial object.')
+
+        self._partial = True
+        self._partial_included_fields = include
+
+    def _prepare(self, data: Mapping[str, Any], include: Set[str] = MISSING, from_data: bool = False) -> None:
         fields = self.__fields__.copy()
         validators = []
         errors = []
@@ -102,6 +143,11 @@ class Schema:
             except KeyError:
                 errors.append(ValidationError(f'Unknown or invalid field {arg!r} provided.'))
             else:
+                if include and field._name not in include:
+                    err = ValidationError(f'This field cannot be set in this partial object.')
+                    err._bind(field)
+                    errors.append(err)
+
                 try:
                     self._assign_field_value(value, field, from_data=True)
                 except ValidationError as exc:
@@ -112,6 +158,9 @@ class Schema:
                     validators.append((field, value))
 
         for name, field in fields.items():
+            if include and field._name not in include:
+                continue
+
             if field.missing:
                 field._value = maybe_callable(field.default)
             else:
@@ -137,6 +186,10 @@ class Schema:
         """
         return self._initialized
 
+    def is_partial(self) -> bool:
+        """Indicates whether the schema is a partial schema (see :class:`fields.Partial` for more info)."""
+        return self._partial
+
     def dump(self) -> Dict[str, Any]:
         """Deserializes the schema.
 
@@ -149,13 +202,16 @@ class Schema:
         """
         out = {}
         errors = []
+        included = self._partial_included_fields
         for name, field in self.__fields__.items():
+            if included and name not in included:
+                continue
             if field._value is MISSING:
                 if field.default is not MISSING:
-                    value = maybe_callable(field.default)
+                    out[name] = maybe_callable(field.default)
                 continue
             try:
-                field._value = field.value_dump(field._value)
+                out[name] = field.value_dump(field._value)
             except ValidationError as err:
                 err._bind(field)
                 errors.append(err)

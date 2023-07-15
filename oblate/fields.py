@@ -24,6 +24,8 @@ from __future__ import annotations
 
 from typing import (
     Any,
+    List,
+    Set,
     Type,
     TypeVar,
     Generic,
@@ -32,7 +34,6 @@ from typing import (
     Literal,
     Sequence,
     Callable,
-    List,
     Mapping,
     overload,
     TYPE_CHECKING,
@@ -43,6 +44,7 @@ from oblate.utils import MISSING
 from oblate.exceptions import ValidationError, SchemaValidationFailed
 
 import copy
+import collections.abc
 
 if TYPE_CHECKING:
     from oblate.schema import Schema
@@ -127,12 +129,18 @@ class Field(Generic[_RawT, _SerializedT]):
         return self._value
 
     def __set__(self, instance: Schema, value: Any) -> None:
-        errors = self._run_validators(instance, value)
-        try:
-            self._value = self.value_set(value, False)
-        except ValidationError as err:
+        errors = []
+        if instance._partial and self._name not in instance._partial_included_fields:
+            err = ValidationError('This field cannot be set on this partial object.')
             err._bind(self)
             errors.append(err)
+        else:
+            errors.extend(self._run_validators(instance, value))
+            try:
+                self._value = self.value_set(value, False)
+            except ValidationError as err:
+                err._bind(self)
+                errors.append(err)
         if errors:
             cls = config.get_validation_fail_exception()
             raise cls(errors, instance)
@@ -518,14 +526,82 @@ class Object(Field[Mapping[str, Any], _SchemaT]):
         super().__init__(**kwargs)
 
     def value_set(self, value: Any, init: bool) -> _SchemaT:
-        if not isinstance(value, self._schema_tp):
+        if isinstance(value, collections.abc.Mapping):
+            return self.value_load(value)
+        if isinstance(value, self._schema_tp):
+            return value
+        else:
             raise ValidationError(f'Value for this field must be a {self._schema_tp.__qualname__} object.')
-
-        return value
 
     def value_load(self, value: Mapping[str, Any]) -> _SchemaT:
         try:
             return self._schema_tp._from_nested_object(value)
+        except SchemaValidationFailed as err:
+            raise ValidationError(err.raw()) from None
+
+    def value_dump(self, value: Schema) -> Mapping[str, Any]:
+        return value.dump()
+
+
+class Partial(Field[Mapping[str, Any], _SchemaT]):
+    """Field that allows nesting of partial schemas.
+
+    Partial schemas are schemas with a subset of fields of the
+    original schema.
+
+    Parameters
+    ----------
+    schema_tp: Type[:class:`Schema`]
+        The schema to represent in this field.
+    include: Sequence[:class:`str`]
+        The list of fields to include in partial schema.
+    exclude: Sequence[:class:`str`]
+        The list of fields to exclude from partial schema.
+    """
+    def __init__(
+            self,
+            schema_tp: Type[_SchemaT],
+            include: Sequence[str] = MISSING,
+            exclude: Sequence[str] = MISSING,
+            **kwargs: Any,
+        ) -> None:
+
+        if include is not MISSING and exclude is not MISSING:
+            raise TypeError('include and exclude are mutually exclusive')
+        if not include and not exclude:
+            raise TypeError('one of include or exclude must be provided')
+
+        self._schema_tp = schema_tp
+        self.include = set() if include is MISSING else set(include)
+        self.exclude = set() if exclude is MISSING else set(exclude)
+        super().__init__(**kwargs)
+
+    @property
+    def fields(self) -> Set[str]:
+        """The set of field names to include in partial schema.
+
+        This attribute is resolved using :attr:`.include` or :attr:`.exclude`.
+        """
+        total = set(self._schema_tp.__fields__.keys())
+        if self.exclude:
+            return total.difference(self.exclude)
+        if self.include:
+            return total.intersection(self.include)
+
+        raise RuntimeError('This should never be reached')
+
+    def value_set(self, value: Any, init: bool) -> _SchemaT:
+        if isinstance(value, collections.abc.Mapping):
+            return self.value_load(value)
+        if isinstance(value, self._schema_tp):
+            value._transform_to_partial(include=self.fields)
+            return value
+        else:
+            raise ValidationError(f'Value for this field must be a {self._schema_tp.__qualname__} object.')
+
+    def value_load(self, value: Mapping[str, Any]) -> _SchemaT:
+        try:
+            return self._schema_tp._from_partial(value, include=self.fields, from_data=True)
         except SchemaValidationFailed as err:
             raise ValidationError(err.raw()) from None
 
