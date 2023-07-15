@@ -52,6 +52,10 @@ class ValidationError(OblateException):
         self._message = message
         super().__init__(message)
 
+    def is_field_error(self) -> bool:
+        """Indicates whether this is error is related to a field."""
+        return self._field is not None
+
     @property
     def field(self) -> Optional[Field]:
         """The :class:`Field` associated to this error. If None, this error
