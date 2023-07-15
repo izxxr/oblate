@@ -24,6 +24,7 @@ from __future__ import annotations
 
 from typing import Optional, Mapping, Dict, Any
 from typing_extensions import Self
+from oblate import config
 from oblate.fields import Field
 from oblate.utils import maybe_callable, MISSING
 from oblate.exceptions import ValidationError, SchemaValidationFailed
@@ -146,7 +147,8 @@ class Schema:
             errors.extend(validator_errors)
  
         if errors:
-            raise SchemaValidationFailed(errors)
+            cls = config.get_validation_fail_exception()
+            raise cls(errors, self)
 
         self._initialized = True
 
@@ -182,6 +184,7 @@ class Schema:
                 errors.append(err)
 
         if errors:
-            raise SchemaValidationFailed(errors)
+            cls = config.get_validation_fail_exception()
+            raise cls(errors, self)
 
         return out

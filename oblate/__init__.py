@@ -12,6 +12,9 @@ For more information, see the project's LICENSE.
 __version__ = '0.1.0'
 __author__  = 'Izhar Ahmad (izxxr) <https://github.com/izxxr>'
 
-from oblate import fields as fields
 from oblate.schema import *
 from oblate.exceptions import *
+from oblate import (
+    fields as fields,
+    config as config,
+)

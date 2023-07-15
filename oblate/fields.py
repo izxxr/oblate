@@ -38,6 +38,7 @@ from typing import (
     TYPE_CHECKING,
 )
 from typing_extensions import Self
+from oblate import config
 from oblate.utils import MISSING
 from oblate.exceptions import ValidationError, SchemaValidationFailed
 
@@ -122,7 +123,8 @@ class Field(Generic[_RawT, _SerializedT]):
             err._bind(self)
             errors.append(err)
         if errors:
-            raise SchemaValidationFailed(errors)
+            cls = config.get_validation_fail_exception()
+            raise cls(errors, instance)
 
     def _clear_state(self) -> None:
         self._schema: Type[Schema] = MISSING

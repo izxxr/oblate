@@ -26,6 +26,7 @@ from typing import List, Optional, Dict, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from oblate.fields import Field
+    from oblate.schema import Schema
 
 __all__ = (
     'OblateException',
@@ -64,11 +65,28 @@ class ValidationError(OblateException):
 class SchemaValidationFailed(OblateException):
     """An error raised when a schema fails to initialize due to validation errors.
 
-    This is raised by the library and should not be manually raised by the user.
+    This is raised by the library and should not be manually raised by
+    the user. This class can be subclassed to customize the error format.
+
+    The method that can be overriden is :meth:`.raw` to customize the error
+    format. See :func:`config.set_validation_fail_exception` function.
+
+    Parameters
+    ----------
+    errors: List[:class:`ValidationError`]
+        The errors that caused this exception.
+    schema: :class:`Schema`
+        The schema that this exception relates to.
     """
-    def __init__(self, errors: List[ValidationError]) -> None:
+    def __init__(self, errors: List[ValidationError], schema: Schema) -> None:
         self._errors = errors
+        self._schema = schema
         super().__init__('Validation failed for this schema:\n' + self._format())
+
+    @property
+    def schema(self) -> Schema:
+        """The :class:`Schema` associated to this error."""
+        return self._schema
 
     @property
     def errors(self) -> List[ValidationError]:
@@ -114,7 +132,7 @@ class SchemaValidationFailed(OblateException):
     def raw(self) -> Dict[str, Any]:
         """Converts the error to raw format.
 
-        This converts the error into a dictionary having two keys:
+        By default, this converts the error into a dictionary having two keys:
 
         - ``errors``
         - ``field_errors``
@@ -123,5 +141,8 @@ class SchemaValidationFailed(OblateException):
         to a specific field. ``field_errors`` is a dictionary with key being
         the field to which the error belongs and value is the list of error
         messages for that field.
+
+        This method can be overriden to implement a custom behaviour however
+        the return type must be a dictionary.
         """
         return self._raw_internal()
