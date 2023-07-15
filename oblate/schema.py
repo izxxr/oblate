@@ -40,31 +40,14 @@ __all__ = (
 class Schema:
     """The base class that all schemas must inherit from.
 
-    Example::
-
-        from oblate import fields
-        import oblate
-
-        class User(oblate.Schema):
-            id = fields.Integer()
-            name = fields.String()
-            password = fields.String()
-            is_employee = fields.Boolean(default=False)
-
-            @password.validate()
-            def validate_password(self, value: str) -> bool:
-                if len(value) < 8:
-                    raise oblate.ValidationError('Password must be greater than 8 chars')
-
-                return True
-
-        # Use oblate as a replacement to dataclasses
-        user = User(id=1, name='John', password='123456789')
-        
-        # Or use it as a validation library for your REST API
-        user = User({'id': 1, 'name': 'John', 'password': '1234'})
-
-        print(user.username)
+    Parameters
+    ----------
+    data: Mapping[:class:`str`, Any]
+        The data to load the schema with. Cannot be mixed with keyword
+        arguments.
+    **kwargs:
+        The keyword arguments to initialize the schema with. Cannot be
+        mixed with ``data``.
     """
 
     __fields__: Dict[str, Field]
@@ -117,10 +100,7 @@ class Schema:
             try:
                 field = fields.pop(arg)
             except KeyError:
-                if from_data:
-                    errors.append(ValidationError(f'Unknown or invalid field {arg!r} provided.'))
-                else:
-                    raise TypeError(f'Invalid keyword argument {arg!r} passed to {self.__class__.__qualname__}()') from None
+                errors.append(ValidationError(f'Unknown or invalid field {arg!r} provided.'))
             else:
                 try:
                     self._assign_field_value(value, field, from_data=True)
@@ -135,12 +115,9 @@ class Schema:
             if field.missing:
                 field._value = maybe_callable(field.default)
             else:
-                if from_data:
-                    err = ValidationError('This field is required.')
-                    err._bind(field)
-                    errors.append(err)
-                else:
-                    raise TypeError(f'Missing value for the required field {self.__class__.__qualname__}.{name}')
+                err = ValidationError('This field is required.')
+                err._bind(field)
+                errors.append(err)
 
         for field, value in validators:
             validator_errors = field._run_validators(self, value)

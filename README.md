@@ -1,4 +1,7 @@
 # Oblate — dealing with data made easy
+
+> ⚠ This project is current under pre-alpha (0.x) phase.
+
 Oblate is a Python library that provides modern and robust interface for data and schema validation.
 
 Focused around simplicity and flexibility, Oblate has the following features:
@@ -8,6 +11,8 @@ Focused around simplicity and flexibility, Oblate has the following features:
 - Easily extendible to suit every use case
 - Robust with no compromise on performance
 - Properly type hinted to maximize the developer experience
+
+[Documentation](https://oblate.readthedocs.io) • [Source Code](https://github.com/izxxr/oblate) • [PyPi Package](https://pypi.org/project/oblate) 
 
 ## Installation
 Oblate is available on [PyPi](https://pypi.org/project/oblate) and can be installed using `pip`.

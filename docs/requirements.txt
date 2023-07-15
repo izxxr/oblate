@@ -1,0 +1,2 @@
+furo
+typing_extensions==4.*

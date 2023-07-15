@@ -67,6 +67,17 @@ _SerializedT = TypeVar('_SerializedT')
 class Field(Generic[_RawT, _SerializedT]):
     """The base class that all fields inside a schema must inherit from.
 
+    When subclassing this class, you must implement the following abstract
+    methods:
+
+    - :meth:`.value_set`
+    - :meth:`.value_load`
+    - :meth:`.value_dump`
+
+    This class is a typing generic and takes two type arguments, the first
+    one being the type of raw (unserialized) value and second one being the
+    type of (serialized) value to which the raw value is finally converted in.
+
     Parameters
     ----------
     missing: :class:`bool`
