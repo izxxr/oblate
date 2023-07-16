@@ -56,6 +56,7 @@ class Schema:
     __slots__ = (
         '_initialized',
         '_field_values',
+        '_default_fields',
         '_from_data',
         '_partial',
         '_partial_included_fields',
@@ -118,6 +119,7 @@ class Schema:
         ) -> None:
 
         self._field_values: Dict[str, Any] = {}
+        self._default_fields: Set[str] = set()
         self._initialized = False
         self._from_data = from_data
         self._partial = partial
@@ -151,7 +153,12 @@ class Schema:
             except KeyError:
                 continue
             else:
-                raise ValidationError('This field cannot be set in this partial object.')
+                if field._name in self._default_fields:
+                    continue
+
+                err = ValidationError('This field cannot be set in this partial object.')
+                err._bind(field)
+                raise err
 
         self._partial = True
         self._partial_included_fields = include
@@ -191,11 +198,14 @@ class Schema:
                 continue
 
             if field.missing:
-                self._field_values[field._name] = maybe_callable(field.default)
-            else:
-                err = ValidationError('This field is required.')
-                err._bind(field)
-                errors.append(err)
+                if field.default is not MISSING:
+                    self._field_values[field._name] = maybe_callable(field.default)
+                    self._default_fields.add(field._name)
+                continue
+
+            err = ValidationError('This field is required.')
+            err._bind(field)
+            errors.append(err)
 
         for field, value in validators:
             validator_errors = field._run_validators(self, value)

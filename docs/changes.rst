@@ -34,6 +34,7 @@ Bug fixes
 - Fix fields returning improper values when initializing multiple schemas.
 - Fix unable to set ``None`` on nullable fields after initialization.
 - Fix field getting the new value using the setter even when the validations fail.
+- Fix partial schema raising validation error for schemas with default fields.
 
 Documentation
 ~~~~~~~~~~~~~

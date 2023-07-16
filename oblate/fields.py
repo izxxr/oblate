@@ -176,15 +176,18 @@ class Field(Generic[_RawT, _SerializedT]):
                     errors.append(err)
             if run_validators:
                 errors.extend(self._run_validators(instance, value))
-        if errors:
-            cls = config.get_validation_fail_exception()
-            raise cls(errors, instance)
         if not errors:
             try:
                 instance._field_values[self._name] = self.value_set(value, False)
             except ValidationError as err:
                 err._bind(self)
                 errors.append(err)
+            else:
+                if self._name in instance._default_fields:
+                    instance._default_fields.remove(self._name)
+        if errors:
+            cls = config.get_validation_fail_exception()
+            raise cls(errors, instance)
 
     def _clear_state(self) -> None:
         self._schema: Type[Schema] = MISSING
