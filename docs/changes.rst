@@ -24,7 +24,6 @@ New features
 Improvements
 ~~~~~~~~~~~~
 
-- Fix fields returning improper values when initializing multiple schemas.
 - :class:`~fields.Object` fields now support raw data serialization upon setting after initialization.
 - :class:`Schema` and all fields now have ``__slots__`` defined for performance sake.
 
@@ -32,6 +31,9 @@ Bug fixes
 ~~~~~~~~~
 
 - Fix :meth:`Schema.dump` returning empty dictionary.
+- Fix fields returning improper values when initializing multiple schemas.
+- Fix unable to set ``None`` on nullable fields after initialization.
+- Fix field getting the new value using the setter even when the validations fail.
 
 Documentation
 ~~~~~~~~~~~~~
