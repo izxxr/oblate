@@ -91,7 +91,21 @@ class Field(Generic[_RawT, _SerializedT]):
     default:
         The value to assign to this field when it's missing. If this is not provided
         and a field is marked as missing, accessing the field at runtime would result
-        in an AttributeError. 
+        in an AttributeError.
+    load_key: Optional[:class:`str`]
+        The key that refers to this field in the data when loading this field
+        using raw data.
+
+        .. note::
+
+            This parameter is only applicable when loading data with raw data
+            i.e using the ``data`` parameter in the :class:`Schema` object and
+            does not relate to argument name while initializing schema with keyword
+            arguments.
+
+    dump_key: Optional[:class:`str`]
+        The key to which the deserialized value of this field should be set in the
+        data returned by :meth:`Schema.dump`.
     """
     __valid_overrides__ = (
         'missing',
@@ -103,6 +117,8 @@ class Field(Generic[_RawT, _SerializedT]):
         'missing',
         'none',
         'default',
+        'load_key',
+        'dump_key',
         '_validators',
         '_value',
         '_schema',
@@ -115,11 +131,15 @@ class Field(Generic[_RawT, _SerializedT]):
             missing: bool = False,
             none: bool = False,
             default: Any = MISSING,
+            load_key: Optional[str] = None,
+            dump_key: Optional[str] = None,
         ) -> None:
 
         self.missing = missing or (default is not MISSING)
         self.none = none
         self.default = default
+        self.load_key = load_key
+        self.dump_key = dump_key
         self._validators = []
         self._clear_state()
 

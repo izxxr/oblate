@@ -51,9 +51,11 @@ class Schema:
     """
 
     __fields__: Dict[str, Field]
+    __load_key_fields__: Dict[str, Field]
 
     __slots__ = (
         '_initialized',
+        '_from_data',
         '_partial',
         '_partial_included_fields',
     )
@@ -71,6 +73,8 @@ class Schema:
 
     def __init_subclass__(cls) -> None:
         cls.__fields__ = {}
+        cls.__load_key_fields__ = {}
+
         for name, field in inspect.getmembers(cls):
             if not isinstance(field, Field):
                 continue
@@ -78,6 +82,9 @@ class Schema:
             field._schema = cls
             field._name = name
             cls.__fields__[name] = field
+
+            if field.load_key:
+                cls.__load_key_fields__[field.load_key] = field
 
     @classmethod
     def _from_nested_object(cls, data: Mapping[str, Any]) -> Self:
@@ -110,6 +117,7 @@ class Schema:
         ) -> None:
 
         self._initialized = False
+        self._from_data = from_data
         self._partial = partial
         self._partial_included_fields = partial_included_fields
         self._prepare(data, include=partial_included_fields, from_data=from_data)
@@ -149,23 +157,28 @@ class Schema:
             try:
                 field = fields.pop(arg)
             except KeyError:
-                errors.append(ValidationError(f'Unknown or invalid field {arg!r} provided.'))
-            else:
-                if include and field._name not in include:
-                    err = ValidationError(f'This field cannot be set in this partial object.')
-                    err._bind(field)
-                    errors.append(err)
+                if from_data and arg in self.__load_key_fields__:
+                    field = self.__load_key_fields__[arg]
+                    fields.pop(field._name, None)
+                else:
+                    errors.append(ValidationError(f'Unknown or invalid field {arg!r} provided.'))
+                    continue
 
-                try:
-                    self._assign_field_value(value, field, from_data=True)
-                except ValidationError as exc:
-                    exc._bind(field)
-                    errors.append(exc)
+            if include and field._name not in include:
+                err = ValidationError(f'This field cannot be set in this partial object.')
+                err._bind(field)
+                errors.append(err)
 
-                if field.validators:
-                    validators.append((field, value))
+            try:
+                self._assign_field_value(value, field, from_data=True)
+            except ValidationError as exc:
+                exc._bind(field)
+                errors.append(exc)
 
-        for name, field in fields.items():
+            if field.validators:
+                validators.append((field, value))
+
+        for _, field in fields.items():
             if include and field._name not in include:
                 continue
 
@@ -201,6 +214,10 @@ class Schema:
             argument in ``Schema.__init__()``.
         """
 
+    def is_data_initialized(self) -> bool:
+        """Indicates whether the schema was initialized using raw data."""
+        return self._from_data
+
     def is_initialized(self) -> bool:
         """Indicates whether the schema has been initialized.
 
@@ -229,12 +246,13 @@ class Schema:
         for name, field in self.__fields__.items():
             if included and name not in included:
                 continue
+            key = field.dump_key if field.dump_key else field._name
             if field._value is MISSING:
                 if field.default is not MISSING:
-                    out[name] = maybe_callable(field.default)
+                    out[key] = maybe_callable(field.default)
                 continue
             try:
-                out[name] = field.value_dump(field._value)
+                out[key] = field.value_dump(field._value)
             except ValidationError as err:
                 err._bind(field)
                 errors.append(err)

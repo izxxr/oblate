@@ -119,15 +119,22 @@ class SchemaValidationFailed(OblateException):
             'errors': [],
             'field_errors': {}
         }
+        from_data = self._schema.is_data_initialized()
 
         for error in self._errors:
-            if error._field is None:
+            field = error._field
+            if field is None:
                 out['errors'].append(error._message)
             else:
+                if from_data:
+                    name = field.load_key if field.load_key else field._name
+                else:
+                    name = field._name
+
                 try:
-                    field_errors = out['field_errors'][error._field._name]
+                    field_errors = out['field_errors'][name]
                 except KeyError:
-                    out['field_errors'][error._field._name] = [error._message]
+                    out['field_errors'][name] = [error._message]
                 else:
                     field_errors.append(error._message)
 
