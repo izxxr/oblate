@@ -55,6 +55,7 @@ class Schema:
 
     __slots__ = (
         '_initialized',
+        '_field_values',
         '_from_data',
         '_partial',
         '_partial_included_fields',
@@ -116,12 +117,13 @@ class Schema:
             partial_included_fields: Set[str] = MISSING,
         ) -> None:
 
+        self._field_values: Dict[str, Any] = {}
         self._initialized = False
         self._from_data = from_data
         self._partial = partial
         self._partial_included_fields = partial_included_fields
-        self._prepare(data, include=partial_included_fields, from_data=from_data)
         self._initialized = True
+        self._prepare(data, include=partial_included_fields, from_data=from_data)
         self.after_init_hook(data, from_data)
 
     def _assign_field_value(self, value: Any, field: Field[Any, Any], from_data: bool = False) -> None:
@@ -129,20 +131,26 @@ class Schema:
             if not field.none:
                 raise ValidationError('Value for this field cannot be None')
             else:
-                field._value = None
+                self._field_values[field._name] = None
             return
 
         if from_data:
-            field._value = field.value_load(value)
+            self._field_values[field._name] = field.value_load(value)
         else:
-            field._value = field.value_set(value, True)
+            self._field_values[field._name] = field.value_set(value, True)
 
     def _transform_to_partial(self, include: Set[str]) -> None:
         if self._partial:
             return
 
         for name, field in self.__fields__.items():
-            if name not in include and field._value is not MISSING:
+            if name in include:
+                continue
+            try:
+                self._field_values[field._name]
+            except KeyError:
+                continue
+            else:
                 raise ValidationError('This field cannot be set in this partial object.')
 
         self._partial = True
@@ -183,7 +191,7 @@ class Schema:
                 continue
 
             if field.missing:
-                field._value = maybe_callable(field.default)
+                self._field_values[field._name] = maybe_callable(field.default)
             else:
                 err = ValidationError('This field is required.')
                 err._bind(field)
@@ -247,12 +255,14 @@ class Schema:
             if included and name not in included:
                 continue
             key = field.dump_key if field.dump_key else field._name
-            if field._value is MISSING:
+            try:
+                value = self._field_values[name]
+            except KeyError:
                 if field.default is not MISSING:
                     out[key] = maybe_callable(field.default)
                 continue
             try:
-                out[key] = field.value_dump(field._value)
+                out[key] = field.value_dump(value)
             except ValidationError as err:
                 err._bind(field)
                 errors.append(err)

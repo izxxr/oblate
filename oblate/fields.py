@@ -120,7 +120,6 @@ class Field(Generic[_RawT, _SerializedT]):
         'load_key',
         'dump_key',
         '_validators',
-        '_value',
         '_schema',
         '_name',
     )
@@ -154,9 +153,10 @@ class Field(Generic[_RawT, _SerializedT]):
     def __get__(self, instance: Optional[Schema], owner: Type[Schema]) -> Union[_SerializedT, Self]:
         if instance is None:
             return self
-        if self._value is MISSING:
-            raise AttributeError(f'No value available for field {owner.__qualname__}.{self._name}')
-        return self._value
+        try:
+            return instance._field_values[self._name]
+        except KeyError:
+            raise AttributeError(f'No value available for field {owner.__qualname__}.{self._name}') from None
 
     def __set__(self, instance: Schema, value: Any) -> None:
         errors = []
@@ -167,7 +167,7 @@ class Field(Generic[_RawT, _SerializedT]):
         else:
             errors.extend(self._run_validators(instance, value))
             try:
-                self._value = self.value_set(value, False)
+                instance._field_values[self._name] = self.value_set(value, False)
             except ValidationError as err:
                 err._bind(self)
                 errors.append(err)
@@ -178,7 +178,6 @@ class Field(Generic[_RawT, _SerializedT]):
     def _clear_state(self) -> None:
         self._schema: Type[Schema] = MISSING
         self._name: str = MISSING
-        self._value = MISSING
 
     def _run_validators(self, schema: Schema, value: Any) -> List[ValidationError]:
         errors = []

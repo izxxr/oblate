@@ -24,6 +24,7 @@ New features
 Improvements
 ~~~~~~~~~~~~
 
+- Fix fields returning improper values when initializing multiple schemas.
 - :class:`~fields.Object` fields now support raw data serialization upon setting after initialization.
 - :class:`Schema` and all fields now have ``__slots__`` defined for performance sake.
 
