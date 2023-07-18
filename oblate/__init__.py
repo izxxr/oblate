@@ -9,7 +9,7 @@ Licensed under MIT license. Copyright (c) 2023 Izhar Ahmad.
 For more information, see the project's LICENSE.
 """
 
-__version__ = '0.1.0'
+__version__ = '0.2.0'
 __author__  = 'Izhar Ahmad (izxxr) <https://github.com/izxxr>'
 
 from oblate.schema import *

@@ -18,7 +18,7 @@ sys.path.append(os.path.abspath('extensions'))
 project = 'Oblate'
 copyright = '2023, Izhar Ahmad (izxxr)'
 author = 'Izhar Ahmad (izxxr)'
-release = '0.1.0'
+release = '0.2.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
