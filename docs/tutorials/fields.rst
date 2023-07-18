@@ -227,3 +227,53 @@ that are allowed in partial object::
 
     event.host = User(id=1, username='Emily', is_event_host=True)  # ERROR: is_event_host cannot be set here.
     event.host = User(id=1, username='Emily')  # OK!
+
+Utilities
+---------
+
+Copying/Reusing fields
+~~~~~~~~~~~~~~~~~~~~~~
+
+Sometimes you want to reuse complex fields from other models without having to redefine them.
+For that, Oblate provides you with the :meth:`fields.Field.copy` method.
+
+Example::
+
+    class User(Schema):
+        id = fields.Integer(strict=False)
+        username = fields.String()
+
+        @id.validate()
+        def validate_id(self, value: int) -> bool:
+            return value > 0
+
+    class Game(Schema):
+        id = User.id.copy()
+
+The ``copy`` method copies all the characters of field including validators. If you don't want
+to include validators during copy process, you can pass ``validators=False`` in this method.
+
+If you want to override certain attributes of field, you can pass them to copy method.
+
+Example::
+
+    class User(Schema):
+        id = fields.Integer(strict=False, load_key='user_id')
+        username = fields.String()
+
+        @id.validate()
+        def validate_id(self, value: int) -> bool:
+            return value > 0
+
+    class Game(Schema):
+        id = User.id.copy(load_key='game_id')  # Override load_key
+
+The field doesn't have to be necessarily associated to a Schema::
+
+    id_field = fields.Integer(strict=False)
+
+    class Game(Schema):
+        id = id_field.copy()
+
+Note that, simply doing ``id = id_field`` is not enough as each field has to be bound to a
+specific schema. If you don't copy the field, you'll get unexpected errors.

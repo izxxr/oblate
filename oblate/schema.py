@@ -128,7 +128,7 @@ class Schema:
         self._initialized = True
         self.after_init_hook(data, from_data)
 
-    def _assign_field_value(self, value: Any, field: Field[Any, Any], from_data: bool = False) -> None:
+    def _assign_field_value(self, value: Any, field: Field[Any, Any], from_data: bool = False) -> Any:
         if value is None:
             if not field.none:
                 raise ValidationError('Value for this field cannot be None')
@@ -137,9 +137,11 @@ class Schema:
             return
 
         if from_data:
-            self._field_values[field._name] = field.value_load(value)
+            self._field_values[field._name] = final_value = field.value_load(value)
         else:
-            self._field_values[field._name] = field.value_set(value, True)
+            self._field_values[field._name] = final_value = field.value_set(value, True)
+        
+        return final_value
 
     def _transform_to_partial(self, include: Set[str]) -> None:
         if self._partial:
@@ -185,13 +187,13 @@ class Schema:
                 errors.append(err)
 
             try:
-                self._assign_field_value(value, field, from_data=True)
+                assigned_value = self._assign_field_value(value, field, from_data=True)
             except ValidationError as exc:
                 exc._bind(field)
                 errors.append(exc)
-
-            if field.validators:
-                validators.append((field, value))
+            else:
+                if field.validators:
+                    validators.append((field, assigned_value))
 
         for _, field in fields.items():
             if include and field._name not in include:

@@ -49,7 +49,7 @@ import collections.abc
 if TYPE_CHECKING:
     from oblate.schema import Schema
 
-    ValidatorCallbackT = Callable[['_SchemaT', Any], bool]
+    ValidatorCallbackT = Callable[['_SchemaT', '_SerializedT'], bool]
 
 __all__ = (
     'Field',
@@ -162,33 +162,39 @@ class Field(Generic[_RawT, _SerializedT]):
 
     def __set__(self, instance: Schema, value: Any) -> None:
         errors = []
-        if instance._partial and self._name not in instance._partial_included_fields:
+        name = self._name
+        run_validators = True
+        if instance._partial and name not in instance._partial_included_fields:
             err = ValidationError('This field cannot be set on this partial object.')
             err._bind(self)
             errors.append(err)
         else:
-            run_validators = True
             if value is None:
                 if self.none:
-                    instance._field_values[self._name] = None
+                    instance._field_values[name] = None
                 else:
                     run_validators = False
                     err = ValidationError('Value for this field cannot be None.')
                     err._bind(self)
                     errors.append(err)
-            if run_validators:
-                errors.extend(self._run_validators(instance, value))
         if not errors:
+            values = instance._field_values
+            old_value = values.get(name, MISSING)
             try:
-                instance._field_values[self._name] = self.value_set(value, False)
+                values[name] = assigned_value = self.value_set(value, False)
             except ValidationError as err:
                 error = config.get_validation_fail_exception()([err], instance)
                 new = ValidationError(error.raw())
                 new._bind(self)
                 errors.append(new)
             else:
-                if self._name in instance._default_fields:
-                    instance._default_fields.remove(self._name)
+                if run_validators:
+                    errors.extend(self._run_validators(instance, assigned_value))
+                if name in instance._default_fields and not errors:
+                    instance._default_fields.remove(name)
+                if errors and old_value is not MISSING:
+                    values[name] = old_value
+
         if errors:
             cls = config.get_validation_fail_exception()
             raise cls(errors, instance)
@@ -215,7 +221,7 @@ class Field(Generic[_RawT, _SerializedT]):
         return f'{self._schema.__qualname__}.{self._name}'
 
     @property
-    def validators(self) -> List[ValidatorCallbackT[_SchemaT]]:
+    def validators(self) -> List[ValidatorCallbackT[_SchemaT, _SerializedT]]:
         """The list of validators for this field."""
         return self._validators.copy()
 
@@ -297,7 +303,7 @@ class Field(Generic[_RawT, _SerializedT]):
         """
         ...
 
-    def add_validator(self, callback: ValidatorCallbackT[_SchemaT]) -> None:
+    def add_validator(self, callback: ValidatorCallbackT[_SchemaT, _SerializedT]) -> None:
         """Adds a validator for this field.
 
         Instead of using this method, consider using the :meth:`.validate`
@@ -310,19 +316,19 @@ class Field(Generic[_RawT, _SerializedT]):
         """
         self._validators.append(callback)
 
-    def validate(self) -> Callable[[ValidatorCallbackT[_SchemaT]], ValidatorCallbackT[_SchemaT]]:
+    def validate(self) -> Callable[[ValidatorCallbackT[_SchemaT, _SerializedT]], ValidatorCallbackT[_SchemaT, _SerializedT]]:
         """A decorator for registering a validator for this field.
 
         This is a much simpler interface for the :meth:`.add_validator`
         method. The decorated function takes a single parameter apart
         from self and that is the value to validate.
         """
-        def __decorator(func: ValidatorCallbackT[_SchemaT]) -> ValidatorCallbackT[_SchemaT]:
+        def __decorator(func: ValidatorCallbackT[_SchemaT, _SerializedT]) -> ValidatorCallbackT[_SchemaT, _SerializedT]:
             self.add_validator(func)
             return func
         return __decorator
 
-    def remove_validator(self, callback: ValidatorCallbackT[_SchemaT]) -> None:
+    def remove_validator(self, callback: ValidatorCallbackT[_SchemaT, _SerializedT]) -> None:
         """Removes a validator.
 
         This method does not raise any error if the given callback

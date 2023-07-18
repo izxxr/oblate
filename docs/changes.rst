@@ -27,6 +27,8 @@ Improvements
 
 - :class:`~fields.Object` fields now support raw data serialization upon setting after initialization.
 - :class:`Schema` and all fields now have ``__slots__`` defined for performance sake.
+- User defined validators are now ran after field ``value_*`` methods. 
+    - Value passed to validators is now of proper type related to the field.
 
 Bug fixes
 ~~~~~~~~~
