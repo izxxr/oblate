@@ -124,8 +124,8 @@ class Schema:
         self._from_data = from_data
         self._partial = partial
         self._partial_included_fields = partial_included_fields
-        self._initialized = True
         self._prepare(data, include=partial_included_fields, from_data=from_data)
+        self._initialized = True
         self.after_init_hook(data, from_data)
 
     def _assign_field_value(self, value: Any, field: Field[Any, Any], from_data: bool = False) -> None:
