@@ -167,7 +167,7 @@ class Schema:
 
     def _prepare(self, data: Mapping[str, Any], include: Set[str] = MISSING, from_data: bool = False) -> None:
         fields = self.__fields__.copy()
-        validators = []
+        to_validate = []  # List of three element tuple: (field_instance, value_to_validate, is_value_raw)
         errors = []
 
         for arg, value in data.items():
@@ -192,8 +192,10 @@ class Schema:
                 exc._bind(field)
                 errors.append(exc)
             else:
-                if field.validators:
-                    validators.append((field, assigned_value))
+                if field._validators:
+                    to_validate.append((field, assigned_value, False))
+                if field._raw_validators:
+                    to_validate.append((field, value, True))
 
         for _, field in fields.items():
             if include and field._name not in include:
@@ -209,10 +211,10 @@ class Schema:
             err._bind(field)
             errors.append(err)
 
-        for field, value in validators:
-            validator_errors = field._run_validators(self, value)
+        for field, value, raw in to_validate:
+            validator_errors = field._run_validators(self, value, raw)
             errors.extend(validator_errors)
- 
+
         if errors:
             cls = config.get_validation_fail_exception()
             raise cls(errors, self)

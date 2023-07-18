@@ -21,14 +21,17 @@ New features
   during serialization/deserialization of data.
 - Add :attr:`ValidationError.state` to allow storing state to an error that can later be accessed.
 - Add ``include`` and ``exclude`` parameters to :meth:`Schema.dump`.
+- Add ``raw`` parameter to :meth:`Field.validate` and :meth:`Field.add_validator` to validate
+  raw value.
 
 Improvements
 ~~~~~~~~~~~~
 
 - :class:`~fields.Object` fields now support raw data serialization upon setting after initialization.
 - :class:`Schema` and all fields now have ``__slots__`` defined for performance sake.
-- User defined validators are now ran after field ``value_*`` methods. Such that, validators now take
-  serialized value instead of raw one.
+- User defined validators are now ran after field ``value_*`` methods by default. Such that,
+  validators now take serialized value instead of raw one. For previous behaviour, ``raw``
+  parameter must be used.
 
 Bug fixes
 ~~~~~~~~~

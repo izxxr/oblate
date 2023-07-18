@@ -49,7 +49,9 @@ import collections.abc
 if TYPE_CHECKING:
     from oblate.schema import Schema
 
-    ValidatorCallbackT = Callable[['_SchemaT', '_SerializedT'], bool]
+    SerializedValidatorCallbackT = Callable[['_SchemaT', '_SerializedT'], bool]
+    RawValidatorCallbackT = Callable[['_SchemaT', '_RawT'], bool]
+    ValidatorCallbackT = Union[SerializedValidatorCallbackT, RawValidatorCallbackT]
 
 __all__ = (
     'Field',
@@ -122,6 +124,7 @@ class Field(Generic[_RawT, _SerializedT]):
         'load_key',
         'dump_key',
         '_validators',
+        '_raw_validators',
         '_schema',
         '_name',
     )
@@ -141,7 +144,8 @@ class Field(Generic[_RawT, _SerializedT]):
         self.default = default
         self.load_key = load_key
         self.dump_key = dump_key
-        self._validators = []
+        self._validators: List[SerializedValidatorCallbackT[Any, _SerializedT]] = []
+        self._raw_validators: List[RawValidatorCallbackT[Any, _RawT]] = []
         self._clear_state()
 
     @overload
@@ -189,10 +193,12 @@ class Field(Generic[_RawT, _SerializedT]):
                 errors.append(new)
             else:
                 if run_validators:
-                    errors.extend(self._run_validators(instance, assigned_value))
+                    errors.extend(self._run_validators(instance, assigned_value, raw=False))
+                    errors.extend(self._run_validators(instance, value, raw=True))
                 if name in instance._default_fields and not errors:
                     instance._default_fields.remove(name)
                 if errors and old_value is not MISSING:
+                    # Reset to old value if errors have occured
                     values[name] = old_value
 
         if errors:
@@ -203,10 +209,11 @@ class Field(Generic[_RawT, _SerializedT]):
         self._schema: Type[Schema] = MISSING
         self._name: str = MISSING
 
-    def _run_validators(self, schema: Schema, value: Any) -> List[ValidationError]:
+    def _run_validators(self, schema: Schema, value: Any, raw: bool = False) -> List[ValidationError]:
         errors = []
+        validators = self._raw_validators if raw else self._validators
 
-        for validator in self._validators:
+        for validator in validators:
             try:
                 validated = validator(schema, value)
                 if not validated:
@@ -221,7 +228,7 @@ class Field(Generic[_RawT, _SerializedT]):
         return f'{self._schema.__qualname__}.{self._name}'
 
     @property
-    def validators(self) -> List[ValidatorCallbackT[_SchemaT, _SerializedT]]:
+    def validators(self) -> List[ValidatorCallbackT]:
         """The list of validators for this field."""
         return self._validators.copy()
 
@@ -303,7 +310,7 @@ class Field(Generic[_RawT, _SerializedT]):
         """
         ...
 
-    def add_validator(self, callback: ValidatorCallbackT[_SchemaT, _SerializedT]) -> None:
+    def add_validator(self, callback: ValidatorCallbackT, *, raw: bool = False) -> None:
         """Adds a validator for this field.
 
         Instead of using this method, consider using the :meth:`.validate`
@@ -313,22 +320,28 @@ class Field(Generic[_RawT, _SerializedT]):
         ----------
         callback:
             The validator callback function.
+        raw: :class:`bool`
+            Whether this is a raw validator that takes raw value rather than
+            serialized one.
         """
-        self._validators.append(callback)
+        if raw:
+            self._raw_validators.append(callback)
+        else:
+            self._validators.append(callback)
 
-    def validate(self) -> Callable[[ValidatorCallbackT[_SchemaT, _SerializedT]], ValidatorCallbackT[_SchemaT, _SerializedT]]:
+    def validate(self, *, raw: bool = False) -> Callable[[ValidatorCallbackT], ValidatorCallbackT]:
         """A decorator for registering a validator for this field.
 
         This is a much simpler interface for the :meth:`.add_validator`
         method. The decorated function takes a single parameter apart
         from self and that is the value to validate.
         """
-        def __decorator(func: ValidatorCallbackT[_SchemaT, _SerializedT]) -> ValidatorCallbackT[_SchemaT, _SerializedT]:
-            self.add_validator(func)
+        def __decorator(func: ValidatorCallbackT) -> ValidatorCallbackT:
+            self.add_validator(func, raw=raw)
             return func
         return __decorator
 
-    def remove_validator(self, callback: ValidatorCallbackT[_SchemaT, _SerializedT]) -> None:
+    def remove_validator(self, callback: ValidatorCallbackT) -> None:
         """Removes a validator.
 
         This method does not raise any error if the given callback
@@ -339,10 +352,10 @@ class Field(Generic[_RawT, _SerializedT]):
         callback:
             The validator callback function.
         """
-        try:
+        if callback in self._validators:
             self._validators.remove(callback)
-        except ValueError:
-            pass
+        if callback in self._raw_validators:
+            self._raw_validators.remove(callback)
 
 
     def copy(self: Field[_RawT, _SerializedT], *, validators: bool = True, **overrides: Any) -> Field[_RawT, _SerializedT]:
@@ -383,6 +396,7 @@ class Field(Generic[_RawT, _SerializedT]):
 
         if not validators:
             field._validators.clear()
+            field._raw_validators.clear()
 
         for arg, val in overrides.items():
             if not arg in self.__valid_overrides__:
