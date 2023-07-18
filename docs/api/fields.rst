@@ -51,3 +51,9 @@ Object
 
 .. autoclass:: oblate.fields.Object
     :members:
+
+Partial
+~~~~~~~
+
+.. autoclass:: oblate.fields.Partial
+    :members:

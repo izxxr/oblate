@@ -30,8 +30,8 @@ command doesn't work for some reason.
    :maxdepth: 2
    :caption: Contents:
 
-   usage
    api/index
+   tutorials/index
    changes
 
 

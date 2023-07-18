@@ -46,11 +46,23 @@ class ValidationError(OblateException):
     ----------
     message:
         The error message.
+    state:
+        Any state data that should be attached to the exception. This
+        is particularly useful when you want to propagate any kind of
+        state data through this exception.
+
+        This can later be accessed, typically from :attr:`SchemaValidationFailed.errors`
+        attribute.
     """
-    def __init__(self, message: Any) -> None:
+    def __init__(self, message: Any, *, state: Any = None) -> None:
         self._field: Optional[Field] = None
         self._message = message
+        self.state = state
         super().__init__(message)
+
+    def is_field_error(self) -> bool:
+        """Indicates whether this is error is related to a field."""
+        return self._field is not None
 
     @property
     def field(self) -> Optional[Field]:
@@ -115,15 +127,22 @@ class SchemaValidationFailed(OblateException):
             'errors': [],
             'field_errors': {}
         }
+        from_data = self._schema.is_data_initialized()
 
         for error in self._errors:
-            if error._field is None:
+            field = error._field
+            if field is None:
                 out['errors'].append(error._message)
             else:
+                if from_data:
+                    name = field.load_key if field.load_key else field._name
+                else:
+                    name = field._name
+
                 try:
-                    field_errors = out['field_errors'][error._field._name]
+                    field_errors = out['field_errors'][name]
                 except KeyError:
-                    out['field_errors'][error._field._name] = [error._message]
+                    out['field_errors'][name] = [error._message]
                 else:
                     field_errors.append(error._message)
 

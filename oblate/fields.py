@@ -24,6 +24,8 @@ from __future__ import annotations
 
 from typing import (
     Any,
+    List,
+    Set,
     Type,
     TypeVar,
     Generic,
@@ -32,7 +34,6 @@ from typing import (
     Literal,
     Sequence,
     Callable,
-    List,
     Mapping,
     overload,
     TYPE_CHECKING,
@@ -43,11 +44,14 @@ from oblate.utils import MISSING
 from oblate.exceptions import ValidationError, SchemaValidationFailed
 
 import copy
+import collections.abc
 
 if TYPE_CHECKING:
     from oblate.schema import Schema
 
-    ValidatorCallbackT = Callable[['_SchemaT', Any], bool]
+    SerializedValidatorCallbackT = Callable[['_SchemaT', '_SerializedT'], bool]
+    RawValidatorCallbackT = Callable[['_SchemaT', '_RawT'], bool]
+    ValidatorCallbackT = Union[SerializedValidatorCallbackT, RawValidatorCallbackT]
 
 __all__ = (
     'Field',
@@ -89,12 +93,40 @@ class Field(Generic[_RawT, _SerializedT]):
     default:
         The value to assign to this field when it's missing. If this is not provided
         and a field is marked as missing, accessing the field at runtime would result
-        in an AttributeError. 
+        in an AttributeError.
+    load_key: Optional[:class:`str`]
+        The key that refers to this field in the data when loading this field
+        using raw data.
+
+        .. note::
+
+            This parameter is only applicable when loading data with raw data
+            i.e using the ``data`` parameter in the :class:`Schema` object and
+            does not relate to argument name while initializing schema with keyword
+            arguments.
+
+    dump_key: Optional[:class:`str`]
+        The key to which the deserialized value of this field should be set in the
+        data returned by :meth:`Schema.dump`.
     """
     __valid_overrides__ = (
         'missing',
         'none',
         'default',
+        'load_key',
+        'dump_key',
+    )
+
+    __slots__ = (
+        'missing',
+        'none',
+        'default',
+        'load_key',
+        'dump_key',
+        '_validators',
+        '_raw_validators',
+        '_schema',
+        '_name',
     )
 
     def __init__(
@@ -103,12 +135,17 @@ class Field(Generic[_RawT, _SerializedT]):
             missing: bool = False,
             none: bool = False,
             default: Any = MISSING,
+            load_key: Optional[str] = None,
+            dump_key: Optional[str] = None,
         ) -> None:
 
         self.missing = missing or (default is not MISSING)
         self.none = none
         self.default = default
-        self._validators = []
+        self.load_key = load_key
+        self.dump_key = dump_key
+        self._validators: List[SerializedValidatorCallbackT[Any, _SerializedT]] = []
+        self._raw_validators: List[RawValidatorCallbackT[Any, _RawT]] = []
         self._clear_state()
 
     @overload
@@ -122,17 +159,48 @@ class Field(Generic[_RawT, _SerializedT]):
     def __get__(self, instance: Optional[Schema], owner: Type[Schema]) -> Union[_SerializedT, Self]:
         if instance is None:
             return self
-        if self._value is MISSING:
-            raise AttributeError(f'No value available for field {owner.__qualname__}.{self._name}')
-        return self._value
+        try:
+            return instance._field_values[self._name]
+        except KeyError:
+            raise AttributeError(f'No value available for field {owner.__qualname__}.{self._name}') from None
 
     def __set__(self, instance: Schema, value: Any) -> None:
-        errors = self._run_validators(instance, value)
-        try:
-            self._value = self.value_set(value, False)
-        except ValidationError as err:
+        errors = []
+        name = self._name
+        run_validators = True
+        if instance._partial and name not in instance._partial_included_fields:
+            err = ValidationError('This field cannot be set on this partial object.')
             err._bind(self)
             errors.append(err)
+        else:
+            if value is None:
+                if self.none:
+                    instance._field_values[name] = None
+                else:
+                    run_validators = False
+                    err = ValidationError('Value for this field cannot be None.')
+                    err._bind(self)
+                    errors.append(err)
+        if not errors:
+            values = instance._field_values
+            old_value = values.get(name, MISSING)
+            try:
+                values[name] = assigned_value = self.value_set(value, False)
+            except ValidationError as err:
+                error = config.get_validation_fail_exception()([err], instance)
+                new = ValidationError(error.raw())
+                new._bind(self)
+                errors.append(new)
+            else:
+                if run_validators:
+                    errors.extend(self._run_validators(instance, value, raw=True))
+                    errors.extend(self._run_validators(instance, assigned_value, raw=False))
+                if name in instance._default_fields and not errors:
+                    instance._default_fields.remove(name)
+                if errors and old_value is not MISSING:
+                    # Reset to old value if errors have occured
+                    values[name] = old_value
+
         if errors:
             cls = config.get_validation_fail_exception()
             raise cls(errors, instance)
@@ -140,12 +208,12 @@ class Field(Generic[_RawT, _SerializedT]):
     def _clear_state(self) -> None:
         self._schema: Type[Schema] = MISSING
         self._name: str = MISSING
-        self._value = MISSING
 
-    def _run_validators(self, schema: Schema, value: Any) -> List[ValidationError]:
+    def _run_validators(self, schema: Schema, value: Any, raw: bool = False) -> List[ValidationError]:
         errors = []
+        validators = self._raw_validators if raw else self._validators
 
-        for validator in self._validators:
+        for validator in validators:
             try:
                 validated = validator(schema, value)
                 if not validated:
@@ -160,7 +228,7 @@ class Field(Generic[_RawT, _SerializedT]):
         return f'{self._schema.__qualname__}.{self._name}'
 
     @property
-    def validators(self) -> List[ValidatorCallbackT[_SchemaT]]:
+    def validators(self) -> List[ValidatorCallbackT]:
         """The list of validators for this field."""
         return self._validators.copy()
 
@@ -242,7 +310,7 @@ class Field(Generic[_RawT, _SerializedT]):
         """
         ...
 
-    def add_validator(self, callback: ValidatorCallbackT[_SchemaT]) -> None:
+    def add_validator(self, callback: ValidatorCallbackT, *, raw: bool = False) -> None:
         """Adds a validator for this field.
 
         Instead of using this method, consider using the :meth:`.validate`
@@ -252,22 +320,30 @@ class Field(Generic[_RawT, _SerializedT]):
         ----------
         callback:
             The validator callback function.
+        raw: :class:`bool`
+            Whether this is a raw validator that takes raw value rather than
+            serialized one.
         """
-        self._validators.append(callback)
+        if raw:
+            self._raw_validators.append(callback)
+        else:
+            self._validators.append(callback)
 
-    def validate(self) -> Callable[[ValidatorCallbackT[_SchemaT]], ValidatorCallbackT[_SchemaT]]:
+    def validate(self, *, raw: bool = False) -> Callable[[ValidatorCallbackT], ValidatorCallbackT]:
         """A decorator for registering a validator for this field.
 
         This is a much simpler interface for the :meth:`.add_validator`
         method. The decorated function takes a single parameter apart
         from self and that is the value to validate.
+
+        This decorator takes same keyword arguments as :meth:`.add_validator`.
         """
-        def __decorator(func: ValidatorCallbackT[_SchemaT]) -> ValidatorCallbackT[_SchemaT]:
-            self.add_validator(func)
+        def __decorator(func: ValidatorCallbackT) -> ValidatorCallbackT:
+            self.add_validator(func, raw=raw)
             return func
         return __decorator
 
-    def remove_validator(self, callback: ValidatorCallbackT[_SchemaT]) -> None:
+    def remove_validator(self, callback: ValidatorCallbackT) -> None:
         """Removes a validator.
 
         This method does not raise any error if the given callback
@@ -278,10 +354,10 @@ class Field(Generic[_RawT, _SerializedT]):
         callback:
             The validator callback function.
         """
-        try:
+        if callback in self._validators:
             self._validators.remove(callback)
-        except ValueError:
-            pass
+        if callback in self._raw_validators:
+            self._raw_validators.remove(callback)
 
 
     def copy(self: Field[_RawT, _SerializedT], *, validators: bool = True, **overrides: Any) -> Field[_RawT, _SerializedT]:
@@ -322,6 +398,7 @@ class Field(Generic[_RawT, _SerializedT]):
 
         if not validators:
             field._validators.clear()
+            field._raw_validators.clear()
 
         for arg, val in overrides.items():
             if not arg in self.__valid_overrides__:
@@ -343,15 +420,22 @@ class String(Field[Any, str]):
         Whether to only allow string data types. If this is set to False,
         any value is type casted to string. Defaults to True.
     """
+    __slots__ = (
+        'strict',
+    )
+
     def __init__(self, *, strict: bool = True, **kwargs: Any) -> None:
         self.strict = strict
         super().__init__(**kwargs)
 
     def _process_value(self, value: Any) -> str:
-        if not isinstance(value, str) and self.strict:
-            raise ValidationError('Value for this field must be of string data type.')
+        if not isinstance(value, str):
+            if self.strict:
+                raise ValidationError('Value for this field must be of string data type.')
 
-        return str(value)
+            return str(value)
+        else:
+            return value
 
     def value_set(self, value: Any, init: bool) -> str:
         return self._process_value(value)
@@ -372,18 +456,24 @@ class Integer(Field[Any, int]):
         Whether to only allow integer data types. If this is set to False,
         any integer-castable value is type casted to integer. Defaults to True.
     """
+    __slots__ = (
+        'strict',
+    )
+
     def __init__(self, *, strict: bool = True, **kwargs: Any) -> None:
         self.strict = strict
         super().__init__(**kwargs)
 
     def _process_value(self, value: Any) -> int:
-        if not isinstance(value, int) and self.strict:
-            raise ValidationError('Value for this field must be of integer data type.')
-
-        try:
-            return int(value)
-        except Exception:
-            raise ValidationError('Value for this field must be an integer-convertable value.') from None
+        if not isinstance(value, int):
+            if self.strict:
+                raise ValidationError('Value for this field must be of integer data type.')
+            try:
+                return int(value)
+            except Exception:
+                raise ValidationError('Value for this field must be an integer-convertable value.') from None
+        else:
+            return value 
 
     def value_set(self, value: Any, init: bool) -> int:
         return self._process_value(value)
@@ -428,6 +518,12 @@ class Boolean(Field[Any, bool]):
         'NO', 'No', 'no', '0'
     )
 
+    __slots__ = (
+        'strict',
+        '_true_values',
+        '_false_values',
+    )
+
     def __init__(
             self,
             *,
@@ -452,16 +548,18 @@ class Boolean(Field[Any, bool]):
         super().__init__(**kwargs)
 
     def _process_value(self, value: Any) -> bool:
-        if not isinstance(value, bool) and self.strict:
-            raise ValidationError('Value for this field must be of boolean type.')
-
-        value = str(value)
-        if value in self._true_values:
-            return True
-        if value in self._false_values:
-            return False
+        if not isinstance(value, bool):
+            if self.strict:
+                raise ValidationError('Value for this field must be of boolean type.')
+            value = str(value)
+            if value in self._true_values:
+                return True
+            if value in self._false_values:
+                return False
+            else:
+                raise ValidationError('Value for this field must be a boolean-convertable value.')
         else:
-            raise ValidationError('Value for this field must be a boolean-convertable value.')
+            return value
 
     def value_set(self, value: Any, init: bool) -> bool:
         return self._process_value(value)
@@ -482,18 +580,24 @@ class Float(Field[Any, float]):
         Whether to only allow float data types. If this is set to False,
         any float-castable value is type casted to float. Defaults to True.
     """
+    __slots__ = (
+        'strict',
+    )
+
     def __init__(self, *, strict: bool = True, **kwargs: Any) -> None:
         self.strict = strict
         super().__init__(**kwargs)
 
     def _process_value(self, value: Any) -> float:
-        if not isinstance(value, float) and self.strict:
-            raise ValidationError('Value for this field must be a floating point number.')
-
-        try:
-            return float(value)
-        except Exception:
-            raise ValidationError('Value for this field must be an float-convertable value.') from None
+        if not isinstance(value, float):
+            if self.strict:
+                raise ValidationError('Value for this field must be a floating point number.')
+            try:
+                return float(value)
+            except Exception:
+                raise ValidationError('Value for this field must be an float-convertable value.') from None
+        else:
+            return value
 
     def value_set(self, value: Any, init: bool) -> float:
         return self._process_value(value)
@@ -513,19 +617,97 @@ class Object(Field[Mapping[str, Any], _SchemaT]):
     schema_tp: Type[:class:`Schema`]
         The schema to represent in this field.
     """
+    __slots__ = (
+        '_schema_tp',
+    )
+
     def __init__(self, schema_tp: Type[_SchemaT], **kwargs: Any) -> None:
         self._schema_tp = schema_tp
         super().__init__(**kwargs)
 
     def value_set(self, value: Any, init: bool) -> _SchemaT:
-        if not isinstance(value, self._schema_tp):
+        if isinstance(value, collections.abc.Mapping):
+            return self.value_load(value)
+        if isinstance(value, self._schema_tp):
+            return value
+        else:
             raise ValidationError(f'Value for this field must be a {self._schema_tp.__qualname__} object.')
-
-        return value
 
     def value_load(self, value: Mapping[str, Any]) -> _SchemaT:
         try:
             return self._schema_tp._from_nested_object(value)
+        except SchemaValidationFailed as err:
+            raise ValidationError(err.raw()) from None
+
+    def value_dump(self, value: Schema) -> Mapping[str, Any]:
+        return value.dump()
+
+
+class Partial(Field[Mapping[str, Any], _SchemaT]):
+    """Field that allows nesting of partial schemas.
+
+    Partial schemas are schemas with a subset of fields of the
+    original schema.
+
+    Parameters
+    ----------
+    schema_tp: Type[:class:`Schema`]
+        The schema to represent in this field.
+    include: Sequence[:class:`str`]
+        The list of fields to include in partial schema.
+    exclude: Sequence[:class:`str`]
+        The list of fields to exclude from partial schema.
+    """
+    __slots__ = (
+        '_schema_tp',
+        'include',
+        'exclude',
+    )
+
+    def __init__(
+            self,
+            schema_tp: Type[_SchemaT],
+            include: Sequence[str] = MISSING,
+            exclude: Sequence[str] = MISSING,
+            **kwargs: Any,
+        ) -> None:
+
+        if include is not MISSING and exclude is not MISSING:
+            raise TypeError('include and exclude are mutually exclusive')
+        if not include and not exclude:
+            raise TypeError('one of include or exclude must be provided')
+
+        self._schema_tp = schema_tp
+        self.include = set() if include is MISSING else set(include)
+        self.exclude = set() if exclude is MISSING else set(exclude)
+        super().__init__(**kwargs)
+
+    @property
+    def fields(self) -> Set[str]:
+        """The set of field names to include in partial schema.
+
+        This attribute is resolved using :attr:`.include` or :attr:`.exclude`.
+        """
+        total = set(self._schema_tp.__fields__.keys())
+        if self.exclude:
+            return total.difference(self.exclude)
+        if self.include:
+            return total.intersection(self.include)
+
+        raise RuntimeError('This should never be reached')
+
+    def value_set(self, value: Any, init: bool) -> _SchemaT:
+        if isinstance(value, collections.abc.Mapping):
+            return self.value_load(value)
+        if isinstance(value, self._schema_tp):
+            value._transform_to_partial(include=self.fields)
+            return value
+        else:
+            raise ValidationError(f'Value for this field must be a {self._schema_tp.__qualname__} object.')
+
+    def value_load(self, value: Mapping[str, Any]) -> _SchemaT:
+        try:
+            return self._schema_tp._from_partial(value, include=self.fields, from_data=True)
         except SchemaValidationFailed as err:
             raise ValidationError(err.raw()) from None
 
