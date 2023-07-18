@@ -193,8 +193,8 @@ class Field(Generic[_RawT, _SerializedT]):
                 errors.append(new)
             else:
                 if run_validators:
-                    errors.extend(self._run_validators(instance, assigned_value, raw=False))
                     errors.extend(self._run_validators(instance, value, raw=True))
+                    errors.extend(self._run_validators(instance, assigned_value, raw=False))
                 if name in instance._default_fields and not errors:
                     instance._default_fields.remove(name)
                 if errors and old_value is not MISSING:
@@ -335,6 +335,8 @@ class Field(Generic[_RawT, _SerializedT]):
         This is a much simpler interface for the :meth:`.add_validator`
         method. The decorated function takes a single parameter apart
         from self and that is the value to validate.
+
+        This decorator takes same keyword arguments as :meth:`.add_validator`.
         """
         def __decorator(func: ValidatorCallbackT) -> ValidatorCallbackT:
             self.add_validator(func, raw=raw)

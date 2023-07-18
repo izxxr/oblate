@@ -1,10 +1,14 @@
 .. currentmodule:: oblate
 
+.. _tut-fields:
+
 Fields
 ======
 
 Attributes of a schema, are what we refer to as "Fields". Oblate provides a number of commonly
 used fields and also provides a way of creating custom fields for users who need it.
+
+.. _tut-fields-the-basics:
 
 The Basics
 ----------
@@ -15,10 +19,14 @@ to how fields work on a very basic level.
 Library provides a number of fields, from basic primitive data types to validating other forms
 of data such as email, URLs etc.
 
+.. _tut-fields-customizing-fields:
+
 Customizing fields
 ------------------
 
 There are certain parameters that you can pass to a field to modify its behaviour.
+
+.. _tut-fields-optional-fields-and-defaults:
 
 Optional fields and defaults
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -48,6 +56,8 @@ and in most cases, you don't want that to happen. This is when ``default`` comes
 
 It is worth noting that when a default is provided, the field is implicitly marked as ``missing``.
 
+.. _tut-fields-nullable-fields:
+
 Nullable fields
 ~~~~~~~~~~~~~~~
 
@@ -62,6 +72,8 @@ parameter::
 
 When ``none`` is False (default), an error is raised if the given value is None. This is
 library's standard validation which is performed **before** user validators are ran.
+
+.. _tut-fields-load-and-dump-keys:
 
 Load and Dump keys
 ~~~~~~~~~~~~~~~~~~
@@ -95,6 +107,8 @@ is always done with field name rather than the ``load_key``.
     user = User({'username': 'John', 'is_employee': False})
     user.dump()  # {'username': 'John', 'isEmployee': False}
 
+.. _tut-fields-strict-fields:
+
 Strict Fields
 ~~~~~~~~~~~~~
 
@@ -121,6 +135,8 @@ type implicitly::
     type(user.id)  # <class 'int'>
 
 The given value however, must be convertable to the data type otherwise an error is raised.
+
+.. _tut-fields-nesting-schemas:
 
 Nesting Schemas
 ~~~~~~~~~~~~~~~
@@ -189,6 +205,8 @@ The error data::
         }
     }
 
+.. _tut-fields-partial-schemas:
+
 Partial Schemas
 ~~~~~~~~~~~~~~~
 
@@ -228,8 +246,12 @@ that are allowed in partial object::
     event.host = User(id=1, username='Emily', is_event_host=True)  # ERROR: is_event_host cannot be set here.
     event.host = User(id=1, username='Emily')  # OK!
 
+.. _tut-fields-utilities:
+
 Utilities
 ---------
+
+.. _tut-fields-copying-reusing-fields:
 
 Copying/Reusing fields
 ~~~~~~~~~~~~~~~~~~~~~~

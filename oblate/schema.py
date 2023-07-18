@@ -192,10 +192,10 @@ class Schema:
                 exc._bind(field)
                 errors.append(exc)
             else:
-                if field._validators:
-                    to_validate.append((field, assigned_value, False))
                 if field._raw_validators:
                     to_validate.append((field, value, True))
+                if field._validators:
+                    to_validate.append((field, assigned_value, False))
 
         for _, field in fields.items():
             if include and field._name not in include:
