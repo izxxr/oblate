@@ -36,6 +36,7 @@ Bug fixes
 - Fix unable to set ``None`` on nullable fields after initialization.
 - Fix field getting the new value using the setter even when the validations fail.
 - Fix partial schema raising validation error for schemas with default fields.
+- Fix error formatting in :class:`fields.Partial` setter.
 
 Documentation
 ~~~~~~~~~~~~~
