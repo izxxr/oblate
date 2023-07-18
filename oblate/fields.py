@@ -182,8 +182,10 @@ class Field(Generic[_RawT, _SerializedT]):
             try:
                 instance._field_values[self._name] = self.value_set(value, False)
             except ValidationError as err:
-                err._bind(self)
-                errors.append(err)
+                error = config.get_validation_fail_exception()([err], instance)
+                new = ValidationError(error.raw())
+                new._bind(self)
+                errors.append(new)
             else:
                 if self._name in instance._default_fields:
                     instance._default_fields.remove(self._name)

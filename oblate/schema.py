@@ -69,7 +69,7 @@ class Schema:
             from_data = True
         else:
             data = kwargs
-            from_data= False
+            from_data = False
 
         self._init(data, from_data=from_data)
 
