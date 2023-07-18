@@ -22,7 +22,7 @@
 
 from __future__ import annotations
 
-from typing import Optional, Mapping, Dict, Set, Any
+from typing import Optional, Mapping, Dict, Set, Any, Sequence
 from typing_extensions import Self
 from oblate import config
 from oblate.fields import Field
@@ -248,21 +248,39 @@ class Schema:
         """Indicates whether the schema is a partial schema (see :class:`fields.Partial` for more info)."""
         return self._partial
 
-    def dump(self) -> Dict[str, Any]:
+    def dump(self, *, include: Optional[Sequence[str]] = None, exclude: Optional[Sequence[str]] = None) -> Dict[str, Any]:
         """Deserializes the schema.
 
-        The returned value is deserialized data in dictionary form.
+        The returned value is deserialized data in dictionary form. The
+        ``include`` and ``exclude`` parameters are mutually exclusive.
+
+        Parameters
+        ----------
+        include: Optional[Sequence[:class:`str`]]
+            The fields to include in the returned data.
+        exclude: Optional[Sequence[:class:`str`]]
+            The fields to exclude from the returned data.
 
         Returns
         -------
         Dict[:class:`str`, Any]
             The deserialized data.
         """
+        fields = set(self.__fields__.keys())
+        if include is not None and exclude is not None:
+            raise TypeError('include and exclude are mutually exclusive parameters.')
+        if include is not None:
+            fields = fields.intersection(set(include))
+        if exclude is not None:
+            fields = fields.difference(set(exclude))
+
         out = {}
         errors = []
-        included = self._partial_included_fields
-        for name, field in self.__fields__.items():
-            if included and name not in included:
+        partial_included = self._partial_included_fields
+
+        for name in fields:
+            field = self.__fields__[name]
+            if partial_included and name not in partial_included:
                 continue
             key = field.dump_key if field.dump_key else field._name
             try:
