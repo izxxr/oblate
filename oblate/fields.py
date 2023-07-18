@@ -111,6 +111,8 @@ class Field(Generic[_RawT, _SerializedT]):
         'missing',
         'none',
         'default',
+        'load_key',
+        'dump_key',
     )
 
     __slots__ = (
