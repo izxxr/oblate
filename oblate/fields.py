@@ -228,7 +228,12 @@ class Field(Generic[_RawT, _SerializedT]):
         return f'{self._schema.__qualname__}.{self._name}'
 
     @property
-    def validators(self) -> List[ValidatorCallbackT]:
+    def raw_validators(self) -> List[RawValidatorCallbackT]:
+        """The list of raw validators for this field."""
+        return self._raw_validators.copy()
+
+    @property
+    def validators(self) -> List[SerializedValidatorCallbackT]:
         """The list of validators for this field."""
         return self._validators.copy()
 

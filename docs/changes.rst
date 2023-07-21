@@ -5,6 +5,16 @@ Changelog
 
 This page has changelogs for all releases of Oblate.
 
+v0.3.0
+------
+
+New features
+~~~~~~~~~~~~
+
+- Add the :attr:`fields.Field.raw_validators` property to access the list of raw validators associated
+  to a field.
+
+
 v0.2.0
 ------
 
