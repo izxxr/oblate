@@ -89,7 +89,7 @@ makes it incredibly simple for you to acheive that::
         is_employee = fields.Boolean(default=False)
 
         @password.validate()
-        def validate_password(self, value: str) ~> bool:
+        def validate_password(self, value: str) -> bool:
             if len(value) < 8:
                 raise oblate.ValidationError('Password must be at least 8 characters long.')
             return True
