@@ -15,6 +15,13 @@ New features
   to a field.
 
 
+Bug fixes
+~~~~~~~~~
+
+- Fix :meth:`Schema.value_load` getting called instead of :meth:`Schema.value_set` during 
+  initialization.
+
+
 v0.2.0
 ------
 

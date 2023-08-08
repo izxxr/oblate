@@ -187,7 +187,7 @@ class Schema:
                 errors.append(err)
 
             try:
-                assigned_value = self._assign_field_value(value, field, from_data=True)
+                assigned_value = self._assign_field_value(value, field, from_data=from_data)
             except ValidationError as exc:
                 exc._bind(field)
                 errors.append(exc)
