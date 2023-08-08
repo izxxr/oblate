@@ -107,7 +107,7 @@ class SchemaValidationFailed(OblateException):
 
     def _format(self, error: Optional[Any] = None, indent: int = 0) -> str:
         if not error:
-            error = self._raw_internal()
+            error = self._std_raw()
 
         builder = []
 
@@ -122,7 +122,7 @@ class SchemaValidationFailed(OblateException):
         builder.extend([f'{"  "*indent}Error: {e}' for e in error['errors']])
         return '\n'.join(builder)
 
-    def _raw_internal(self) -> Dict[str, Any]:
+    def _std_raw(self) -> Dict[str, Any]:
         out = {
             'errors': [],
             'field_errors': {}
@@ -164,4 +164,4 @@ class SchemaValidationFailed(OblateException):
         This method can be overriden to implement a custom behaviour however
         the return type must be a dictionary.
         """
-        return self._raw_internal()
+        return self._std_raw()
