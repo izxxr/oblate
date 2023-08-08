@@ -1,6 +1,6 @@
 # Oblate — dealing with data made easy
 
-> ⚠ This project is current under pre-alpha (0.x) phase.
+> ⚠ This project is currently under pre-alpha (0.x) phase.
 
 Oblate is a Python library that provides modern and robust interface for data and schema validation.
 
