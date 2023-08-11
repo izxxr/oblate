@@ -547,18 +547,22 @@ class Boolean(BasePrimitiveField[Any, bool]):
     Attributes
     ----------
     TRUE_VALUES: Tuple[:class:`str`, ...]
-        The true values used when strict mode is off.
+        The true values used when strict validation is disabled.
     FALSE_VALUES: Tuple[:class:`str`, ...]
-        The false values used when strict mode is off.
+        The false values used when strict validation is disabled.
 
     Parameters
     ----------
     true_values: Sequence[:class:`str`]
-        The values to use for true boolean conversion. Requires ``strict`` to be
-        ``False``. Defaults to :attr:`.TRUE_VALUES`.
+        The values to use for true boolean conversion. These are only respected
+        when :ref:`strict validation <tut-fields-strict-fields>` is disabled.
+
+        Defaults to :attr:`.TRUE_VALUES` if not provided.
     false_values: Sequence[:class:`str`]
-        The values to use for false boolean conversion. Requires ``strict`` to be
-        ``False``. Defaults to :attr:`.FALSE_VALUES`.
+        The values to use for false boolean conversion. These are only respected
+        when :ref:`strict validation <tut-fields-strict-fields>` is disabled.
+
+        Defaults to :attr:`.FALSE_VALUES` if not provided.
     """
     TRUE_VALUES: Sequence[str] = (
         'TRUE', 'True', 'true',
