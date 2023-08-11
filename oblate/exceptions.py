@@ -105,8 +105,8 @@ class SchemaValidationFailed(OblateException):
         """The list of :class:`ValidationError` that caused this exception."""
         return self._errors.copy()
 
-    def _format(self, error: Optional[Any] = None, indent: int = 0) -> str:
-        if not error:
+    def _format(self, error: Optional[Dict[str, Any]] = None, indent: int = 0) -> str:
+        if error is None:
             error = self._std_raw()
 
         builder = []
