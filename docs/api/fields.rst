@@ -17,6 +17,12 @@ Primitive data types
 
 The fields below are for basic primitive data types.
 
+BasePrimitiveField
+~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: oblate.fields.BasePrimitiveField
+    :members:
+
 String
 ~~~~~~
 

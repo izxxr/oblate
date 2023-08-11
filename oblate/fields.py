@@ -55,11 +55,13 @@ if TYPE_CHECKING:
 
 __all__ = (
     'Field',
+    'BasePrimitiveField',
     'String',
     'Integer',
     'Boolean',
     'Float',
     'Object',
+    'Partial',
 )
 
 
@@ -416,8 +418,67 @@ class Field(Generic[_RawT, _SerializedT]):
 
 ## -- Primitive data types -- ##
 
-class String(Field[Any, str]):
+class BasePrimitiveField(Field[_RawT, _SerializedT]):
+    """Base class for fields relating to primitive data types.
+
+    This class is a subclass of :class:`Field` and has the following
+    further subclasses:
+
+    - :class:`String`
+    - :class:`Integer`
+    - :class:`Float`
+    - :class:`Boolean`
+
+    Parameters
+    ----------
+    strict_load: :class:`bool`
+        Whether to use :ref:`strict validation <tut-fields-strict-fields>` for loading fields
+        using raw data.
+    strict_set: :class:`bool`
+        Whether to use :ref:`strict validation <tut-fields-strict-fields>` for setting fields.
+    strict: :class:`bool`
+        A shorthand to control the ``strict_load`` and ``strict_set`` parameters.
+    """
+    __slots__ = (
+        'strict_set',
+        'strict_load',
+    )
+
+    def __init__(
+            self,
+            *,
+            strict_load: bool = True,
+            strict_set: bool = True,
+            strict: bool = MISSING,
+            **kwargs: Any,
+    ):
+        if strict is not MISSING:
+            self.strict_load = strict
+            self.strict_set = strict
+        else:
+            self.strict_load = strict_load
+            self.strict_set = strict_set
+        
+        super().__init__(**kwargs)
+
+    @property
+    def strict(self) -> bool:
+        return self.strict_load and self.strict_set
+
+    def _check_strict(self, load: bool, init: bool) -> bool:
+        if load:
+            return self.strict_load
+        if init:
+            return self.strict_set
+
+        return self.strict
+
+
+class String(BasePrimitiveField[Any, str]):
     """Representation of a string field.
+
+    This class is a subclass of :class:`BasePrimitiveField` and supports
+    the features documented in that class.
 
     Parameters
     ----------
@@ -425,17 +486,9 @@ class String(Field[Any, str]):
         Whether to only allow string data types. If this is set to False,
         any value is type casted to string. Defaults to True.
     """
-    __slots__ = (
-        'strict',
-    )
-
-    def __init__(self, *, strict: bool = True, **kwargs: Any) -> None:
-        self.strict = strict
-        super().__init__(**kwargs)
-
-    def _process_value(self, value: Any) -> str:
+    def _process_value(self, value: Any, load: bool, init: bool) -> str:
         if not isinstance(value, str):
-            if self.strict:
+            if self._check_strict(load=load, init=init):
                 raise ValidationError('Value for this field must be of string data type.')
 
             return str(value)
@@ -443,17 +496,20 @@ class String(Field[Any, str]):
             return value
 
     def value_set(self, value: Any, init: bool) -> str:
-        return self._process_value(value)
+        return self._process_value(value, load=False, init=True)
 
     def value_load(self, value: Any) -> str:
-        return self._process_value(value)
+        return self._process_value(value, load=True, init=False)
 
     def value_dump(self, value: Any) -> str:
         return value
 
 
-class Integer(Field[Any, int]):
+class Integer(BasePrimitiveField[Any, int]):
     """Representation of an integer field.
+
+    This class is a subclass of :class:`BasePrimitiveField` and supports
+    the features documented in that class.
 
     Parameters
     ----------
@@ -461,17 +517,9 @@ class Integer(Field[Any, int]):
         Whether to only allow integer data types. If this is set to False,
         any integer-castable value is type casted to integer. Defaults to True.
     """
-    __slots__ = (
-        'strict',
-    )
-
-    def __init__(self, *, strict: bool = True, **kwargs: Any) -> None:
-        self.strict = strict
-        super().__init__(**kwargs)
-
-    def _process_value(self, value: Any) -> int:
+    def _process_value(self, value: Any, load: bool, init: bool) -> int:
         if not isinstance(value, int):
-            if self.strict:
+            if self._check_strict(load=load, init=init):
                 raise ValidationError('Value for this field must be of integer data type.')
             try:
                 return int(value)
@@ -481,17 +529,20 @@ class Integer(Field[Any, int]):
             return value 
 
     def value_set(self, value: Any, init: bool) -> int:
-        return self._process_value(value)
+        return self._process_value(value, load=False, init=True)
 
     def value_load(self, value: Any) -> int:
-        return self._process_value(value)
+        return self._process_value(value, load=True, init=False)
 
     def value_dump(self, value: Any) -> int:
         return value
 
 
-class Boolean(Field[Any, bool]):
+class Boolean(BasePrimitiveField[Any, bool]):
     """Representation of a boolean field.
+
+    This class is a subclass of :class:`BasePrimitiveField` and supports
+    the features documented in that class.
 
     Attributes
     ----------
@@ -502,16 +553,12 @@ class Boolean(Field[Any, bool]):
 
     Parameters
     ----------
-    strict: :class:`bool`
-        Whether to only allow boolbeanb data types. If this is set to False,
-        the :attr:`.TRUE_VALUES` and :attr:`FALSE_VALUES` are used to convert
-        the value to boolean. Defaults to True.
     true_values: Sequence[:class:`str`]
         The values to use for true boolean conversion. Requires ``strict`` to be
-        ``False`` otherwise a TypeError is raised. Defaults to :attr:`.TRUE_VALUES`.
+        ``False``. Defaults to :attr:`.TRUE_VALUES`.
     false_values: Sequence[:class:`str`]
         The values to use for false boolean conversion. Requires ``strict`` to be
-        ``False`` otherwise a TypeError is raised. Defaults to :attr:`.FALSE_VALUES`.
+        ``False``. Defaults to :attr:`.FALSE_VALUES`.
     """
     TRUE_VALUES: Sequence[str] = (
         'TRUE', 'True', 'true',
@@ -524,7 +571,6 @@ class Boolean(Field[Any, bool]):
     )
 
     __slots__ = (
-        'strict',
         '_true_values',
         '_false_values',
     )
@@ -532,29 +578,19 @@ class Boolean(Field[Any, bool]):
     def __init__(
             self,
             *,
-            strict: bool = True,
             true_values: Optional[Sequence[str]] = None,
             false_values: Optional[Sequence[str]] = None,
             **kwargs: Any,
         ) -> None:
 
-        self.strict = strict
-
-        if (true_values or false_values) and not strict:
-            raise TypeError('strict parameter must be passed as False to use true_values/false_values')
-
-        if not strict:
-            self._true_values = true_values if true_values else self.TRUE_VALUES
-            self._false_values = false_values if false_values else self.FALSE_VALUES
-        else:
-            self._true_values = []
-            self._false_values = []
-
         super().__init__(**kwargs)
 
-    def _process_value(self, value: Any) -> bool:
+        self._true_values = true_values if true_values is not None else self.TRUE_VALUES
+        self._false_values = false_values if false_values is not None else self.FALSE_VALUES
+
+    def _process_value(self, value: Any, load: bool, init: bool) -> bool:
         if not isinstance(value, bool):
-            if self.strict:
+            if self._check_strict(load=load, init=init):
                 raise ValidationError('Value for this field must be of boolean type.')
             value = str(value)
             if value in self._true_values:
@@ -567,17 +603,20 @@ class Boolean(Field[Any, bool]):
             return value
 
     def value_set(self, value: Any, init: bool) -> bool:
-        return self._process_value(value)
+        return self._process_value(value, load=False, init=True)
 
     def value_load(self, value: Any) -> bool:
-        return self._process_value(value)
+        return self._process_value(value, load=True, init=False)
 
     def value_dump(self, value: Any) -> bool:
         return value
 
 
-class Float(Field[Any, float]):
+class Float(BasePrimitiveField[Any, float]):
     """Representation of a float field.
+
+    This class is a subclass of :class:`BasePrimitiveField` and supports
+    the features documented in that class.
 
     Parameters
     ----------
@@ -585,17 +624,9 @@ class Float(Field[Any, float]):
         Whether to only allow float data types. If this is set to False,
         any float-castable value is type casted to float. Defaults to True.
     """
-    __slots__ = (
-        'strict',
-    )
-
-    def __init__(self, *, strict: bool = True, **kwargs: Any) -> None:
-        self.strict = strict
-        super().__init__(**kwargs)
-
-    def _process_value(self, value: Any) -> float:
+    def _process_value(self, value: Any, load: bool, init: bool) -> float:
         if not isinstance(value, float):
-            if self.strict:
+            if self._check_strict(load=load, init=init):
                 raise ValidationError('Value for this field must be a floating point number.')
             try:
                 return float(value)
@@ -605,10 +636,10 @@ class Float(Field[Any, float]):
             return value
 
     def value_set(self, value: Any, init: bool) -> float:
-        return self._process_value(value)
+        return self._process_value(value, load=False, init=True)
 
     def value_load(self, value: Any) -> float:
-        return self._process_value(value)
+        return self._process_value(value, load=True, init=False)
 
     def value_dump(self, value: Any) -> float:
         return value

@@ -136,6 +136,18 @@ type implicitly::
 
 The given value however, must be convertable to the data type otherwise an error is raised.
 
+If you want to enable strict validation just raw data, you can use ``strict_load`` and ``strict_set``
+parameters.::
+
+    class User(Schema):
+        id = fields.Integer(strict_load=False)
+
+    User(id='2')  # ERROR: invalid data type
+    User({'id': '2'})  # NO ERROR
+
+The ``strict`` parameter is a shorthand that can be used to control the behaviour of both
+of these parameters.
+
 .. _tut-fields-nesting-schemas:
 
 Nesting Schemas

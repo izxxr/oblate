@@ -13,7 +13,8 @@ New features
 
 - Add the :attr:`fields.Field.raw_validators` property to access the list of raw validators associated
   to a field.
-
+- Add ``strict_load`` and ``strict_set`` parameters in :class:`fields.Field` as a narrowed down
+  version of ``strict``.
 
 Bug fixes
 ~~~~~~~~~
