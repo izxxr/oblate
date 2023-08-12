@@ -36,7 +36,7 @@ from typing import (
     overload,
 )
 from typing_extensions import Self
-from oblate.utils import MISSING
+from oblate.utils import MISSING, bound_validation_error
 from oblate.exceptions import ValidationError
 from oblate import config
 
@@ -159,18 +159,14 @@ class Field(Generic[RawT, SerializedT]):
         name = self._name
         run_validators = True
         if instance._partial and name not in instance._partial_included_fields:
-            err = ValidationError('This field cannot be set on this partial object.')
-            err._bind(self)
-            errors.append(err)
+            errors.append(bound_validation_error('This field cannot be set on this partial object.', self))
         else:
             if value is None:
                 if self.none:
                     instance._field_values[name] = None
                 else:
                     run_validators = False
-                    err = ValidationError('Value for this field cannot be None.')
-                    err._bind(self)
-                    errors.append(err)
+                    errors.append(bound_validation_error('Value for this field cannot be None.', self))
         if not errors:
             values = instance._field_values
             old_value = values.get(name, MISSING)

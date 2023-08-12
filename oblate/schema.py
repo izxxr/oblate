@@ -26,7 +26,7 @@ from typing import Optional, Mapping, Dict, Set, Any, Sequence
 from typing_extensions import Self
 from oblate import config
 from oblate.fields import Field
-from oblate.utils import maybe_callable, MISSING
+from oblate.utils import maybe_callable, bound_validation_error, MISSING
 from oblate.exceptions import ValidationError, SchemaValidationFailed
 
 import collections.abc
@@ -158,9 +158,7 @@ class Schema:
                 if field._name in self._default_fields:
                     continue
 
-                err = ValidationError('This field cannot be set in this partial object.')
-                err._bind(field)
-                raise err
+                raise bound_validation_error('This field cannot be set in this partial object.', field)
 
         self._partial = True
         self._partial_included_fields = include
@@ -182,9 +180,7 @@ class Schema:
                     continue
 
             if include and field._name not in include:
-                err = ValidationError(f'This field cannot be set in this partial object.')
-                err._bind(field)
-                errors.append(err)
+                errors.append(bound_validation_error('This field cannot be set in this partial object.', field))
 
             try:
                 assigned_value = self._assign_field_value(value, field, from_data=from_data)
@@ -207,9 +203,7 @@ class Schema:
                     self._default_fields.add(field._name)
                 continue
 
-            err = ValidationError('This field is required.')
-            err._bind(field)
-            errors.append(err)
+            errors.append(bound_validation_error('This field is required.', field))
 
         for field, value, raw in to_validate:
             validator_errors = field._run_validators(self, value, raw)

@@ -22,7 +22,11 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TYPE_CHECKING
+from oblate.exceptions import ValidationError
+
+if TYPE_CHECKING:
+    from oblate.fields.base import Field
 
 __all__ = ()
 
@@ -43,3 +47,7 @@ MISSING: Any = _Missing()
 def maybe_callable(obj: Any) -> Any:
     return obj() if callable(obj) else obj
 
+def bound_validation_error(message: Any, field: Field) -> ValidationError:
+    err = ValidationError(message)
+    err._bind(field)
+    return err
