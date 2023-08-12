@@ -25,9 +25,9 @@ from __future__ import annotations
 from typing import Optional, Mapping, Dict, Set, Any, Sequence
 from typing_extensions import Self
 from oblate import config, errors
-from oblate.fields import Field
-from oblate.utils import maybe_callable, bound_validation_error, MISSING
-from oblate.exceptions import ValidationError, SchemaValidationFailed
+from oblate.fields import Field, Partial, Object
+from oblate.utils import maybe_callable, MISSING
+from oblate.exceptions import ValidationError
 
 import collections.abc
 import inspect
@@ -89,16 +89,22 @@ class Schema:
                 cls.__load_key_fields__[field.load_key] = field
 
     @classmethod
-    def _from_nested_object(cls, data: Mapping[str, Any]) -> Self:
+    def _from_nested_object(cls, parent: Object, data: Mapping[str, Any]) -> Self:
         if not isinstance(data, collections.abc.Mapping):
-            raise ValidationError(f'Value for this field must be a {cls.__qualname__} object.')
+            raise parent._format_validation_error(errors.INVALID_DATATYPE, data)
 
         return cls(data)
     
     @classmethod
-    def _from_partial(cls, data: Mapping[str, Any], include: Set[str], from_data: bool = False) -> Self:
+    def _from_partial(
+        cls,
+        parent: Partial,
+        data: Mapping[str, Any],
+        include: Set[str],
+        from_data: bool = False,
+    ) -> Self:
         if not isinstance(data, collections.abc.Mapping):
-            raise ValidationError(f'Value for this field must be a partial {cls.__qualname__} object.')
+            raise parent._format_validation_error(errors.INVALID_DATATYPE, data)
 
         self = cls.__new__(cls)  # Bypass Schema.__init__()
         self._init(
@@ -158,7 +164,7 @@ class Schema:
                 if field._name in self._default_fields:
                     continue
 
-                raise bound_validation_error('This field cannot be set in this partial object.', field)
+                raise field._format_validation_error(errors.DISALLOWED_FIELD)
 
         self._partial = True
         self._partial_included_fields = include
