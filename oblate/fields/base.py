@@ -174,9 +174,7 @@ class Field(Generic[RawT, SerializedT]):
                 values[name] = assigned_value = self.value_set(value, False)
             except ValidationError as err:
                 error = config.get_validation_fail_exception()([err], instance)
-                new = ValidationError(error.raw())
-                new._bind(self)
-                errors.append(new)
+                errors.append(bound_validation_error(error.raw(), self))
             else:
                 if run_validators:
                     errors.extend(self._run_validators(instance, value, raw=True))
