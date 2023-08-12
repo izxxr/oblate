@@ -13,3 +13,4 @@ provide details on every feature of the library.
    basic
    fields
    validators
+   errors

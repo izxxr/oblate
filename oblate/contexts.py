@@ -22,8 +22,11 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TYPE_CHECKING
 from oblate.utils import MISSING
+
+if TYPE_CHECKING:
+    from oblate.fields import Field
 
 __all__ = (
     'ErrorFormatterContext',

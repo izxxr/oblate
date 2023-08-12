@@ -157,14 +157,14 @@ class Schema:
             if name in include:
                 continue
             try:
-                self._field_values[field._name]
+                value = self._field_values[field._name]
             except KeyError:
                 continue
             else:
                 if field._name in self._default_fields:
                     continue
 
-                raise field._format_validation_error(errors.DISALLOWED_FIELD)
+                raise field._format_validation_error(errors.DISALLOWED_FIELD, value)
 
         self._partial = True
         self._partial_included_fields = include

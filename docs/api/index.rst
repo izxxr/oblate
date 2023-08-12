@@ -14,3 +14,4 @@ are broken down to sections where each section explains specific components.
    config
    fields
    exceptions
+   errors
