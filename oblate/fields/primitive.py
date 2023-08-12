@@ -22,10 +22,14 @@
 
 from __future__ import annotations
 
-from typing import Any, Sequence, Optional
+from typing import Any, Sequence, Optional, TYPE_CHECKING
 from oblate.fields.base import Field, RawT, SerializedT
 from oblate.utils import MISSING
 from oblate.exceptions import ValidationError
+from oblate import errors
+
+if TYPE_CHECKING:
+    from oblate.contexts import ErrorFormatterContext
 
 __all__ = (
     'BasePrimitiveField',
@@ -104,10 +108,18 @@ class String(BasePrimitiveField[Any, str]):
         Whether to only allow string data types. If this is set to False,
         any value is type casted to string. Defaults to True.
     """
+    _ERROR_MESSAGES = {
+        errors.INVALID_DATATYPE: 'Value for this field must be of string data type.',
+    }
+
+    @errors.error_formatter(errors.INVALID_DATATYPE)
+    def _format_validation_error_string(self, ctx: ErrorFormatterContext) -> ValidationError:
+        return ValidationError(self._ERROR_MESSAGES[ctx.error_code])
+
     def _process_value(self, value: Any, load: bool, init: bool) -> str:
         if not isinstance(value, str):
             if self._check_strict(load=load, init=init):
-                raise ValidationError('Value for this field must be of string data type.')
+                raise self._format_validation_error(errors.INVALID_DATATYPE, value)
 
             return str(value)
         else:
@@ -135,14 +147,23 @@ class Integer(BasePrimitiveField[Any, int]):
         Whether to only allow integer data types. If this is set to False,
         any integer-castable value is type casted to integer. Defaults to True.
     """
+    _ERROR_MESSAGES = {
+        errors.INVALID_DATATYPE: 'Value for this field must be of integer data type.',
+        errors.NONCONVERTABLE_VALUE: 'Value for this field must be an integer-convertable value.',
+    }
+
+    @errors.error_formatter(errors.INVALID_DATATYPE, errors.NONCONVERTABLE_VALUE)
+    def _format_validation_error_integer(self, ctx: ErrorFormatterContext) -> ValidationError:
+        return ValidationError(self._ERROR_MESSAGES[ctx.error_code])
+
     def _process_value(self, value: Any, load: bool, init: bool) -> int:
         if not isinstance(value, int):
             if self._check_strict(load=load, init=init):
-                raise ValidationError('Value for this field must be of integer data type.')
+                raise self._format_validation_error(errors.INVALID_DATATYPE, value)
             try:
                 return int(value)
             except Exception:
-                raise ValidationError('Value for this field must be an integer-convertable value.') from None
+                raise self._format_validation_error(errors.NONCONVERTABLE_VALUE, value) from None
         else:
             return value 
 
@@ -192,6 +213,11 @@ class Boolean(BasePrimitiveField[Any, bool]):
         'NO', 'No', 'no', '0'
     )
 
+    _ERROR_MESSAGES = {
+        errors.INVALID_DATATYPE: 'Value for this field must be of boolean data type.',
+        errors.NONCONVERTABLE_VALUE: 'Value for this field must be a boolean-convertable value.',
+    }
+
     __slots__ = (
         '_true_values',
         '_false_values',
@@ -210,17 +236,21 @@ class Boolean(BasePrimitiveField[Any, bool]):
         self._true_values = true_values if true_values is not None else self.TRUE_VALUES
         self._false_values = false_values if false_values is not None else self.FALSE_VALUES
 
+    @errors.error_formatter(errors.INVALID_DATATYPE, errors.NONCONVERTABLE_VALUE)
+    def _format_validation_error_boolean(self, ctx: ErrorFormatterContext) -> ValidationError:
+        return ValidationError(self._ERROR_MESSAGES[ctx.error_code])
+
     def _process_value(self, value: Any, load: bool, init: bool) -> bool:
         if not isinstance(value, bool):
             if self._check_strict(load=load, init=init):
-                raise ValidationError('Value for this field must be of boolean type.')
+                raise self._format_validation_error(errors.INVALID_DATATYPE, value)
             value = str(value)
             if value in self._true_values:
                 return True
             if value in self._false_values:
                 return False
             else:
-                raise ValidationError('Value for this field must be a boolean-convertable value.')
+                raise self._format_validation_error(errors.NONCONVERTABLE_VALUE, value)
         else:
             return value
 
@@ -246,14 +276,23 @@ class Float(BasePrimitiveField[Any, float]):
         Whether to only allow float data types. If this is set to False,
         any float-castable value is type casted to float. Defaults to True.
     """
+    _ERROR_MESSAGES = {
+        errors.INVALID_DATATYPE: 'Value for this field must be of float data type.',
+        errors.NONCONVERTABLE_VALUE: 'Value for this field must be a float-convertable value.',
+    }
+
+    @errors.error_formatter(errors.INVALID_DATATYPE, errors.NONCONVERTABLE_VALUE)
+    def _format_validation_error_float(self, ctx: ErrorFormatterContext) -> ValidationError:
+        return ValidationError(self._ERROR_MESSAGES[ctx.error_code])
+
     def _process_value(self, value: Any, load: bool, init: bool) -> float:
         if not isinstance(value, float):
             if self._check_strict(load=load, init=init):
-                raise ValidationError('Value for this field must be a floating point number.')
+                raise self._format_validation_error(errors.INVALID_DATATYPE, value)
             try:
                 return float(value)
             except Exception:
-                raise ValidationError('Value for this field must be an float-convertable value.') from None
+                raise self._format_validation_error(errors.NONCONVERTABLE_VALUE, value) from None
         else:
             return value
 

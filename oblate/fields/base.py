@@ -33,17 +33,20 @@ from typing import (
     Type,
     List,
     Literal,
+    Dict,
     overload,
 )
 from typing_extensions import Self
 from oblate.utils import MISSING, bound_validation_error
 from oblate.exceptions import ValidationError
-from oblate import config
+from oblate.contexts import ErrorFormatterContext
+from oblate import config, errors
 
 import copy
 
 if TYPE_CHECKING:
     from oblate.schema import Schema
+    from oblate.errors import ErrorFormatterT
 
     SerializedValidatorCallbackT = Callable[['SchemaT', 'SerializedT'], bool]
     RawValidatorCallbackT = Callable[['SchemaT', 'RawT'], bool]
@@ -57,6 +60,14 @@ RawT = TypeVar('RawT')
 SerializedT = TypeVar('SerializedT')
 SchemaT = TypeVar('SchemaT', bound='Schema')
 
+DEFAULT_ERROR_MESSAGES = {
+    errors.FIELD_REQUIRED: 'This field is required.',
+    errors.VALIDATION_FAILED: 'Validation failed for this field.',
+    errors.NONE_DISALLOWED: 'Value for this field cannot be None',
+    errors.INVALID_DATATYPE: 'Value for this field is of improper datatype.',
+    errors.NONCONVERTABLE_VALUE: 'Value for this field cannot be converted to supported data type.',
+    errors.DISALLOWED_FIELD: 'This field cannot be set on this partial object.',
+}
 
 class Field(Generic[RawT, SerializedT]):
     """The base class that all fields inside a schema must inherit from.
@@ -99,6 +110,7 @@ class Field(Generic[RawT, SerializedT]):
         The key to which the deserialized value of this field should be set in the
         data returned by :meth:`Schema.dump`.
     """
+    __error_formatters__: Dict[int, ErrorFormatterT]
     __valid_overrides__ = (
         'missing',
         'none',
@@ -138,6 +150,15 @@ class Field(Generic[RawT, SerializedT]):
         self._raw_validators: List[RawValidatorCallbackT[Any, RawT]] = []
         self._clear_state()
 
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        cls.__error_formatters__ = {}
+        for _, member in vars(cls).items():
+            if not hasattr(member, '__oblate_error_formatter_codes__'):
+                continue
+
+            for code in member.__oblate_error_formatter_codes__:
+                cls.__error_formatters__[code] = member
+        
     @overload
     def __get__(self, instance: Literal[None], owner: Type[Schema]) -> Self:
         ...
@@ -155,61 +176,86 @@ class Field(Generic[RawT, SerializedT]):
             raise AttributeError(f'No value available for field {owner.__qualname__}.{self._name}') from None
 
     def __set__(self, instance: Schema, value: Any) -> None:
-        errors = []
+        errs = []
         name = self._name
         run_validators = True
         if instance._partial and name not in instance._partial_included_fields:
-            errors.append(bound_validation_error('This field cannot be set on this partial object.', self))
+            errs.append(self._format_validation_error(errors.DISALLOWED_FIELD, value))
         else:
             if value is None:
                 if self.none:
                     instance._field_values[name] = None
                 else:
                     run_validators = False
-                    errors.append(bound_validation_error('Value for this field cannot be None.', self))
-        if not errors:
+                    errs.append(self._format_validation_error(errors.NONE_DISALLOWED, value))
+        if not errs:
             values = instance._field_values
             old_value = values.get(name, MISSING)
             try:
                 values[name] = assigned_value = self.value_set(value, False)
             except ValidationError as err:
                 error = config.get_validation_fail_exception()([err], instance)
-                errors.append(bound_validation_error(error.raw(), self))
+                errs.append(bound_validation_error(error.raw(), self))
             else:
                 if run_validators:
-                    errors.extend(self._run_validators(instance, value, raw=True))
-                    errors.extend(self._run_validators(instance, assigned_value, raw=False))
-                if name in instance._default_fields and not errors:
+                    errs.extend(self._run_validators(instance, value, raw=True))
+                    errs.extend(self._run_validators(instance, assigned_value, raw=False))
+                if name in instance._default_fields and not errs:
                     instance._default_fields.remove(name)
-                if errors and old_value is not MISSING:
+                if errs and old_value is not MISSING:
                     # Reset to old value if errors have occured
                     values[name] = old_value
 
-        if errors:
+        if errs:
             cls = config.get_validation_fail_exception()
-            raise cls(errors, instance)
+            raise cls(errs, instance)
 
     def _clear_state(self) -> None:
         self._schema: Type[Schema] = MISSING
         self._name: str = MISSING
 
     def _run_validators(self, schema: Schema, value: Any, raw: bool = False) -> List[ValidationError]:
-        errors = []
+        errs = []
         validators = self._raw_validators if raw else self._validators
 
         for validator in validators:
             try:
                 validated = validator(schema, value)
                 if not validated:
-                    raise ValidationError(f'Validation failed for field {self._name!r}')
+                    raise self._format_validation_error(errors.VALIDATION_FAILED, value)
             except ValidationError as err:
                 err._bind(self)
-                errors.append(err)
+                errs.append(err)
 
-        return errors
+        return errs
 
     def _proper_name(self) -> str:
         return f'{self._schema.__qualname__}.{self._name}'
+
+    def _make_error_context(self, error_code: int, value: Any = MISSING, **kwargs: Any) -> ErrorFormatterContext:
+        return ErrorFormatterContext(
+            error_code=error_code,
+            value=value,
+            **kwargs,
+        )
+
+    def _call_error_formatter(self, ctx: ErrorFormatterContext) -> ValidationError:
+        error_code = ctx.error_code
+        if error_code not in self.__error_formatters__:
+            error = ValidationError(DEFAULT_ERROR_MESSAGES[error_code])
+        else:
+            formatter = self.__error_formatters__[error_code]
+            error = formatter(self, ctx)
+
+            if not isinstance(error, ValidationError):
+                raise TypeError(f'Error formatter {formatter.__name__} must return a ValidationError instance')
+
+        error._bind(self)
+        return error
+
+    def _format_validation_error(self, error_code: int, value: Any = MISSING) -> ValidationError:
+        ctx = self._make_error_context(error_code, value)
+        return self._call_error_formatter(ctx)
 
     @property
     def raw_validators(self) -> List[RawValidatorCallbackT]:

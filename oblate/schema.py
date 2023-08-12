@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from typing import Optional, Mapping, Dict, Set, Any, Sequence
 from typing_extensions import Self
-from oblate import config
+from oblate import config, errors
 from oblate.fields import Field
 from oblate.utils import maybe_callable, bound_validation_error, MISSING
 from oblate.exceptions import ValidationError, SchemaValidationFailed
@@ -131,7 +131,7 @@ class Schema:
     def _assign_field_value(self, value: Any, field: Field[Any, Any], from_data: bool = False) -> Any:
         if value is None:
             if not field.none:
-                raise ValidationError('Value for this field cannot be None')
+                raise field._format_validation_error(errors.NONE_DISALLOWED, value)
             else:
                 self._field_values[field._name] = None
             return
@@ -166,7 +166,7 @@ class Schema:
     def _prepare(self, data: Mapping[str, Any], include: Set[str] = MISSING, from_data: bool = False) -> None:
         fields = self.__fields__.copy()
         to_validate = []  # List of three element tuple: (field_instance, value_to_validate, is_value_raw)
-        errors = []
+        errs = []
 
         for arg, value in data.items():
             try:
@@ -176,17 +176,17 @@ class Schema:
                     field = self.__load_key_fields__[arg]
                     fields.pop(field._name, None)
                 else:
-                    errors.append(ValidationError(f'Unknown or invalid field {arg!r} provided.'))
+                    errs.append(ValidationError(f'Unknown or invalid field {arg!r} provided.'))
                     continue
 
             if include and field._name not in include:
-                errors.append(bound_validation_error('This field cannot be set in this partial object.', field))
+                errs.append(field._format_validation_error(errors.DISALLOWED_FIELD, value))
 
             try:
                 assigned_value = self._assign_field_value(value, field, from_data=from_data)
             except ValidationError as exc:
                 exc._bind(field)
-                errors.append(exc)
+                errs.append(exc)
             else:
                 if field._raw_validators:
                     to_validate.append((field, value, True))
@@ -203,15 +203,15 @@ class Schema:
                     self._default_fields.add(field._name)
                 continue
 
-            errors.append(bound_validation_error('This field is required.', field))
+            errs.append(field._format_validation_error(errors.FIELD_REQUIRED))
 
         for field, value, raw in to_validate:
             validator_errors = field._run_validators(self, value, raw)
-            errors.extend(validator_errors)
+            errs.extend(validator_errors)
 
-        if errors:
+        if errs:
             cls = config.get_validation_fail_exception()
-            raise cls(errors, self)
+            raise cls(errs, self)
 
     def after_init_hook(self, data: Mapping[str, Any], is_data: bool, /):
         """A hook called when the schema has successfully initialized.

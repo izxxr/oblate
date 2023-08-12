@@ -14,6 +14,7 @@ __author__  = 'Izhar Ahmad (izxxr) <https://github.com/izxxr>'
 
 from oblate.schema import *
 from oblate.exceptions import *
+from oblate.contexts import *
 from oblate import (
     fields as fields,
     config as config,
