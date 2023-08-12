@@ -41,8 +41,7 @@ class ErrorFormatterContext:
     Attributes
     ----------
     error_code: :class:`int`
-        The :ref:`error code <tut-errors-handling-error-codes>` used to
-        determine the type of error.
+        The error code used to determine the type of error.
     """
     __slots__ = (
         'error_code',

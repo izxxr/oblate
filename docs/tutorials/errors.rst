@@ -21,10 +21,10 @@ decorator::
     class CustomString(fields.String):
         @oblate.errors.error_formatter(oblate.errors.INVALID_DATATYPE)
         def handle_invalid_datatype(self, ctx):
-            return ValidationError(f'{ctx.value!r}: invalid data type')
+            return ValidationError(f'{ctx.get_value()!r}: invalid data type')
 
     class User(oblate.Schema):
-        username = fields.String()
+        username = CustomString()
         pin = fields.Integer()
 
     try:

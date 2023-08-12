@@ -17,12 +17,12 @@ Error Formatter
 ---------------
 
 Error formatter is a function that allows you to return custom error data for standard errors. It
-works in combination with :ref:`error codes <api-error-handing-error-codes>`.
+works in combination with error codes.
 
-Error formatters are defined inside a :class:`fields.Field` using the :func:`errors.error_formatter`
+Error formatters are defined inside a :class:`fields.Field` using the :func:`oblate.errors.error_formatter`
 decorator.
 
-.. autofunction:: errors.error_formatter
+.. autofunction:: oblate.errors.error_formatter
 
 .. autoclass:: ErrorFormatterContext
     :members:

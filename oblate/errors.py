@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     ErrorFormatterT = Callable[[FT, ErrorFormatterContext], Any]
 
 __all__ = (
+    'error_formatter',
     'FIELD_REQUIRED',
     'VALIDATION_FAILED',
     'NONE_DISALLOWED',
