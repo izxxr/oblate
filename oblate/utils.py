@@ -22,32 +22,56 @@
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
-from oblate.exceptions import ValidationError
+from typing import TYPE_CHECKING, Any, Mapping, Dict
+from typing_extensions import Self
+from contextvars import ContextVar
 
 if TYPE_CHECKING:
-    from oblate.fields.base import Field
+    from oblate.contexts import _BaseValueContext
+    from oblate.schema import Schema
 
-__all__ = ()
+__all__ = (
+    'MissingType',
+    'MISSING',
+    'current_context',
+    'current_field_name',
+    'ManageContextVars',
+)
 
+class MissingType:
+    """Type for representing unaltered/default/missing values.
 
-class _Missing:
+    Used as sentinel to differentiate between default and None values.
+    utils.MISSING is a type safe instance of this class.
+    """
     def __repr__(self) -> str:
-        return "..."
+        return '...'  # pragma: no cover
 
     def __bool__(self) -> bool:
-        return False
-
-    def __eq__(self, v: Any) -> bool:
-        return False
+        return False  # pragma: no cover
 
 
-MISSING: Any = _Missing()
+MISSING: Any = MissingType()
 
-def maybe_callable(obj: Any) -> Any:
-    return obj() if callable(obj) else obj
 
-def bound_validation_error(message: Any, field: Field) -> ValidationError:
-    err = ValidationError(message)
-    err._bind(field)
-    return err
+### Context variables ###
+
+current_context: ContextVar[_BaseValueContext] = ContextVar('_current_context')
+current_field_name: ContextVar[str] = ContextVar('current_field_name')
+current_schema: ContextVar[Schema] = ContextVar('current_schema')
+
+class ManageContextVars:
+    __slots__ = ('_ctx_vars', '_tokens')
+
+    def __init__(self, ctx_vars: Mapping[ContextVar[Any], Any]) -> None:
+        self._ctx_vars = ctx_vars
+        self._tokens: Dict[ContextVar[Any], Any] = {}
+
+    def __enter__(self) -> Self:
+        for var, val in self._ctx_vars.items():
+            self._tokens[var] = var.set(val)
+        return self
+
+    def __exit__(self, *args: Any, **kwargs: Any) -> None:
+        for var, token in self._tokens.items():
+            var.reset(token)
