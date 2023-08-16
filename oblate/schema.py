@@ -25,7 +25,7 @@ from __future__ import annotations
 from typing import Dict, Any, Mapping, List, Optional, Sequence
 from oblate.fields.base import Field
 from oblate.contexts import SchemaContext, LoadContext, DumpContext
-from oblate.utils import MISSING, current_field_name, current_context, current_schema, ManageContextVars
+from oblate.utils import MISSING, current_field_name, current_context, current_schema
 from oblate.exceptions import FieldError, ValidationError
 
 __all__ = (
@@ -43,11 +43,11 @@ class Schema:
     )
 
     def __init__(self, data: Mapping[str, Any]) -> None:
+        current_schema.set(self)
+
         self._field_values: Dict[str, Any] = {}
         self._context = SchemaContext(self)
-
-        with ManageContextVars({current_schema: self}):
-            self._prepare_from_data(data)
+        self._prepare_from_data(data)
 
     def __init_subclass__(cls) -> None:
         if not hasattr(cls, '__fields__'):
@@ -65,21 +65,22 @@ class Schema:
         errors: List[FieldError] = []
 
         for name, value in data.items():
-            with ManageContextVars({current_field_name: name}):
-                try:
-                    field = fields.pop(name)
-                except KeyError:
-                    errors.append(FieldError(f'Invalid or unknown field.'))
-                else:
-                    process_errors = self._process_field_value(field, value)
-                    errors.extend(process_errors)
+            current_field_name.set(name)
+            try:
+                field = fields.pop(name)
+            except KeyError:
+                errors.append(FieldError(f'Invalid or unknown field.'))
+            else:
+                process_errors = self._process_field_value(field, value)
+                errors.extend(process_errors)
 
         for name, field in fields.items():
-            with ManageContextVars({current_field_name: name}):
-                if field.required:
-                    errors.append(FieldError('This field is required.'))
-                if field._default is not MISSING:
-                    self._field_values[name] = field._default(self._context, field) if callable(field._default) else field._default
+            current_field_name.set(name)
+
+            if field.required:
+                errors.append(FieldError('This field is required.'))
+            if field._default is not MISSING:
+                self._field_values[name] = field._default(self._context, field) if callable(field._default) else field._default
 
         if errors:
             raise ValidationError(errors)
@@ -87,22 +88,23 @@ class Schema:
         self._context._initialized = True
 
     def _process_field_value(self, field: Field[Any, Any], value: Any) -> List[FieldError]:
-        context = LoadContext(field=field, value=value, schema=self)
+        name = field._name
         errors: List[FieldError] = []
-        with ManageContextVars({current_context: context}):
-            name = field._name
-            if value is None:
-                if field.none:
-                    self._field_values[name] = None
-                else:
-                    errors.append(FieldError('This field cannot take a None value.'))
-                return errors
-            try:
-                self._field_values[name] = field.value_load(context)
-            except (ValueError, AssertionError, FieldError) as err:
-                if not isinstance(err, FieldError):
-                    err = FieldError._from_standard_error(err)
-                errors.append(err)
+        context = LoadContext(field=field, value=value, schema=self)
+        current_context.set(context)
+
+        if value is None:
+            if field.none:
+                self._field_values[name] = None
+            else:
+                errors.append(FieldError('This field cannot take a None value.'))
+            return errors
+        try:
+            self._field_values[name] = field.value_load(context)
+        except (ValueError, AssertionError, FieldError) as err:
+            if not isinstance(err, FieldError):
+                err = FieldError._from_standard_error(err)
+            errors.append(err)
 
         return errors
 
@@ -184,34 +186,35 @@ class Schema:
         if exclude is not None:
             fields = fields.difference(set(exclude))
 
+        current_schema.set(self)
         out: Dict[str, Any] = {}
         errors: List[FieldError] = []
 
-        with ManageContextVars({current_schema: self}):
-            for name in fields:
-                field = self.__fields__[name]
-                try:
-                    value = self._field_values[name]
-                except KeyError:  # pragma: no cover
-                    # This should never happen I guess.
-                    # XXX: Raise an error here?
-                    continue
+        for name in fields:
+            field = self.__fields__[name]
+            try:
+                value = self._field_values[name]
+            except KeyError:  # pragma: no cover
+                # This should never happen I guess.
+                # XXX: Raise an error here?
+                continue
 
-                context = DumpContext(
-                    schema=self,
-                    field=field,
-                    value=value,
-                    included_fields=fields,
-                )
-                with ManageContextVars({current_context: context, current_field_name: name}):
-                    try:
-                        out[name] = field.value_dump(context)
-                    except (ValueError, AssertionError, FieldError) as err:
-                        if not isinstance(err, FieldError):
-                            err = FieldError._from_standard_error(err)
-                        errors.append(err)
+            context = DumpContext(
+                schema=self,
+                field=field,
+                value=value,
+                included_fields=fields,
+            )
+            current_field_name.set(name)
+            current_context.set(context)
+            try:
+                out[name] = field.value_dump(context)
+            except (ValueError, AssertionError, FieldError) as err:
+                if not isinstance(err, FieldError):
+                    err = FieldError._from_standard_error(err)
+                errors.append(err)
 
-            if errors:
-                raise ValidationError(errors)
+        if errors:
+            raise ValidationError(errors)
 
         return out
