@@ -22,22 +22,37 @@
 
 from __future__ import annotations
 
-from typing import Any
 from oblate import fields
-
 import oblate
-from oblate.contexts import LoadContext
+import pytest
 
-def test_is_update():
-    class _TestField(fields.Field[Any, Any]):
-        def value_load(self, value: Any, context: LoadContext) -> Any:
-            return True if context.is_update() else False
+def test_field_object():
+    class User(oblate.Schema):
+        id = fields.Integer()
+        name = fields.String()
 
-    class _TestSchema(oblate.Schema):
-        field = _TestField()
+    class Game(oblate.Schema):
+        id = fields.Integer()
+        author = fields.Object(User)
 
-    test = _TestSchema({'field': ''})
-    assert test.field == False
+    user_data = {'id': 1, 'name': 'John'}
+    game_data = {'id': 2, 'author': user_data}
 
-    test.field = ''
-    assert test.field == True
+    game = Game(game_data)
+    assert game.author.id == 1
+    assert game.author.name == 'John'
+    assert game.dump() == game_data
+
+    user_data.pop('id')
+
+    try:
+        Game(game_data)
+    except oblate.ValidationError as err:
+        raw = err.raw()
+        assert 'id' in raw['author'][0]
+        assert 'required' in raw['author'][0]['id'][0]
+
+    game_data['author'] = 'invalid'  # type: ignore
+
+    with pytest.raises(oblate.ValidationError, match='User object'):
+        Game(game_data)

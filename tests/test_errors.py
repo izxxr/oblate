@@ -29,7 +29,7 @@ import oblate
 
 def test_error_field_binding():
     class _TestField(fields.Field[Any, Any]):
-        def value_load(self, context: oblate.LoadContext) -> Any:
+        def value_load(self, value: Any, context: oblate.LoadContext) -> Any:
             err = oblate.FieldError('test message')
             assert err.field == self
             return context.value
@@ -54,13 +54,13 @@ def test_standard_errors():
     class _TestFieldAssertionError(fields.Field[Any, Any]):
         ERROR_MESSAGE = 'assert'
 
-        def value_load(self, context: oblate.LoadContext) -> Any:
+        def value_load(self, value: Any, context: oblate.LoadContext) -> Any:
             raise AssertionError(self.ERROR_MESSAGE)
 
     class _TestFieldValueError(fields.Field[Any, Any]):
         ERROR_MESSAGE = 'value'
 
-        def value_load(self, context: oblate.LoadContext) -> Any:
+        def value_load(self, value: Any, context: oblate.LoadContext) -> Any:
             raise ValueError(self.ERROR_MESSAGE)
 
     class _TestSchema(oblate.Schema):

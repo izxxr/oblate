@@ -70,10 +70,10 @@ def test_schema_dump():
         test.dump(include=[], exclude=[])
 
     class _TestField(fields.Field[Any, Any]):
-        def value_load(self, context: oblate.LoadContext) -> Any:
+        def value_load(self, value: Any, context: oblate.LoadContext) -> Any:
             return True
 
-        def value_dump(self, context: oblate.DumpContext) -> Any:
+        def value_dump(self, value: Any, context: oblate.DumpContext) -> Any:
             raise ValueError('dump value error')
 
     class _TestSchemaErrorDump(oblate.Schema):
@@ -99,4 +99,3 @@ def test_get_value_for():
 
     with pytest.raises(RuntimeError):
         test.get_value_for('invalid field')
-

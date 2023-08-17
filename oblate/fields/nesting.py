@@ -53,7 +53,7 @@ class Object(Field[Mapping[str, Any], SchemaT]):
 
     def __init__(self, schema_cls: Type[SchemaT], **kwargs: Any) -> None:
         if not issubclass(schema_cls, Schema):
-            raise TypeError('schema_cls must be a subclass of Schema')
+            raise TypeError('schema_cls must be a subclass of Schema')  # pragma: no cover
 
         self.schema_cls = schema_cls
         super().__init__(**kwargs)
