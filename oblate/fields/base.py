@@ -95,11 +95,15 @@ class Field(Generic[RawValueT, SerializedValueT]):
         return instance.get_value_for(self._name)
 
     def __set__(self, instance: Schema, value: RawValueT) -> None:
-        current_schema.set(instance)
-        current_field_name.set(self._name)
-        errors = instance._process_field_value(self, value)
-        if errors:
-            raise ValidationError(errors)
+        schema_token = current_schema.set(instance)
+        field_name = current_field_name.set(self._name)
+        try:
+            errors = instance._process_field_value(self, value)
+            if errors:
+                raise ValidationError(errors)
+        finally:
+            current_schema.reset(schema_token)
+            current_field_name.reset(field_name)
 
     def _unbind(self) -> None:
         self._name: str = MISSING

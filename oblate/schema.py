@@ -43,11 +43,13 @@ class Schema:
     )
 
     def __init__(self, data: Mapping[str, Any]) -> None:
-        current_schema.set(self)
-
-        self._field_values: Dict[str, Any] = {}
-        self._context = SchemaContext(self)
-        self._prepare_from_data(data)
+        token = current_schema.set(self)
+        try:
+            self._field_values: Dict[str, Any] = {}
+            self._context = SchemaContext(self)
+            self._prepare_from_data(data)
+        finally:
+            current_schema.reset(token)
 
     def __init_subclass__(cls) -> None:
         if not hasattr(cls, '__fields__'):
@@ -65,7 +67,7 @@ class Schema:
         errors: List[FieldError] = []
 
         for name, value in data.items():
-            current_field_name.set(name)
+            token = current_field_name.set(name)
             try:
                 field = fields.pop(name)
             except KeyError:
@@ -73,14 +75,18 @@ class Schema:
             else:
                 process_errors = self._process_field_value(field, value)
                 errors.extend(process_errors)
+            finally:
+                current_field_name.reset(token)
 
         for name, field in fields.items():
-            current_field_name.set(name)
-
-            if field.required:
-                errors.append(FieldError('This field is required.'))
-            if field._default is not MISSING:
-                self._field_values[name] = field._default(self._context, field) if callable(field._default) else field._default
+            token = current_field_name.set(name)
+            try:
+                if field.required:
+                    errors.append(FieldError('This field is required.'))
+                if field._default is not MISSING:
+                    self._field_values[name] = field._default(self._context, field) if callable(field._default) else field._default
+            finally:
+                current_field_name.reset(token)
 
         if errors:
             raise ValidationError(errors)
@@ -91,7 +97,7 @@ class Schema:
         name = field._name
         errors: List[FieldError] = []
         context = LoadContext(field=field, value=value, schema=self)
-        current_context.set(context)
+        token = current_context.set(context)
 
         if value is None:
             if field.none:
@@ -105,6 +111,8 @@ class Schema:
             if not isinstance(err, FieldError):
                 err = FieldError._from_standard_error(err)
             errors.append(err)
+        finally:
+            current_context.reset(token)
 
         return errors
 
@@ -205,14 +213,17 @@ class Schema:
                 value=value,
                 included_fields=fields,
             )
-            current_field_name.set(name)
-            current_context.set(context)
+            field_token = current_field_name.set(name)
+            context_token = current_context.set(context)
             try:
                 out[name] = field.value_dump(value, context)
             except (ValueError, AssertionError, FieldError) as err:
                 if not isinstance(err, FieldError):
                     err = FieldError._from_standard_error(err)
                 errors.append(err)
+            finally:
+                current_field_name.reset(field_token)
+                current_context.reset(context_token)
 
         if errors:
             raise ValidationError(errors)

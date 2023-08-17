@@ -105,25 +105,39 @@ class ValidationError(OblateException):
     ----------
     errors: List[:class:`FieldError`]
         The errors that caused the validation failure.
+    schema: :class:`Schema`
+        The schema this error originates from.
     """
     def __init__(self, errors: List[FieldError]) -> None:
         self.errors = errors
+        self.schema = current_schema.get()
         super().__init__(self._make_message())
 
-    def _make_message(self) -> str:
-        field_errors = self._raw_std()
-        builder = [f'│ {len(field_errors)} validation {"errors" if len(field_errors) > 1 else "error"}', '│']
+    def _make_message(self, field_errors: Optional[Dict[str, List[str]]] = None, level: int = 0) -> str:
+        if field_errors is None:
+            field_errors = self._raw_std()
 
+        builder: List[str] = []
+        if level == 0:
+            schema_name = self.schema.__class__.__qualname__
+            builder.append(f'│ {len(field_errors)} validation {"errors" if len(field_errors) > 1 else "error"} in schema {schema_name!r}')
+
+        indent = level*4
         for name, errors in field_errors.items():
-            builder.append(f'├── In field {name}:')
-            for err_idx, error in enumerate(errors):
-                if err_idx == len(errors) - 1:
-                    prefix = '└──'
-                else:
-                    prefix = '├──'
-                builder.append(f'│   {prefix} {error}')
+            builder.append(f'{" "*indent}│')
+            builder.append(f'{" "*indent}└── In field {name}:')
+            if indent != 0:
+                errors.extend(('test 1', 'test 2', 'test 3'))
+            for idx, error in enumerate(errors):
+                if isinstance(error, dict):
+                    builder.append(self._make_message(error, level=level+1))
+                    continue
 
-            builder.append('│')
+                prefix = '└──' if idx == len(errors) - 1 else '├──' 
+                builder.append(f'{" "*(indent+4)}{prefix} {error}')
+
+        if level != 0:
+            return '\n'.join(builder)
 
         return '\n│\n' + '\n'.join(builder)
 
