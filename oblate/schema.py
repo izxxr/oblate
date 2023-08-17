@@ -100,7 +100,7 @@ class Schema:
                 errors.append(FieldError('This field cannot take a None value.'))
             return errors
         try:
-            self._field_values[name] = field.value_load(context)
+            self._field_values[name] = field.value_load(value, context)
         except (ValueError, AssertionError, FieldError) as err:
             if not isinstance(err, FieldError):
                 err = FieldError._from_standard_error(err)
@@ -208,7 +208,7 @@ class Schema:
             current_field_name.set(name)
             current_context.set(context)
             try:
-                out[name] = field.value_dump(context)
+                out[name] = field.value_dump(value, context)
             except (ValueError, AssertionError, FieldError) as err:
                 if not isinstance(err, FieldError):
                     err = FieldError._from_standard_error(err)

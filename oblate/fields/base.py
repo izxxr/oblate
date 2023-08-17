@@ -146,13 +146,15 @@ class Field(Generic[RawValueT, SerializedValueT]):
         field._unbind()
         return field
 
-    def value_load(self, context: LoadContext, /) -> SerializedValueT:
+    def value_load(self, value: RawValueT, context: LoadContext, /) -> SerializedValueT:
         """Serializes a raw value.
 
         This is an abstract method that must be implemented by subclasses.
 
         Parameters
         ----------
+        value:
+            The value to serialize.
         context: :class:`LoadContext`
             The serialization context.
 
@@ -167,13 +169,15 @@ class Field(Generic[RawValueT, SerializedValueT]):
         """
         raise NotImplementedError
 
-    def value_dump(self, context: DumpContext, /) -> RawValueT:
+    def value_dump(self, value: SerializedValueT, context: DumpContext, /) -> RawValueT:
         """Deserializes the value to raw form.
 
         This is an abstract method that must be implemented by subclasses.
 
         Parameters
         ----------
+        value:
+            The value to deserialize.
         context: :class:`DumpContext`
             The deserialization context.
 

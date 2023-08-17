@@ -65,11 +65,11 @@ class String(Field[str, str]):
         else:
             return value
 
-    def value_load(self, context: LoadContext) -> str:
+    def value_load(self, value: str, context: LoadContext) -> str:
         return self._process_value(context.value)
 
-    def value_dump(self, context: DumpContext) -> str:
-        return context.value
+    def value_dump(self, value: str, context: DumpContext) -> str:
+        return value
 
 
 class Integer(Field[int, int]):
@@ -103,11 +103,11 @@ class Integer(Field[int, int]):
         else:
             return value
 
-    def value_load(self, context: LoadContext) -> int:
+    def value_load(self, value: int, context: LoadContext) -> int:
         return self._process_value(context.value)
 
-    def value_dump(self, context: DumpContext) -> int:
-        return context.value
+    def value_dump(self, value: int, context: DumpContext) -> int:
+        return value
 
 
 class Boolean(Field[bool, bool]):
@@ -181,11 +181,11 @@ class Boolean(Field[bool, bool]):
         else:
             return value
 
-    def value_load(self, context: LoadContext) -> bool:
+    def value_load(self, value: bool, context: LoadContext) -> bool:
         return self._process_value(context.value)
 
-    def value_dump(self, context: DumpContext) -> bool:
-        return context.value
+    def value_dump(self, value: bool, context: DumpContext) -> bool:
+        return value
 
 
 class Float(Field[float, float]):
@@ -219,8 +219,8 @@ class Float(Field[float, float]):
         else:
             return value
 
-    def value_load(self, context: LoadContext) -> float:
+    def value_load(self, value: float, context: LoadContext) -> float:
         return self._process_value(context.value)
 
-    def value_dump(self, context: DumpContext) -> float:
-        return context.value
+    def value_dump(self, value: float, context: DumpContext) -> float:
+        return value
