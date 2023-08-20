@@ -22,10 +22,24 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypeVar, Generic, Any, Type, Literal, Optional, Union, overload
+from typing import (
+    TYPE_CHECKING,
+    TypeVar,
+    Generic,
+    Any,
+    Type,
+    Literal,
+    Optional,
+    Union,
+    List,
+    Sequence,
+    Iterator,
+    overload,
+)
 from typing_extensions import Self
+from oblate.fields.validators import Validator, ValidatorCallbackT, InputT
 from oblate.utils import MISSING, current_field_name, current_schema
-from oblate.exceptions import ValidationError
+from oblate.exceptions import ValidationError, FieldError
 
 import copy
 
@@ -33,12 +47,15 @@ if TYPE_CHECKING:
     from oblate.schema import Schema
     from oblate.contexts import LoadContext, DumpContext
 
+
 __all__ = (
     'Field',
 )
 
+SchemaT = TypeVar('SchemaT', bound='Schema')
 RawValueT = TypeVar('RawValueT')
 SerializedValueT = TypeVar('SerializedValueT')
+ValidatorT = Union[Validator[InputT], ValidatorCallbackT[SchemaT, InputT]]
 
 
 class Field(Generic[RawValueT, SerializedValueT]):
@@ -57,6 +74,8 @@ class Field(Generic[RawValueT, SerializedValueT]):
         A callable can also be passed in this parameter that returns the default
         value. The callable takes two parameters, that is the current :class:`SchemaContext`
         instance and the current :class:`Field` instance.
+    validators: List[Union[callable, :class:`Validator`]]
+        The list of validators for this field.
     """
 
     __slots__ = (
@@ -65,6 +84,8 @@ class Field(Generic[RawValueT, SerializedValueT]):
         '_default',
         '_name',
         '_schema',
+        '_validators',
+        '_raw_validators',
     )
 
     def __init__(
@@ -73,12 +94,19 @@ class Field(Generic[RawValueT, SerializedValueT]):
             none: bool = False,
             required: bool = True,
             default: Any = MISSING,
+            validators: Sequence[ValidatorT[Any, Any]] = MISSING,
         ) -> None:
 
         self.none = none
         self.required = required and (default is MISSING)
         self._default = default
+        self._validators: List[ValidatorT[SerializedValueT, Any]] = []
+        self._raw_validators: List[ValidatorT[Any, Any]] = []
         self._unbind()
+
+        if validators is not MISSING:
+            for validator in validators:
+                self.add_validator(validator)
 
     @overload
     def __get__(self, instance: Literal[None], owner: Type[Schema]) -> Self:
@@ -119,6 +147,20 @@ class Field(Generic[RawValueT, SerializedValueT]):
         self._name = name
         self._schema = schema
 
+    def _run_validators(self, value: Any, context: LoadContext, raw: bool = False) -> List[FieldError]:
+        validators = self._raw_validators if raw else self._validators
+        errors: List[FieldError] = []
+
+        for validator in validators:
+            try:
+                validator(context.schema, value, context)
+            except (FieldError, AssertionError, ValueError) as err:
+                if isinstance(err, (AssertionError, ValueError)):
+                    err = FieldError._from_standard_error(err)
+                errors.append(err)
+
+        return errors
+
     @property
     def default(self) -> Any:
         return self._default if self._default is not MISSING else None
@@ -149,6 +191,88 @@ class Field(Generic[RawValueT, SerializedValueT]):
         field = copy.copy(self)
         field._unbind()
         return field
+
+    def add_validator(self, validator: ValidatorT[Any, Any], *, raw: bool = False) -> None:
+        """Registers a validator for this field.
+
+        Parameters
+        ----------
+        validator: Union[callable, :class:`fields.Validator`]
+            The validator to register. This can be a callable function or a 
+            :class:`fields.Validator` instance.
+        raw: :class:`bool`
+            Whether a raw validator is being registered. This parameter is only
+            taken into account when a callable is passed instead of a 
+            :class:`fields.Validator` instance.
+        """
+        if not callable(validator):
+            raise TypeError('validator must be a callable or Validator class instance')  # pragma: no cover
+
+        raw = getattr(validator, '__validator_is_raw__', raw)
+        self._raw_validators.append(validator) if raw else self._validators.append(validator)
+
+    def remove_validator(self, validator: ValidatorT[Any, Any], *, raw: bool = False) -> None:
+        """Removes a validator from this field.
+
+        No error is raised if the given validator is not already registered.
+
+        Parameters
+        ----------
+        validator: Union[callable, :class:`fields.Validator`]
+            The validator to remove. This can be a callable function or a 
+            :class:`fields.Validator` instance.
+        raw: :class:`bool`
+            Whether the validator being removed is raw. This parameter is only
+            taken into account when a callable is passed instead of a 
+            :class:`fields.Validator` instance.
+        """
+        if not callable(validator):
+            raise TypeError('validator must be a callable or Validator class instance')  # pragma: no cover
+
+        raw = getattr(validator, '__validator_is_raw__', raw)
+        try:
+            self._raw_validators.remove(validator) if raw else self._validators.remove(validator)
+        except ValueError:  # pragma: no cover
+            pass
+
+    def clear_validators(self, *, raw: bool = MISSING) -> None:
+        """Removes all validator from this field.
+
+        Parameters
+        ----------
+        raw: :class:`bool`
+            Whether to remove raw validators only. If this is not passed, all validators
+            are removed. If this is True, only raw validators are removed and when False,
+            only non-raw validators are removed.
+        """
+        if raw is MISSING:
+            self._validators.clear()
+            self._raw_validators.clear()
+        elif raw:
+            self._raw_validators.clear()
+        else:
+            self._validators.clear()
+
+    def walk_validators(self, *, raw: bool = MISSING) -> Iterator[ValidatorCallbackT[Any, Any]]:
+        """Iterates through all validator from this field.
+
+        Parameters
+        ----------
+        raw: :class:`bool`
+            Whether to iterate through raw validators only. If this is not passed,
+            all validators are iterated. If this is True, only raw validators
+            are iterated  and when False, only non-raw validators are iterated.
+        """
+        if raw is MISSING:
+            validators = self._validators.copy()
+            validators.extend(self._raw_validators)
+        elif raw:
+            validators = self._raw_validators
+        else:
+            validators = self._validators
+
+        for validator in validators:
+            yield validator
 
     def value_load(self, value: Any, context: LoadContext, /) -> SerializedValueT:
         """Serializes a raw value.

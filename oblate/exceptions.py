@@ -76,7 +76,11 @@ class FieldError(OblateException):
 
     @classmethod
     def _from_standard_error(cls, err: Union[ValueError, AssertionError]) -> FieldError:
-        return cls(str(err))
+        message = str(err)
+        if not message:
+            message = 'Validation failed for this field.'
+
+        return cls(message)
 
     @property
     def field(self) -> Optional[Field[Any, Any]]:

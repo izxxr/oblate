@@ -22,7 +22,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, Any, Mapping, List, Optional, Sequence
+from typing import Dict, Any, Mapping, List, Optional, Sequence, Tuple
 from oblate.fields.base import Field
 from oblate.contexts import SchemaContext, LoadContext, DumpContext
 from oblate.utils import MISSING, current_field_name, current_context, current_schema
@@ -55,15 +55,26 @@ class Schema:
         if not hasattr(cls, '__fields__'):
             cls.__fields__ = {}
 
-        for name, field in vars(cls).items():
-            if not isinstance(field, Field):
-                continue
+        members = vars(cls)
+        for name, member in members.items():
+            if isinstance(member, Field):
+                member._bind(name, cls)
+                cls.__fields__[name] = member
+            elif callable(member) and hasattr(member, '__validator_field__'):
+                field = member.__validator_field__
+                if isinstance(field, str):
+                    try:
+                        field = members[field]
+                    except KeyError:  # pragma: no cover
+                        pass
+                if not isinstance(field, Field):
+                    raise TypeError(f'Validator {member.__name__} got an unknown field {field}')  # pragma: no cover
 
-            field._bind(name, cls)
-            cls.__fields__[name] = field
+                field.add_validator(member)
 
     def _prepare_from_data(self, data: Mapping[str, Any]) -> None:
         fields = self.__fields__.copy()
+        validators: List[Tuple[Field[Any, Any], Any, LoadContext, bool]] = []
         errors: List[FieldError] = []
 
         for name, value in data.items():
@@ -73,7 +84,9 @@ class Schema:
             except KeyError:
                 errors.append(FieldError(f'Invalid or unknown field.'))
             else:
-                process_errors = self._process_field_value(field, value)
+                # See comment in _process_field_values() for explanation on how
+                # validators are handled.
+                process_errors = self._process_field_value(field, value, validators)
                 errors.extend(process_errors)
             finally:
                 current_field_name.reset(token)
@@ -88,16 +101,53 @@ class Schema:
             finally:
                 current_field_name.reset(token)
 
+        for field, value, context, raw in validators:
+            ctx_token = current_context.set(context)
+            field_token = current_field_name.set(field._name)
+            schema_token = current_schema.set(self)
+            try:
+                errors.extend(field._run_validators(value, context, raw=raw))
+            finally:
+                current_context.reset(ctx_token)
+                current_field_name.reset(field_token)
+                current_schema.reset(schema_token)
+
         if errors:
             raise ValidationError(errors)
 
         self._context._initialized = True
 
-    def _process_field_value(self, field: Field[Any, Any], value: Any) -> List[FieldError]:
+    def _process_field_value(
+            self,
+            field: Field[Any, Any],
+            value: Any,
+            validators: Optional[List[Tuple[Field[Any, Any], Any, LoadContext, bool]]] = None,
+        ) -> List[FieldError]:
+
+        # A little overview of how external validations are handled by
+        # this method:
+        #
+        # If the validators parameter is not provided (None), the validators
+        # are ran directly and any errors raised by them are appended to the
+        # list of returned errors. (e.g. Field.__set__ does this)
+        #
+        # In contrary case, if the validators parameter is provided, it is a
+        # list of 4 element tuples: the field to validate, the value validated,
+        # the load context, and a boolean indicating whether the validation is
+        # performed by raw validators. This validation data appended to the given
+        # validators list by this method and the validators are ran lazily later
+        # using this data. This is done when validators are ran on initialization
+        # of schema. (e.g. Schema._prepare_from_data does this)
+
         name = field._name
+        lazy_validation = validators is not None
         errors: List[FieldError] = []
+        validator_errors: List[FieldError] = []
         context = LoadContext(field=field, value=value, schema=self)
         token = current_context.set(context)
+
+        if field._raw_validators and lazy_validation:
+            validators.append((field, value, context, True))
 
         if value is None:
             if field.none:
@@ -105,12 +155,23 @@ class Schema:
             else:
                 errors.append(FieldError('This field cannot take a None value.'))
             return errors
+
+        if not lazy_validation:
+            validator_errors.extend(field._run_validators(value, context, raw=True))
         try:
-            self._field_values[name] = field.value_load(value, context)
+            final_value = field.value_load(value, context)
         except (ValueError, AssertionError, FieldError) as err:
             if not isinstance(err, FieldError):
                 err = FieldError._from_standard_error(err)
             errors.append(err)
+        else:
+            if not lazy_validation:
+                validator_errors.extend(field._run_validators(final_value, context, raw=False))
+            else:
+                validators.append((field, final_value, context, False))
+            if not validator_errors:
+                self._field_values[name] = final_value
+            errors.extend(validator_errors)
         finally:
             current_context.reset(token)
 
