@@ -150,7 +150,7 @@ class Field(Generic[RawValueT, SerializedValueT]):
         field._unbind()
         return field
 
-    def value_load(self, value: RawValueT, context: LoadContext, /) -> SerializedValueT:
+    def value_load(self, value: Any, context: LoadContext, /) -> SerializedValueT:
         """Serializes a raw value.
 
         This is an abstract method that must be implemented by subclasses.
