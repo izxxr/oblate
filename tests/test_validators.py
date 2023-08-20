@@ -28,15 +28,6 @@ from oblate import fields
 import oblate
 import pytest
 
-class _RangeValidator(fields.Validator[int]):
-    def __init__(self, lb: int, ub: int) -> None:
-        self.lb = lb
-        self.ub = ub
-
-    def validate(self, value: int, context: oblate.LoadContext) -> Any:
-        if not (value >= self.lb and value <= self.ub):
-            raise ValueError('Value must be in range 1000-9999')
-
 def test_validator():
     class User(oblate.Schema):
         id = fields.Integer()
@@ -52,24 +43,14 @@ def test_validator():
         User({'id': 320})
 
 
-def test_raw_validator():
-    class User(oblate.Schema):
-        id = fields.Integer(strict=False)
+class _RangeValidator(fields.Validator[int]):
+    def __init__(self, lb: int, ub: int) -> None:
+        self.lb = lb
+        self.ub = ub
 
-        @fields.validate('id', raw=True)
-        def validate_raw_id(self, value: str, context: oblate.LoadContext):
-            assert isinstance(value, str)
-
-        @fields.validate('id', raw=False)
-        def validate_id(self, value: int, context: oblate.LoadContext):
-            if not (value >= 1000 and value <= 9999):
-                raise ValueError('Value must be in range 1000-9999')
-
-    assert User({'id': '3210'}).id == 3210
-
-    with pytest.raises(oblate.ValidationError, match='in range 1000-9999'):
-        User({'id': 320})
-
+    def validate(self, value: int, context: oblate.LoadContext) -> Any:
+        if not (value >= self.lb and value <= self.ub):
+            raise ValueError('Value must be in range 1000-9999')
 
 def test_class_validator():
     class User(oblate.Schema):
@@ -91,6 +72,12 @@ class User(oblate.Schema):
     def validate_id(self, value: int, context: oblate.LoadContext):
         if not (value >= 1000 and value <= 9999):
             raise ValueError('Value must be in range 1000-9999')
+
+def test_raw_validator():
+    assert User({'id': '3210'}).id == 3210
+
+    with pytest.raises(oblate.ValidationError, match='in range 1000-9999'):
+        User({'id': 320})
 
 def test_validators_methods():
     assert list(User.id.walk_validators()) == [User.validate_id, User.validate_raw_id]
