@@ -76,13 +76,6 @@ class Field(Generic[RawValueT, SerializedValueT]):
         instance and the current :class:`Field` instance.
     validators: List[Union[callable, :class:`Validator`]]
         The list of validators for this field.
-    load_key: :class:`str`
-        The key that points to this field in raw data when initializing this field.
-    dump_key: :class:`str`
-        The key that points to this field in serialized data.
-    data_key: :class:`str`
-        A shortcut parameter for controlling the values of both ``load_key`` and ``dump_key``.
-        This cannot be mixed with the former two parameters.
     """
 
     __slots__ = (
@@ -93,8 +86,6 @@ class Field(Generic[RawValueT, SerializedValueT]):
         '_schema',
         '_validators',
         '_raw_validators',
-        '_load_key',
-        '_dump_key',
     )
 
     def __init__(
@@ -104,19 +95,11 @@ class Field(Generic[RawValueT, SerializedValueT]):
             required: bool = True,
             default: Any = MISSING,
             validators: Sequence[ValidatorT[Any, Any]] = MISSING,
-            load_key: str = MISSING,
-            dump_key: str = MISSING,
-            data_key: str = MISSING,
         ) -> None:
-
-        if (load_key is not MISSING or dump_key is not MISSING) and data_key is not MISSING:
-            raise TypeError('data_key parameter cannot be mixed with load_key/dump_key')  # pragma: no cover
 
         self.none = none
         self.required = required and (default is MISSING)
         self._default = default
-        self._load_key = load_key if data_key is MISSING else data_key
-        self._dump_key = dump_key if data_key is MISSING else data_key
         self._validators: List[ValidatorT[SerializedValueT, Any]] = []
         self._raw_validators: List[ValidatorT[Any, Any]] = []
         self._unbind()
@@ -181,14 +164,6 @@ class Field(Generic[RawValueT, SerializedValueT]):
     @property
     def default(self) -> Any:
         return self._default if self._default is not MISSING else None
-
-    @property
-    def load_key(self) -> str:
-        return self._load_key if self._load_key is not MISSING else self._name
-
-    @property
-    def dump_key(self) -> str:
-        return self._dump_key if self._dump_key is not MISSING else self._name
 
     def has_default(self) -> bool:
         """Indicates whether the field has a default value."""

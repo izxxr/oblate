@@ -36,7 +36,6 @@ __all__ = (
 class Schema:
     """The base class for all schemas."""
     __fields__: Dict[str, Field[Any, Any]]
-    __data_keys_fields__: Dict[str, Field[Any, Any]]
 
     __slots__ = (
         '_field_values',
@@ -55,14 +54,12 @@ class Schema:
     def __init_subclass__(cls) -> None:
         if not hasattr(cls, '__fields__'):
             cls.__fields__ = {}
-            cls.__data_keys_fields__ = {}
 
         members = vars(cls)
         for name, member in members.items():
             if isinstance(member, Field):
                 member._bind(name, cls)
                 cls.__fields__[name] = member
-                cls.__data_keys_fields__[member.load_key] = member
             elif callable(member) and hasattr(member, '__validator_field__'):
                 field = member.__validator_field__
                 if isinstance(field, str):
@@ -76,27 +73,25 @@ class Schema:
                 field.add_validator(member)
 
     def _prepare_from_data(self, data: Mapping[str, Any]) -> None:
-        fields = self.__data_keys_fields__.copy()
+        fields = self.__fields__.copy()
         validators: List[Tuple[Field[Any, Any], Any, LoadContext, bool]] = []
         errors: List[FieldError] = []
 
-        for key, value in data.items():
+        for name, value in data.items():
+            token = current_field_name.set(name)
             try:
-                field = fields.pop(key)
+                field = fields.pop(name)
             except KeyError:
-                token = current_field_name.set(key)
                 errors.append(FieldError(f'Invalid or unknown field.'))
             else:
                 # See comment in _process_field_values() for explanation on how
                 # validators are handled.
-                token = current_field_name.set(field._name)
                 process_errors = self._process_field_value(field, value, validators)
                 errors.extend(process_errors)
+            finally:
+                current_field_name.reset(token)
 
-            current_field_name.reset(token)
-
-        for _, field in fields.items():
-            name = field._name
+        for name, field in fields.items():
             token = current_field_name.set(name)
             try:
                 if field.required:
@@ -282,7 +277,7 @@ class Schema:
             field_token = current_field_name.set(name)
             context_token = current_context.set(context)
             try:
-                out[field.dump_key] = field.value_dump(value, context)
+                out[name] = field.value_dump(value, context)
             except (ValueError, AssertionError, FieldError) as err:
                 if not isinstance(err, FieldError):
                     err = FieldError._from_standard_error(err)
