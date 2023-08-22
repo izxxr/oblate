@@ -66,6 +66,26 @@ def test_required_fields():
     assert test.optional_field == 'optional 1'
     assert test.default_optional_field == 'optional 2'
 
+def test_field_data_key():
+    class _TestSchema(oblate.Schema):
+        id = fields.Integer(load_key='user_id_load', dump_key='user_id_dump')
+
+    instance = _TestSchema({'user_id_load': 1000})
+    assert instance.id == 1000
+
+    with pytest.raises(oblate.ValidationError, match='unknown field'):
+        _TestSchema({'id': 1000})
+
+    assert instance.dump()['user_id_dump'] == 1000
+
+    class _TestSchemaDataKey(oblate.Schema):
+        id = fields.Integer(data_key='user_id')
+
+    instance = _TestSchemaDataKey({'user_id': 1000})
+    assert instance.id == 1000
+    assert instance.dump()['user_id'] == 1000
+
+
 def test_field_copying():
     class _TestSchema(oblate.Schema):
         id = fields.Integer(strict=False)
