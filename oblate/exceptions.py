@@ -42,6 +42,13 @@ class OblateException(Exception):
 class FieldError(OblateException):
     """An error raised when validation fails for a field.
 
+    This error when raised in validators or other user-side code is accounted
+    as validation error and is included in the subsequent raised :exc:`ValidationError`.
+
+    For convenience, instead of raising this error directly, you should raise :exc:`ValueError`
+    or :exc:`AssertionError` in your validators code which would automatically be wrapped
+    as a field error.
+
     Parameters
     ----------
     message:
@@ -89,6 +96,8 @@ class FieldError(OblateException):
         If this returns None, it means that the causative field doesn't
         exist. An example of this case is when an invalid field name is
         passed during schema initialization.
+
+        :type: :class:`fields.Field`
         """
         return self.schema.__fields__.get(self._field_name, None)
 
@@ -98,6 +107,8 @@ class FieldError(OblateException):
 
         This name might not always point to an existing field. For example,
         if the causative field doesn't exist.
+
+        :type: :class:`str`
         """
         return self._field_name
 

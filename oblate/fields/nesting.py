@@ -40,7 +40,29 @@ SchemaT = TypeVar('SchemaT', bound=Schema)
 
 
 class Object(Field[Mapping[str, Any], SchemaT]):
-    """A field that accepts :class:`Schema` objects.
+    """Field representing a :class:`Schema` object.
+
+    This field is used for nested objects in raw data. The first argument
+    when initializing this field is the schema class that is accepted by the
+    field. For example::
+
+        class Author(oblate.Schema):
+            name = fields.String()
+            rating = fields.Integer()
+
+        class Book(oblate.Schema):
+            title = fields.String()
+            author = fields.Object(Author)
+
+        data = {
+            'title': 'A book title',
+            'author': {
+                'name': 'John',
+                'rating': 10,
+            }
+        }
+        book = Book(data)
+        print(book.author.name, 'has rating of', book.author.rating)  # John has rating of 10
 
     Parameters
     ----------

@@ -38,9 +38,8 @@ __all__ = (
 class SchemaContext:
     """Context for a schema instance.
 
-    This class holds information about a :class:`Schema` state. This class is not
-    initialized manually. The instance of this class is accessed by the
-    :attr:`Schema.context` attribute.
+    This class holds information about a :class:`Schema` state. The instance of this class
+    is accessed by the :attr:`Schema.context` attribute.
 
     Attributes
     ----------
@@ -84,8 +83,8 @@ class LoadContext(_BaseValueContext):
     """Context for value serialization.
 
     This class holds important and useful information regarding serialization
-    of a value. This class is not initialized manually. The instance of this
-    class is passed to :meth:`Field.value_load` by library.
+    of a value. The instance of this class is passed to :meth:`Field.value_load`
+    while a field is being serialized.
 
     Attributes
     ----------
@@ -109,9 +108,9 @@ class LoadContext(_BaseValueContext):
 class DumpContext(_BaseValueContext):
     """Context for value deserialization.
 
-    This class holds important and useful information regarding deserialization
-    of a value. This class is not initialized manually. The instance of this
-    class is passed to :meth:`Field.value_dump` by library.
+    This class holds important and useful information regarding serialization
+    of a value. The instance of this class is passed to :meth:`Field.value_dump`
+    while a field is being deserialized.
 
     Attributes
     ----------

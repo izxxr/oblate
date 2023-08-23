@@ -37,10 +37,10 @@ __all__ = (
 )
 
 class String(Field[str, str]):
-    """Representation of a string field.
+    """Field representing a string (:class:`str`) value.
 
-    This class is a subclass of :class:`Field` and supports
-    the features documented in that class.
+    This class is a subclass of :class:`Field` and supports the features
+    documented in that class.
 
     Parameters
     ----------
@@ -73,10 +73,10 @@ class String(Field[str, str]):
 
 
 class Integer(Field[int, int]):
-    """Representation of an integer field.
+    """Field representing an integer (:class:`int`) value.
 
-    This class is a subclass of :class:`Field` and supports
-    the features documented in that class.
+    This class is a subclass of :class:`Field` and supports the features
+    documented in that class.
 
     Parameters
     ----------
@@ -111,10 +111,10 @@ class Integer(Field[int, int]):
 
 
 class Boolean(Field[bool, bool]):
-    """Representation of a boolean field.
+    """Representation of a boolean (:class:`bool`) field.
 
-    This class is a subclass of :class:`Field` and supports
-    the features documented in that class.
+    This class is a subclass of :class:`Field` and supports the features
+    documented in that class.
 
     Attributes
     ----------
@@ -127,12 +127,12 @@ class Boolean(Field[bool, bool]):
     ----------
     true_values: Sequence[:class:`str`]
         The values to use for true boolean conversion. These are only respected
-        when :ref:`strict validation <tut-fields-strict-fields>` is disabled.
+        when :ref:`strict validation <guide-fields-strict-fields>` is disabled.
 
         Defaults to :attr:`.TRUE_VALUES` if not provided.
     false_values: Sequence[:class:`str`]
         The values to use for false boolean conversion. These are only respected
-        when :ref:`strict validation <tut-fields-strict-fields>` is disabled.
+        when :ref:`strict validation <guide-fields-strict-fields>` is disabled.
 
         Defaults to :attr:`.FALSE_VALUES` if not provided.
     """
@@ -189,10 +189,10 @@ class Boolean(Field[bool, bool]):
 
 
 class Float(Field[float, float]):
-    """Representation of a float field.
+    """Representation of a float (:class:`float`) field.
 
-    This class is a subclass of :class:`Field` and supports
-    the features documented in that class.
+    This class is a subclass of :class:`Field` and supports the features
+    documented in that class.
 
     Parameters
     ----------

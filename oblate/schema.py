@@ -34,7 +34,17 @@ __all__ = (
 
 
 class Schema:
-    """The base class for all schemas."""
+    """The base class for all schemas.
+
+    All user defined schemas must inherit from this class. When initializing
+    the raw data is passed in form of dictionary or other mapping as a
+    positional argument.
+
+    Parameters
+    ----------
+    data: Mapping[:class:`str`, Any]
+        The raw data to initialize the schema with.
+    """
     __fields__: Dict[str, Field[Any, Any]]
 
     __slots__ = (
@@ -183,9 +193,7 @@ class Schema:
 
         Schema context holds the information about schema and its state.
 
-        Returns
-        -------
-        :class:`SchemaContext`
+        :type: :class:`SchemaContext`
         """
         return self._context
 
@@ -222,7 +230,7 @@ class Schema:
                 return default
             raise ValueError('No value set for this field.') from None
 
-    def dump(self, *, include: Optional[Sequence[str]] = None, exclude: Optional[Sequence[str]] = None) -> Dict[str, Any]:
+    def dump(self, *, include: Sequence[str] = MISSING, exclude: Sequence[str] = MISSING) -> Dict[str, Any]:
         """Deserializes the schema.
 
         The returned value is deserialized data in dictionary form. The
@@ -230,9 +238,9 @@ class Schema:
 
         Parameters
         ----------
-        include: Optional[Sequence[:class:`str`]]
+        include: Sequence[:class:`str`]
             The fields to include in the returned data.
-        exclude: Optional[Sequence[:class:`str`]]
+        exclude: Sequence[:class:`str`]
             The fields to exclude from the returned data.
 
         Returns
@@ -248,11 +256,11 @@ class Schema:
             Validation failed while deserializing one or more fields.
         """
         fields = set(self.__fields__.keys())
-        if include is not None and exclude is not None:
+        if include is not MISSING and exclude is not MISSING:
             raise TypeError('include and exclude are mutually exclusive parameters.')
-        if include is not None:
+        if include is not MISSING:
             fields = fields.intersection(set(include))
-        if exclude is not None:
+        if exclude is not MISSING:
             fields = fields.difference(set(exclude))
 
         current_schema.set(self)
