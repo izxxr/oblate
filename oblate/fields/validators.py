@@ -49,7 +49,7 @@ class Validator(Generic[InputT]):
 
     Subclasses are required to override the :meth:`.validate` method.
     When subclassing, ``raw`` subclass parameter can be set to True to mark the
-    validator as a :ref:`raw validator <guide-validators-raw-validator>`.
+    validator as a :ref:`raw validator <guide-validators-raw-validators>`.
 
     .. tip::
 

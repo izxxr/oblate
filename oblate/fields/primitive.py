@@ -127,12 +127,12 @@ class Boolean(Field[bool, bool]):
     ----------
     true_values: Sequence[:class:`str`]
         The values to use for true boolean conversion. These are only respected
-        when :ref:`strict validation <guide-fields-strict-fields>` is disabled.
+        when :ref:`strict validation <guide-fields-strict-mode>` is disabled.
 
         Defaults to :attr:`.TRUE_VALUES` if not provided.
     false_values: Sequence[:class:`str`]
         The values to use for false boolean conversion. These are only respected
-        when :ref:`strict validation <guide-fields-strict-fields>` is disabled.
+        when :ref:`strict validation <guide-fields-strict-mode>` is disabled.
 
         Defaults to :attr:`.FALSE_VALUES` if not provided.
     """

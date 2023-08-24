@@ -314,7 +314,7 @@ class Field(Generic[RawValueT, SerializedValueT]):
         """
         raise NotImplementedError
 
-    def value_dump(self, value: SerializedValueT, context: DumpContext, /) -> RawValueT:
+    def value_dump(self, value: SerializedValueT, context: DumpContext, /) -> Any:
         """Deserializes the value to raw form.
 
         This is an abstract method that must be implemented by subclasses. This

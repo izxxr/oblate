@@ -29,5 +29,6 @@ Now we can use raw data to initialize our schema::
     print(john.username, "is employee?", john.is_employee)  # John is employee? False
     print(emily.username, "is employee?", emily.is_employee)  # Emily is employee? True
 
-Note how the ``default`` argument was used for defaulting ``is_employee`` value. There are many other
-similar options that allow easy customization of each field.
+Each field of the schema is accessed exactly the same way as normal attributes of a class are
+accessed. Note how the ``default`` argument was used for defaulting ``is_employee`` value. There
+are many other similar options that allow easy customization of each field.

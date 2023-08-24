@@ -141,8 +141,6 @@ class ValidationError(OblateException):
         for name, errors in field_errors.items():
             builder.append(f'{" "*indent}│')
             builder.append(f'{" "*indent}└── In field {name}:')
-            if indent != 0:
-                errors.extend(('test 1', 'test 2', 'test 3'))
             for idx, error in enumerate(errors):
                 if isinstance(error, dict):
                     builder.append(self._make_message(error, level=level+1))
