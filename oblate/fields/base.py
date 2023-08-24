@@ -90,6 +90,32 @@ class Field(Generic[RawValueT, SerializedValueT]):
     validators: List[Union[callable, :class:`Validator`]]
         The list of validators for this field.
     """
+    if TYPE_CHECKING:
+        @overload
+        def __new__(
+            cls,
+            *,
+            none: Literal[False] = False,
+            **kwargs: Any,
+        ) -> Field[RawValueT, SerializedValueT]:
+            ...
+
+        @overload
+        def __new__(
+            cls,
+            *,
+            none: Literal[True] = True,
+            **kwargs: Any,
+        ) -> Field[Optional[RawValueT], Optional[SerializedValueT]]:
+            ...
+
+        def __new__(
+                cls,
+                none: bool = False,
+                **kwargs: Any,
+            ) -> Field[Any, Any]:
+            ...
+
 
     __slots__ = (
         'none',
