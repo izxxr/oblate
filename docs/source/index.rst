@@ -21,8 +21,8 @@ Focused around simplicity and flexibility, Oblate has the following features:
    :caption: Contents:
 
    tutorial/index
-   reference/index
    guide/index
+   reference/index
 
 Indices and tables
 ==================
