@@ -46,3 +46,15 @@ def test_global_config():
 
     oblate.config = oblate.GlobalConfig()
     assert oblate.config.validation_error_cls == oblate.ValidationError
+
+
+def test_schema_config():
+    class _SchemaNoConfig(oblate.Schema):
+        ...
+
+    class _Schema(oblate.Schema):
+        class Config(oblate.SchemaConfig):
+            ...
+
+    assert _Schema.__config__ == _Schema.Config
+    assert _SchemaNoConfig.__config__ == oblate.SchemaConfig

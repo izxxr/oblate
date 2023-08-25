@@ -22,16 +22,22 @@
 
 from __future__ import annotations
 
-from typing import Dict, Any, Mapping, List, Optional, Sequence, Tuple
+from typing import Dict, Any, Mapping, List, Optional, Sequence, Tuple, Type
 from oblate.fields.base import Field
 from oblate.contexts import SchemaContext, LoadContext, DumpContext
 from oblate.utils import MISSING, current_field_name, current_context, current_schema
 from oblate.exceptions import FieldError
-from oblate.configs import config
+from oblate.configs import config, SchemaConfig
+
+import inspect
 
 __all__ = (
     'Schema',
 )
+
+def _schema_repr(self: Schema) -> str:
+    attrs = ', '.join((f'{name}={value}' for name, value in self._field_values.items()))  # pragma: no cover
+    return f'{self.__class__.__name__}({attrs})'  # pragma: no cover
 
 
 class Schema:
@@ -47,6 +53,7 @@ class Schema:
         The raw data to initialize the schema with.
     """
     __fields__: Dict[str, Field[Any, Any]]
+    __config__: Type[SchemaConfig] = SchemaConfig
 
     __slots__ = (
         '_field_values',
@@ -66,7 +73,7 @@ class Schema:
         if not hasattr(cls, '__fields__'):
             cls.__fields__ = {}
 
-        members = vars(cls)
+        members = vars(cls).copy()
         for name, member in members.items():
             if isinstance(member, Field):
                 member._bind(name, cls)
@@ -82,6 +89,11 @@ class Schema:
                     raise TypeError(f'Validator {member.__name__} got an unknown field {field}')  # pragma: no cover
 
                 field.add_validator(member)
+            elif inspect.isclass(member) and issubclass(member, SchemaConfig):
+                cls.__config__ = member
+
+        if cls.__config__.add_repr:
+            cls.__repr__ = _schema_repr
 
     def _prepare_from_data(self, data: Mapping[str, Any]) -> None:
         fields = self.__fields__.copy()

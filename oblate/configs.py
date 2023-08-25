@@ -28,8 +28,9 @@ from oblate.exceptions import ValidationError
 import os
 
 __all__ = (
-    'GlobalConfig',
     'config',
+    'GlobalConfig',
+    'SchemaConfig',
 )
 
 _T = TypeVar('_T')
@@ -121,3 +122,20 @@ class GlobalConfig:
 
 
 config = GlobalConfig()
+"""The global configuration of Oblate."""
+
+
+class SchemaConfig:
+    """The configuration for a schema.
+
+    This is a base class for defining configuration of a schema. In order to
+    define configuration for a schema, this class is subclassed inside a :class:`Schema`::
+
+        class User(oblate.Schema):
+            id = fields.Integer()
+
+            class Config(oblate.SchemaConfig):
+                ...  # override config options
+    """
+    add_repr = True
+    """Whether to add a :meth:`__repr__` for detailing schema fields when printed."""

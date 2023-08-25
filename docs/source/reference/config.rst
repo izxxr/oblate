@@ -1,4 +1,5 @@
 .. currentmodule:: oblate
+.. _api-config:
 
 Configuration
 =============
@@ -15,4 +16,7 @@ Configuration
     :value: oblate.GlobalConfig
 
 .. autoclass:: oblate.GlobalConfig
+    :members:
+
+.. autoclass:: oblate.SchemaConfiguration
     :members:
