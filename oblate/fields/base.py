@@ -34,6 +34,7 @@ from typing import (
     List,
     Sequence,
     Iterator,
+    Dict,
     overload,
 )
 from typing_extensions import Self
@@ -89,6 +90,10 @@ class Field(Generic[RawValueT, SerializedValueT]):
         instance and the current :class:`Field` instance.
     validators: List[Union[callable, :class:`Validator`]]
         The list of validators for this field.
+    extras: Dict[:class:`str`, Any]
+        A dictionary of extra data that can be attached to this field. This parameter is
+        useful when you want to attach your own extra metadata to the field. Library does
+        not perform any manipulation on the data.
     """
     if TYPE_CHECKING:
         @overload
@@ -120,6 +125,7 @@ class Field(Generic[RawValueT, SerializedValueT]):
     __slots__ = (
         'none',
         'required',
+        'extras',
         '_default',
         '_name',
         '_schema',
@@ -134,10 +140,12 @@ class Field(Generic[RawValueT, SerializedValueT]):
             required: bool = True,
             default: Any = MISSING,
             validators: Sequence[ValidatorT[Any, Any]] = MISSING,
+            extras: Dict[str, Any] = MISSING,
         ) -> None:
 
         self.none = none
         self.required = required and (default is MISSING)
+        self.extras = extras if extras is not MISSING else {}
         self._default = default
         self._validators: List[ValidatorT[SerializedValueT, Any]] = []
         self._raw_validators: List[ValidatorT[Any, Any]] = []

@@ -22,7 +22,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Set
+from typing import TYPE_CHECKING, Any, Set, Dict
 
 if TYPE_CHECKING:
     from oblate.schema import Schema
@@ -45,14 +45,19 @@ class SchemaContext:
     ----------
     schema: :class:`Schema`
         The schema that this context belongs to.
+    state: Dict[:class:`str`, Any]
+        A dictionary to store any state data. This can be used to propagate or store
+        important data while working with schema.
     """
     __slots__ = (
         'schema',
+        'state',
         '_initialized'
     )
 
     def __init__(self, schema: Schema) -> None:
         self.schema = schema
+        self.state: Dict[str, Any] = {}
         self._initialized = False
 
     def is_initialized(self) -> bool:
@@ -65,6 +70,7 @@ class _BaseValueContext:
         'field',
         'value',
         'schema',
+        'state'
     )
 
     def __init__(
@@ -78,6 +84,7 @@ class _BaseValueContext:
         self.field = field
         self.value = value
         self.schema = schema
+        self.state: Dict[str, Any] = {}
 
 class LoadContext(_BaseValueContext):
     """Context for value serialization.
@@ -94,6 +101,9 @@ class LoadContext(_BaseValueContext):
         The schema that the context belongs to.
     value:
         The raw value being serialized.
+    state: Dict[:class:`str`, Any]
+        A dictionary to store any state data. This can be used to propagate or store
+        important data while working with schema.
     """
     def is_update(self) -> bool:
         """Indicates whether the value is being updated.
@@ -122,6 +132,9 @@ class DumpContext(_BaseValueContext):
         The value being deserialized.
     included_fields: Set[:class:`str`]
         The set of names of fields that are being deserialized.
+    state: Dict[:class:`str`, Any]
+        A dictionary to store any state data. This can be used to propagate or store
+        important data while working with schema.
     """
     def __init__(
             self,
