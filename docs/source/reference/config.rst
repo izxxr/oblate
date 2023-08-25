@@ -18,5 +18,5 @@ Configuration
 .. autoclass:: oblate.GlobalConfig
     :members:
 
-.. autoclass:: oblate.SchemaConfiguration
+.. autoclass:: oblate.SchemaConfig
     :members:

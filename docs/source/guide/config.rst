@@ -7,6 +7,8 @@ Configuration
 Oblate provides an interface that can be customized to suit all use cases. This page covers the topic
 of working with various configurations.
 
+.. _guide-config-schema-config:
+
 Schema configuration
 --------------------
 
@@ -24,6 +26,8 @@ In order to do so, a nested class is added inside a :class:`Schema` subclass tha
 
 In this case, ``User.Config`` class defines the configuration for ``User`` schema. ``add_repr`` is
 overriden to ``False``. Other configuration options are also added as class variables.
+
+.. _guide-config-global-config:
 
 Global configuration
 --------------------
