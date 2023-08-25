@@ -25,12 +25,15 @@ from __future__ import annotations
 from typing import Callable, Any, Type, Generic, TypeVar, Dict, Optional
 from oblate.exceptions import ValidationError
 
+import os
+
 __all__ = (
     'GlobalConfig',
     'config',
 )
 
 _T = TypeVar('_T')
+_SPHINX_BUILD = os.environ.get('SPHINX_BUILD', False)
 
 
 class _ConfigOption(Generic[_T]):
@@ -54,6 +57,12 @@ class _ConfigOption(Generic[_T]):
 
     def __get__(self, instance: Optional[GlobalConfig], owner: Type[GlobalConfig]) -> _T:
         if instance is None:
+            # Sphinx needs access to the self.__doc__ attribute to properly document
+            # the cfg_option decorated function. This is, unfortunately, not possible
+            # without this hacky special casing. If sphinx is building, we need to return
+            # self so sphinx can access __doc__. Otherwise, it would use __doc__ of self._default
+            if _SPHINX_BUILD:
+                return self  # type: ignore  # pragma: no cover
             return self._default
         try:
             return instance._values[self._name]
@@ -98,7 +107,10 @@ class GlobalConfig:
 
     @cfg_option
     def validation_error_cls(self) -> Type[ValidationError]:
-        """The :class:`ValidationError` exception class which will be raised on validation failure."""
+        """The :class:`ValidationError` exception class which will be raised on validation failure.
+
+        :type: Type[:class:`ValidationError`]
+        """
         return ValidationError
 
     @validation_error_cls.setter
@@ -109,4 +121,3 @@ class GlobalConfig:
 
 
 config = GlobalConfig()
-"""The global configuration of Oblate."""
