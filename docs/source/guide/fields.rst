@@ -156,6 +156,43 @@ It is also possible to provide the set of values that correspond to True/False::
 By default, ``true_values`` and ``false_values`` default to :attr:`fields.Boolean.TRUE_VALUES` and
 :attr:`fields.Boolean.FALSE_VALUES` respectively.
 
+.. _guide-fields-extra-metadata:
+
+Extra Metadata
+--------------
+
+Sometimes you want to attach some extra metadata to a field. This is typically done to use this
+metadata at another place in the user code to modify some behaviour. For example, attaching extra
+data for usage in modifying a validator's behaviour.
+
+Example of usage of extra metadata::
+
+    class RangeValidator(fields.Validator):
+        def __init__(self, lb: int, ub: int):
+            self.lb = lb
+            self.ub = ub
+
+        def validate(self, value, ctx):
+            if ctx.field.extras.get('range_validator_inclusive', False):
+                # include both bounds in validation
+                assert value >= lb and value <= ub
+            else:
+                assert value > lb and value < ub
+
+    ID_RANGE_VALIDATOR = RangeValidator(1000, 9999)
+
+    class Shelf(Schema):
+        id = fields.Integer(validators=[ID_RANGE_VALIDATOR])
+
+    class Book(Schema):
+        id = fields.Integer(extras={'range_validator_inclusive': True}, validators=[ID_RANGE_VALIDATOR])
+
+In this case, range validation for ``Book.id`` would include both lower and upper bound while it won't
+be the case for ``Shelf.id``.
+
+Note that this "extra metadata" only exists to be used by the user and library will not perform any
+manipulation on this data.
+
 .. _guide-fields-custom-fields:
 
 Custom Fields
