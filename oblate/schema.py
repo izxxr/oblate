@@ -26,7 +26,8 @@ from typing import Dict, Any, Mapping, List, Optional, Sequence, Tuple
 from oblate.fields.base import Field
 from oblate.contexts import SchemaContext, LoadContext, DumpContext
 from oblate.utils import MISSING, current_field_name, current_context, current_schema
-from oblate.exceptions import FieldError, ValidationError
+from oblate.exceptions import FieldError
+from oblate.configs import config
 
 __all__ = (
     'Schema',
@@ -123,7 +124,7 @@ class Schema:
                 current_schema.reset(schema_token)
 
         if errors:
-            raise ValidationError(errors)
+            raise config.validation_error_cls(errors)
 
         self._context._initialized = True
 
@@ -295,6 +296,6 @@ class Schema:
                 current_context.reset(context_token)
 
         if errors:
-            raise ValidationError(errors)
+            raise config.validation_error_cls(errors)
 
         return out

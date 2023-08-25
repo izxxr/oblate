@@ -15,3 +15,4 @@ from oblate import fields as fields
 from oblate.schema import *
 from oblate.contexts import *
 from oblate.exceptions import *
+from oblate.configs import *

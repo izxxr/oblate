@@ -8,6 +8,9 @@ import sys
 
 sys.path.insert(0, os.path.abspath('../../'))
 
+# See comment in oblate/config.py (GlobalConfig.__set__)
+os.environ['SPHINX_BUILD'] = '1'
+
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 

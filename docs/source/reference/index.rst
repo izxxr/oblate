@@ -9,4 +9,5 @@ API Reference
     schema
     fields/index
     contexts
+    config
     exceptions

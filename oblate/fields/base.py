@@ -40,7 +40,8 @@ from typing import (
 from typing_extensions import Self
 from oblate.fields.validators import Validator, ValidatorCallbackT, InputT
 from oblate.utils import MISSING, current_field_name, current_schema
-from oblate.exceptions import ValidationError, FieldError
+from oblate.exceptions import FieldError
+from oblate.configs import config
 
 import copy
 
@@ -175,7 +176,7 @@ class Field(Generic[RawValueT, SerializedValueT]):
         try:
             errors = instance._process_field_value(self, value)
             if errors:
-                raise ValidationError(errors)
+                raise config.validation_error_cls(errors)
         finally:
             current_schema.reset(schema_token)
             current_field_name.reset(field_name)
