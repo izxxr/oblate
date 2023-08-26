@@ -100,7 +100,6 @@ def test_get_value_for():
     with pytest.raises(RuntimeError):
         test.get_value_for('invalid field')
 
-
 def test_inheritance():
     class _Parent(oblate.Schema):
         parent_f = fields.Integer()
@@ -125,3 +124,22 @@ def test_inheritance():
 
     assert _SubChild(data).child_f == 3
     assert _SubChild(data).subchild_f == 5
+
+def test_update():
+    class _TestSchema(oblate.Schema):
+        one = fields.String()
+        two = fields.String()
+        three = fields.String()
+        four = fields.String()
+
+    schema = _TestSchema({'one': '1', 'two': '2', 'three': '3', 'four': '4'})
+    schema.update({'one': '1 new', 'two': '2 new'})
+
+    assert schema.one == '1 new'
+    assert schema.two == '2 new'
+
+    try:
+        schema.update({'three': None, 'four': '4 new', 'five': '5'})
+    except oblate.ValidationError:
+        assert schema.three == '3'
+        assert schema.four == '4'

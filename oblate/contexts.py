@@ -45,6 +45,8 @@ class SchemaContext:
     ----------
     schema: :class:`Schema`
         The schema that this context belongs to.
+    config: :class:`SchemaConfig`
+        The configuration of schema.
     state: Dict[:class:`str`, Any]
         A dictionary to store any state data. This can be used to propagate or store
         important data while working with schema.
@@ -52,11 +54,13 @@ class SchemaContext:
     __slots__ = (
         'schema',
         'state',
+        'config',
         '_initialized'
     )
 
     def __init__(self, schema: Schema) -> None:
         self.schema = schema
+        self.config = schema.__config__
         self.state: Dict[str, Any] = {}
         self._initialized = False
 

@@ -270,6 +270,42 @@ class Schema(metaclass=_SchemaMeta):
                 return default
             raise ValueError('No value set for this field.') from None
 
+    def update(self, data: Mapping[str, Any], /) -> None:
+        """Updates the schema with the given data.
+
+        If the update fails i.e one or more fields fail to validate, the
+        schema's state (field values) is rolled back to previous state.
+
+        Parameters
+        ----------
+        data: Mapping[:class:`str`, Any]
+            The data to update with.
+
+        Raises
+        ------
+        ValidationError
+            The validation failed.
+        """
+        fields = self.__fields__
+        errors: List[FieldError] = []
+        old_values = self._field_values.copy()
+
+        for key, value in data.items():
+            token = current_field_name.set(key)
+            try:
+                field = fields[key]
+            except KeyError:
+                errors.append(FieldError(f'Invalid or unknown field.'))
+            else:
+                errors.extend(self._process_field_value(field, value))
+            finally:
+                current_field_name.reset(token)
+
+        if errors:
+            # fallback to original state in case update fails
+            self._field_values = old_values
+            raise config.validation_error_cls(errors)
+
     def dump(self, *, include: Sequence[str] = MISSING, exclude: Sequence[str] = MISSING) -> Dict[str, Any]:
         """Deserializes the schema.
 

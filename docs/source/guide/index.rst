@@ -11,6 +11,7 @@ If you're looking for a quickstart tutorial, check the :ref:`tutorial` section.
 .. toctree::
     :maxdepth: 1
 
+    schema
     fields
     validators
     config
