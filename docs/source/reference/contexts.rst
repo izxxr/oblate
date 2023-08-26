@@ -1,4 +1,5 @@
 .. currentmodule:: oblate
+.. _api-contexts:
 
 Contexts
 ========

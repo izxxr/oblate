@@ -139,3 +139,11 @@ class SchemaConfig:
     """
     add_repr = True
     """Whether to add a :meth:`__repr__` for detailing schema fields when printed."""
+
+    slotted = True
+    """Whether to add a :attr:`__slots__` to the schema class.
+
+    This could improve the performance but also limits the ability to
+    set any extra attributes on the schema. This is ignored when the
+    schema has already defined ``__slots__``.
+    """

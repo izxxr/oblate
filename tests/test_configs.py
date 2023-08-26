@@ -26,7 +26,7 @@ import oblate
 import pytest
 
 
-def test_global_config():
+def test_global_config_validation_error_cls():
     assert oblate.GlobalConfig.validation_error_cls == oblate.ValidationError
 
     with pytest.raises(TypeError, match='subclass'):
@@ -58,3 +58,56 @@ def test_schema_config():
 
     assert _Schema.__config__ == _Schema.Config
     assert _SchemaNoConfig.__config__ == oblate.SchemaConfig
+
+
+def test_schema_config_add_repr():
+    class _SchemaDefault(oblate.Schema):
+        ...
+
+    class _SchemaRepr(oblate.Schema):
+        class Config(oblate.SchemaConfig):
+            add_repr = True
+
+    class _SchemaNoRepr(oblate.Schema):
+        class Config(oblate.SchemaConfig):
+            add_repr = False
+
+    assert repr(_SchemaDefault({})) == ('_SchemaDefault()')
+    assert repr(_SchemaRepr({})) == ('_SchemaRepr()')
+    assert repr(_SchemaNoRepr({})) != ('_SchemaNoRepr()')
+
+def test_schema_config_slotted():
+    class _SchemaDefault(oblate.Schema):
+        ...
+
+    class _SchemaSlots(oblate.Schema):
+        class Config(oblate.SchemaConfig):
+            slotted = True
+
+    class _SchemaNoSlots(oblate.Schema):
+        class Config(oblate.SchemaConfig):
+            slotted = False
+
+    with pytest.raises(AttributeError, match="object has no attribute 'test'"):
+        _SchemaDefault({}).test = None  # type: ignore
+
+    with pytest.raises(AttributeError, match="object has no attribute 'test'"):
+        _SchemaSlots({}).test = None  # type: ignore
+
+    schema = _SchemaNoSlots({})
+    schema.test = None  # type: ignore
+    assert schema.test == None  # type: ignore
+
+
+def test_inherited_config():
+    class Base(oblate.Schema):
+        class Config(oblate.SchemaConfig): ...
+
+    class Child(Base): ...
+    class Override(Base):
+        class NewConfig(oblate.SchemaConfig): ...
+
+    assert Base.__config__ == Base.Config
+    assert Child.__config__ == Base.Config
+    assert Override.__config__ == Override.NewConfig
+

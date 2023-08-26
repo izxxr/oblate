@@ -12,12 +12,10 @@ Introduction
 Context objects are classes meant to hold useful contextual data about some event. These classes are
 passed by library in user side functions and methods.
 
-For example, :class:`LoadContext` holds useful information about serialization of a specific field.
-
 Schema Context
 --------------
 
-:class:`SchemaContext` is accessed by :attr:`schema.context` attribute. This class stores information
+:class:`SchemaContext` is accessed by :attr:`Schema.context` attribute. This class stores information
 about a schema and its state.
 
 Field Contexts
@@ -29,10 +27,11 @@ function and methods. This is done by field contexts.
 There are two field contexts:
 
 - :class:`LoadContext` when a field is being loaded (serialized)
-- :class:`DumpContexts` when a field is being dumped (deserialized)
+- :class:`DumpContext` when a field is being dumped (deserialized)
 
 :class:`LoadContext` is passed to methods and functions involved in serialization of fields such
-as :meth:`Field.value_load` and validators while :class:`DumpContext` is passed to :meth:`Field.value_dump`.
+as :meth:`fields.Field.value_load` and validators while :class:`DumpContext` is passed to
+:meth:`fields.Field.value_dump`.
 
 Context States
 --------------
@@ -41,7 +40,7 @@ All contexts provided by the library have a ``state`` attribute which is a dicti
 exists to allow users to easily propagate or store important state information in the context and
 access it later at some point.
 
-A common use case of ``state`` is when loading a field. The :meth:`Field.value_load` method
+A common use case of ``state`` is when loading a field. The :meth:`fields.Field.value_load` method
 can store some data in state which validators can access.
 
 Another use case is preserving the raw value of some field to access it later during the

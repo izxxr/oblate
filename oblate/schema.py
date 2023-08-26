@@ -40,7 +40,32 @@ def _schema_repr(self: Schema) -> str:
     return f'{self.__class__.__name__}({attrs})'  # pragma: no cover
 
 
-class Schema:
+class _SchemaMeta(type):
+    def __new__(cls, clsname: str, bases: Tuple[type, ...], attrs: Dict[str, Any]):
+        config = SchemaConfig
+        found = False
+        for _, value in attrs.items():
+            # Search for Config subclass in the class being created
+            if inspect.isclass(value) and issubclass(value, SchemaConfig):
+                found = True
+                config = value
+                break
+
+        if not found:
+            # If class doesn't have a Config defined, look it up in
+            # the bases of class
+            for base in bases:
+                if issubclass(base, Schema) and hasattr(base, '__config__'):
+                    config = base.__config__
+
+        if config.slotted:
+            attrs.setdefault('__slots__', ())
+
+        attrs['__config__'] = config
+        return super().__new__(cls, clsname, bases, attrs)
+
+
+class Schema(metaclass=_SchemaMeta):
     """The base class for all schemas.
 
     All user defined schemas must inherit from this class. When initializing
@@ -60,7 +85,7 @@ class Schema:
         '_context',
     )
 
-    def __init__(self, data: Mapping[str, Any]) -> None:
+    def __init__(self, data: Mapping[str, Any], /) -> None:
         token = current_schema.set(self)
         try:
             self._field_values: Dict[str, Any] = {}
@@ -70,7 +95,11 @@ class Schema:
             current_schema.reset(token)
 
     def __init_subclass__(cls) -> None:
-        if not hasattr(cls, '__fields__'):
+        if hasattr(cls, '__fields__'):
+            # When a schema is subclassed, the fields have to be copied so
+            # the parent schema's fields are not modified
+            cls.__fields__ = cls.__fields__.copy()
+        else:
             cls.__fields__ = {}
 
         members = vars(cls).copy()
@@ -89,10 +118,8 @@ class Schema:
                     raise TypeError(f'Validator {member.__name__} got an unknown field {field}')  # pragma: no cover
 
                 field.add_validator(member)
-            elif inspect.isclass(member) and issubclass(member, SchemaConfig):
-                cls.__config__ = member
 
-        if cls.__config__.add_repr:
+        if cls.__config__.add_repr and '__repr__' not in members:
             cls.__repr__ = _schema_repr
 
     def _prepare_from_data(self, data: Mapping[str, Any]) -> None:
