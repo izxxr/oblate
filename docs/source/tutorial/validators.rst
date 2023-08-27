@@ -7,14 +7,14 @@ Validators
 Validators are a vital part of any data validation library. Oblate, apart from providing built-in
 validation features, also provides the ability of writing custom validators.
 
-This is done using the :func:`fields.validate` function::
+This is done using the :func:`validate.field` function::
 
     class User(oblate.Schema):
         id = fields.Integer()
         username = fields.String()
         is_employee = fields.Boolean(default=False)
 
-        @fields.validate(id)
+        @validate.field(id)
         def validate_id_range(self, value, ctx):
             assert value >= 1000 and value <= 9999, 'Value must be in range 1000-9999 inclusive'
 

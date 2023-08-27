@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 __all__ = (
     'Validator',
-    'validate',
+    'field',
 )
 
 SchemaT = TypeVar('SchemaT', bound='Schema')
@@ -44,7 +44,7 @@ class Validator(Generic[InputT]):
     """The base class for validators.
 
     This class offers an alternative interface to the more commonly used
-    :func:`fields.validate` decorator. Validators provided by Oblate inherit
+    :func:`oblate.validate.field` decorator. Validators provided by Oblate inherit
     from this base class.
 
     Subclasses are required to override the :meth:`.validate` method.
@@ -68,7 +68,7 @@ class Validator(Generic[InputT]):
         subclasses.
 
         If the validation fails, either one of :exc:`AssertionError`, :exc:`ValueError`
-        or :exc:`FieldError` should be raised.
+        or :exc:`oblate.FieldError` should be raised.
 
         Parameters
         ----------
@@ -84,7 +84,7 @@ class Validator(Generic[InputT]):
 
 
 @overload
-def validate(
+def field(
     field: Field[Any, InputT],
     *,
     raw: Literal[False] = False,
@@ -92,7 +92,7 @@ def validate(
     ...
 
 @overload
-def validate(
+def field(
     field: Field[Any, Any],
     *,
     raw: Literal[True] = True,
@@ -100,7 +100,7 @@ def validate(
     ...
 
 @overload
-def validate(
+def field(
     field: str,
     *,
     raw: bool = ...,
@@ -108,7 +108,7 @@ def validate(
     ...
 
 
-def validate(
+def field(
         field: Union[Field[Any, Any], str],
         *,
         raw: bool = False
@@ -116,11 +116,11 @@ def validate(
     """A decorator to register a validator for a field.
 
     The decorated function takes three parameters, the schema (self), the
-    value being validated and the :class:`LoadContext` instance.
+    value being validated and the :class:`oblate.LoadContext` instance.
 
     Parameters
     ----------
-    field: Union[:class:`Field`, :class:`str`]
+    field: Union[:class:`oblate.fields.Field`, :class:`str`]
         The field or name of field that the validator is for.
     raw: :class:`bool`
         Whether the validator is a :ref:`raw validator <guide-validators-raw-validators>`.

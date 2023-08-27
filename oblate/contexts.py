@@ -94,7 +94,7 @@ class LoadContext(_BaseValueContext):
     """Context for value serialization.
 
     This class holds important and useful information regarding serialization
-    of a value. The instance of this class is passed to :meth:`Field.value_load`
+    of a value. The instance of this class is passed to :meth:`fields.Field.value_load`
     while a field is being serialized.
 
     Attributes
@@ -123,7 +123,7 @@ class DumpContext(_BaseValueContext):
     """Context for value deserialization.
 
     This class holds important and useful information regarding serialization
-    of a value. The instance of this class is passed to :meth:`Field.value_dump`
+    of a value. The instance of this class is passed to :meth:`fields.Field.value_dump`
     while a field is being deserialized.
 
     Attributes

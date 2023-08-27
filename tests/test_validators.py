@@ -23,7 +23,7 @@
 from __future__ import annotations
 
 from typing import Any
-from oblate import fields
+from oblate import fields, validate
 
 import oblate
 import pytest
@@ -32,7 +32,7 @@ def test_validator():
     class User(oblate.Schema):
         id = fields.Integer()
 
-        @fields.validate(id)
+        @validate.field(id)
         def validate_id(self, value: int, context: oblate.LoadContext):
             if not (value >= 1000 and value <= 9999):
                 raise ValueError
@@ -43,7 +43,7 @@ def test_validator():
         User({'id': 320})
 
 
-class _RangeValidator(fields.Validator[int]):
+class _RangeValidator(validate.Validator[int]):
     def __init__(self, lb: int, ub: int) -> None:
         self.lb = lb
         self.ub = ub
@@ -64,11 +64,11 @@ def test_class_validator():
 class User(oblate.Schema):
     id = fields.Integer(strict=False)
 
-    @fields.validate('id', raw=True)
+    @validate.field('id', raw=True)
     def validate_raw_id(self, value: str, context: oblate.LoadContext):
         assert isinstance(value, str)
 
-    @fields.validate('id', raw=False)
+    @validate.field('id', raw=False)
     def validate_id(self, value: int, context: oblate.LoadContext):
         if not (value >= 1000 and value <= 9999):
             raise ValueError('Value must be in range 1000-9999')

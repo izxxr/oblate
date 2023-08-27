@@ -50,14 +50,14 @@ more concise.
 
 Example::
 
-    @fields.validate('id')
+    @validate.field('id')
     def validate_id(self, value, ctx):
         if value > 100:
             raise oblate.FieldError('Invalid ID, must be less than 100')
 
     # is equivalent to:
 
-    @fields.validate('id')
+    @validate.field('id')
     def validate_id(self, value, ctx):
         assert not value > 100, 'Invalid ID, must be less than 100'
 
@@ -162,13 +162,13 @@ Example::
         username = fields.String()
         password = fields.String()
 
-        @fields.validate(username)
+        @validate.field(username)
         def validate_username(self, value, ctx):
             if len(value) < 5:
                 state = {'error_code': ERR_CODE_USERNAME_TOO_SHORT}
                 raise oblate.FieldError('Username must be more than 5 chars.', state=state)
 
-        @fields.validate(password)
+        @validate.field(password)
         def validate_password(self, value, ctx):
             if len(value) < 8:
                 state = {'error_code': ERR_CODE_PASSWORD_TOO_SHORT}

@@ -167,7 +167,7 @@ data for usage in modifying a validator's behaviour.
 
 Example of usage of extra metadata::
 
-    class RangeValidator(fields.Validator):
+    class RangeValidator(validate.Validator):
         def __init__(self, lb: int, ub: int):
             self.lb = lb
             self.ub = ub

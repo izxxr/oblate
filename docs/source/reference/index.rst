@@ -8,6 +8,7 @@ API Reference
 
     schema
     fields/index
+    validators
     contexts
     config
     exceptions

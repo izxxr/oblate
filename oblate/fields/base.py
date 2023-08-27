@@ -38,7 +38,7 @@ from typing import (
     overload,
 )
 from typing_extensions import Self
-from oblate.fields.validators import Validator, ValidatorCallbackT, InputT
+from oblate.validate import Validator, ValidatorCallbackT, InputT
 from oblate.utils import MISSING, current_field_name, current_schema
 from oblate.exceptions import FieldError
 from oblate.configs import config
@@ -245,13 +245,13 @@ class Field(Generic[RawValueT, SerializedValueT]):
 
         Parameters
         ----------
-        validator: Union[callable, :class:`fields.Validator`]
+        validator: Union[callable, :class:`validate.Validator`]
             The validator to register. This can be a callable function or a 
-            :class:`fields.Validator` instance.
+            :class:`validate.Validator` instance.
         raw: :class:`bool`
             Whether a raw validator is being registered. This parameter is only
             taken into account when a callable is passed instead of a 
-            :class:`fields.Validator` instance.
+            :class:`validate.Validator` instance.
         """
         if not callable(validator):
             raise TypeError('validator must be a callable or Validator class instance')  # pragma: no cover
@@ -266,13 +266,13 @@ class Field(Generic[RawValueT, SerializedValueT]):
 
         Parameters
         ----------
-        validator: Union[callable, :class:`fields.Validator`]
+        validator: Union[callable, :class:`validate.Validator`]
             The validator to remove. This can be a callable function or a 
-            :class:`fields.Validator` instance.
+            :class:`validate.Validator` instance.
         raw: :class:`bool`
             Whether the validator being removed is raw. This parameter is only
             taken into account when a callable is passed instead of a 
-            :class:`fields.Validator` instance.
+            :class:`validate.Validator` instance.
         """
         if not callable(validator):
             raise TypeError('validator must be a callable or Validator class instance')  # pragma: no cover

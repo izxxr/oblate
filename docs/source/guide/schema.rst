@@ -38,7 +38,7 @@ Example::
     AuthorizedUser({'id': 1, 'username': 'John', 'password': 'test'})
 
 If you want to register validators in the subclassed schema for a field present in the parent, you
-can use the :func:`fields.validate` and pass the field name as a string.
+can use the :func:`validate.field` and pass the field name as a string.
 
 Example::
 
@@ -49,7 +49,7 @@ Example::
     class AuthorizedUser(User):
         password = fields.String()
 
-        @fields.validate('id')
+        @validate.field('id')
         def validate_id(self, value, ctx):
             ...
 

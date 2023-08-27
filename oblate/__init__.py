@@ -12,6 +12,7 @@ __version__ = '1.0.0'
 __author__  = 'Izhar Ahmad (izxxr)'
 
 from oblate import fields as fields
+from oblate import validate as validate
 from oblate.schema import *
 from oblate.contexts import *
 from oblate.exceptions import *
