@@ -56,11 +56,11 @@ __all__ = (
 
 SchemaT = TypeVar('SchemaT', bound='Schema')
 RawValueT = TypeVar('RawValueT')
-SerializedValueT = TypeVar('SerializedValueT')
+FinalValueT = TypeVar('FinalValueT')
 ValidatorT = Union[Validator[InputT], ValidatorCallbackT[SchemaT, InputT]]
 
 
-class Field(Generic[RawValueT, SerializedValueT]):
+class Field(Generic[RawValueT, FinalValueT]):
     """The base class for all fields.
 
     All fields provided by Oblate inherit from this class. If you intend to create
@@ -73,8 +73,8 @@ class Field(Generic[RawValueT, SerializedValueT]):
     .. tip::
 
         This class is a :class:`typing.Generic` and takes two type arguments. The
-        raw value type i.e the type of raw value which will be serialized to final
-        value and the type of serialized value.
+        raw value type i.e the type of raw value which will be deserialized to final
+        value and the type of deserialized value.
 
     Parameters
     ----------
@@ -103,7 +103,7 @@ class Field(Generic[RawValueT, SerializedValueT]):
             *,
             none: Literal[False] = False,
             **kwargs: Any,
-        ) -> Field[RawValueT, SerializedValueT]:
+        ) -> Field[RawValueT, FinalValueT]:
             ...
 
         @overload
@@ -112,7 +112,7 @@ class Field(Generic[RawValueT, SerializedValueT]):
             *,
             none: Literal[True] = True,
             **kwargs: Any,
-        ) -> Field[Optional[RawValueT], Optional[SerializedValueT]]:
+        ) -> Field[Optional[RawValueT], Optional[FinalValueT]]:
             ...
 
         def __new__(
@@ -148,7 +148,7 @@ class Field(Generic[RawValueT, SerializedValueT]):
         self.required = required and (default is MISSING)
         self.extras = extras if extras is not MISSING else {}
         self._default = default
-        self._validators: List[ValidatorT[SerializedValueT, Any]] = []
+        self._validators: List[ValidatorT[FinalValueT, Any]] = []
         self._raw_validators: List[ValidatorT[Any, Any]] = []
         self._unbind()
 
@@ -161,10 +161,10 @@ class Field(Generic[RawValueT, SerializedValueT]):
         ...
 
     @overload
-    def __get__(self, instance: Schema, owner: Type[Schema]) -> SerializedValueT:
+    def __get__(self, instance: Schema, owner: Type[Schema]) -> FinalValueT:
         ...
 
-    def __get__(self, instance: Optional[Schema], owner: Type[Schema]) -> Union[SerializedValueT, Self]:
+    def __get__(self, instance: Optional[Schema], owner: Type[Schema]) -> Union[FinalValueT, Self]:
         if instance is None:
             return self
 
@@ -217,7 +217,7 @@ class Field(Generic[RawValueT, SerializedValueT]):
         """Indicates whether the field has a default value."""
         return self._default is not MISSING
 
-    def copy(self) -> Field[RawValueT, SerializedValueT]:
+    def copy(self) -> Field[RawValueT, FinalValueT]:
         """Copies a field.
 
         This method is useful when you want to reuse fields from other
@@ -322,8 +322,8 @@ class Field(Generic[RawValueT, SerializedValueT]):
         for validator in validators:
             yield validator
 
-    def value_load(self, value: Any, context: LoadContext, /) -> SerializedValueT:
-        """Serializes a raw value.
+    def value_load(self, value: Any, context: LoadContext, /) -> FinalValueT:
+        """Deserializes a raw value.
 
         This is an abstract method that must be implemented by subclasses. This
         method is called by the library when a field is being loaded.
@@ -339,9 +339,9 @@ class Field(Generic[RawValueT, SerializedValueT]):
         Parameters
         ----------
         value:
-            The value to serialize.
+            The value to deserialize.
         context: :class:`LoadContext`
-            The serialization context.
+            The deserialization context.
 
         Returns
         -------
@@ -349,24 +349,24 @@ class Field(Generic[RawValueT, SerializedValueT]):
         """
         raise NotImplementedError
 
-    def value_dump(self, value: SerializedValueT, context: DumpContext, /) -> Any:
-        """Deserializes the value to raw form.
+    def value_dump(self, value: FinalValueT, context: DumpContext, /) -> Any:
+        """Serializes the value to raw form.
 
         This is an abstract method that must be implemented by subclasses. This
         method is called by the library when a field is being dumped.
 
         The only time this method is called when the :meth:`Schema.dump` method
-        is called. The returned value is the value included in deserialized data.
+        is called. The returned value is the value included in serialized data.
 
         Parameters
         ----------
         value:
-            The value to deserialize.
+            The value to serialize.
         context: :class:`DumpContext`
-            The deserialization context.
+            The serialization context.
 
         Returns
         -------
-        The deserialized value.
+        The serialized value.
         """
         raise NotImplementedError

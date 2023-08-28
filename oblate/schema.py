@@ -307,9 +307,9 @@ class Schema(metaclass=_SchemaMeta):
             raise config.validation_error_cls(errors)
 
     def dump(self, *, include: Sequence[str] = MISSING, exclude: Sequence[str] = MISSING) -> Dict[str, Any]:
-        """Deserializes the schema.
+        """Serializes the schema to raw form.
 
-        The returned value is deserialized data in dictionary form. The
+        The returned value is serialized data in dictionary form. The
         ``include`` and ``exclude`` parameters are mutually exclusive.
 
         Parameters
@@ -322,14 +322,14 @@ class Schema(metaclass=_SchemaMeta):
         Returns
         -------
         Dict[:class:`str`, Any]
-            The deserialized data.
+            The serialized data.
 
         Raises
         ------
         TypeError
             Both include and exclude provided.
         ValidationError
-            Validation failed while deserializing one or more fields.
+            Validation failed while serializing one or more fields.
         """
         fields = set(self.__fields__.keys())
         if include is not MISSING and exclude is not MISSING:

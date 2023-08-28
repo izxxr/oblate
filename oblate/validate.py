@@ -75,7 +75,7 @@ class Validator(Generic[InputT]):
         value:
             The value to validate.
         context: :class:`LoadContext`
-            The serialization context.
+            The deserialization context.
         """
         raise NotImplementedError
 

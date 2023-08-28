@@ -91,9 +91,9 @@ class _BaseValueContext:
         self.state: Dict[str, Any] = {}
 
 class LoadContext(_BaseValueContext):
-    """Context for value serialization.
+    """Context for value deserialization.
 
-    This class holds important and useful information regarding serialization
+    This class holds important and useful information regarding deserialization
     of a value. The instance of this class is passed to :meth:`fields.Field.value_load`
     while a field is being serialized.
 
@@ -104,7 +104,7 @@ class LoadContext(_BaseValueContext):
     schema: :class:`Schema`
         The schema that the context belongs to.
     value:
-        The raw value being serialized.
+        The raw value being deserialized.
     state: Dict[:class:`str`, Any]
         A dictionary to store any state data. This can be used to propagate or store
         important data while working with schema.
@@ -120,7 +120,7 @@ class LoadContext(_BaseValueContext):
 
 
 class DumpContext(_BaseValueContext):
-    """Context for value deserialization.
+    """Context for value serialization.
 
     This class holds important and useful information regarding serialization
     of a value. The instance of this class is passed to :meth:`fields.Field.value_dump`
@@ -133,9 +133,9 @@ class DumpContext(_BaseValueContext):
     schema: :class:`Schema`
         The schema that the context belongs to.
     value:
-        The value being deserialized.
+        The value being serialized.
     included_fields: Set[:class:`str`]
-        The set of names of fields that are being deserialized.
+        The set of names of fields that are being serialized.
     state: Dict[:class:`str`, Any]
         A dictionary to store any state data. This can be used to propagate or store
         important data while working with schema.

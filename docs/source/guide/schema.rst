@@ -81,10 +81,10 @@ updating multiple fields or with raw data::
 
 If any of the field in the data fails validation, the schema is rolled back to previous state.
 
-Deserializing schema
---------------------
+Serializing schema
+------------------
 
-Similar to serialization, a schema can also be deserialized. This is done using the :meth:`Schema.dump`
+Similar to deserialization, a schema can also be deserialized. This is done using the :meth:`Schema.dump`
 method.
 
 Example::
@@ -96,7 +96,7 @@ Example::
     user = User({'id': 1, 'username': 'John'})
     print(user.dump())  # {'id': 1, 'username': 'John'}
 
-If you want to deserialize specific fields only, use the ``include`` or ``exclude`` parameters (mutually
+If you want to serialize specific fields only, use the ``include`` or ``exclude`` parameters (mutually
 exclusive, only one can be used at a time)::
 
     print(user.dump(include=['id']))  # or user.dump(exclude=['username'])
@@ -107,5 +107,5 @@ Output::
 
 .. note::
 
-    The deserialized data is not always the same as the data used to initialize
+    The serialized data is not always the same as the data used to initialize
     the schema.

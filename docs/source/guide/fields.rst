@@ -231,8 +231,8 @@ two parameters:
 - The :class:`LoadContext` instance.
 
 The raw value is any value (that could possibly be invalid too) that is provided by the data and
-load context holds useful information about field serialization context. The returned value by
-``value_load`` method is the serialized value that is assigned to field in the :class:`Schema`.
+load context holds useful information about field deserialization context. The returned value by
+``value_load`` method is the deserialized value that is assigned to field in the :class:`Schema`.
 
 Example::
 
@@ -243,11 +243,11 @@ Example::
     std = Student({'name': 'John', 'test_score': [10, 9, 5, 6]})
     print(std.test_score)  # 30
 
-The ``value_dump`` method is called when a schema is being deserialized. The value returned
+The ``value_dump`` method is called when a schema is being serialized to raw form. The value returned
 by this method corresponds to the value of field in raw data. The parameters taken by this
 method are:
 
-- The serialized value that will be deserialized (i.e the value returned by ``value_load``)
+- The value that will be serialized (i.e the value returned by ``value_load``)
 - The :class:`DumpContext` instance
 
 Example::
@@ -258,7 +258,7 @@ Example::
 .. tip::
 
     :class:`fields.Field` is a typing generic and takes two type arguments. The first one is
-    the expected raw value type and the second one is the type of serialized value.
+    the expected raw value type and the second one is the type of deserialized value.
 
 .. _guide-fields-nesting:
 
@@ -266,7 +266,7 @@ Nested schemas
 --------------
 
 :class:`fields.Object` field allows nesting schemas inside other schemas. This field accepts raw data for
-another schema and serializes it to the :class:`Schema` object. You can nest schemas to as many levels
+another schema and deserializes it to the :class:`Schema` object. You can nest schemas to as many levels
 as you wish.
 
 Example::

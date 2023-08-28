@@ -26,10 +26,10 @@ function and methods. This is done by field contexts.
 
 There are two field contexts:
 
-- :class:`LoadContext` when a field is being loaded (serialized)
-- :class:`DumpContext` when a field is being dumped (deserialized)
+- :class:`LoadContext` when a field is being loaded (deserialized)
+- :class:`DumpContext` when a field is being dumped (serialized)
 
-:class:`LoadContext` is passed to methods and functions involved in serialization of fields such
+:class:`LoadContext` is passed to methods and functions involved in deserialization of fields such
 as :meth:`fields.Field.value_load` and validators while :class:`DumpContext` is passed to
 :meth:`fields.Field.value_dump`.
 
@@ -44,7 +44,7 @@ A common use case of ``state`` is when loading a field. The :meth:`fields.Field.
 can store some data in state which validators can access.
 
 Another use case is preserving the raw value of some field to access it later during the
-deserialization of field. Example of this use case is given below::
+serialization of field. Example of this use case is given below::
 
     class SumValues(fields.Field[list[int], int]):
         def value_load(self, value: list[int], ctx: oblate.LoadContext) -> int:

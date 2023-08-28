@@ -61,11 +61,11 @@ The third way of registering a validator is by passing it to field using the ``v
 Raw Validators
 --------------
 
-By default, validators are ran after the serialization of raw value i.e after the :meth:`fields.Field.value_load`
-method is called. If the serialization fails, validators will not be called. This essentially means that
-the ``value`` parameter will always be of correct (serialized) type.
+By default, validators are ran after the deserialization of raw value i.e after the :meth:`fields.Field.value_load`
+method is called. If the deserialization fails, validators will not be called. This essentially means that
+the ``value`` parameter will always be of correct (deserialized) type.
 
-There are also "raw validators". These validators are called with the raw, unserialized value
+There are also "raw validators". These validators are called with the raw value
 (the one provided in the raw data).
 
 In order to define a raw validator, simply pass ``raw=True`` in the :func:`validate.field` decorator
