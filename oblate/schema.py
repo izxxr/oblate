@@ -22,14 +22,16 @@
 
 from __future__ import annotations
 
-from typing import Dict, Any, Mapping, List, Optional, Sequence, Tuple, Type
-from oblate.fields.base import Field
+from typing import TYPE_CHECKING, Dict, Any, Mapping, List, Optional, Sequence, Tuple, Type
 from oblate.contexts import SchemaContext, LoadContext, DumpContext
 from oblate.utils import MISSING, current_field_name, current_context, current_schema
 from oblate.exceptions import FieldError
 from oblate.configs import config, SchemaConfig
 
 import inspect
+
+if TYPE_CHECKING:
+    from oblate.fields.base import Field
 
 __all__ = (
     'Schema',
@@ -95,6 +97,9 @@ class Schema(metaclass=_SchemaMeta):
             current_schema.reset(token)
 
     def __init_subclass__(cls) -> None:
+        # circular import
+        from oblate.fields.base import Field
+
         if hasattr(cls, '__fields__'):
             # When a schema is subclassed, the fields have to be copied so
             # the parent schema's fields are not modified
@@ -145,7 +150,7 @@ class Schema(metaclass=_SchemaMeta):
             token = current_field_name.set(name)
             try:
                 if field.required:
-                    errors.append(FieldError('This field is required.'))
+                    errors.append(field._call_format_error(field.ERR_FIELD_REQUIRED, self, MISSING))
                 if field._default is not MISSING:
                     self._field_values[name] = field._default(self._context, field) if callable(field._default) else field._default
             finally:
@@ -203,7 +208,7 @@ class Schema(metaclass=_SchemaMeta):
             if field.none:
                 self._field_values[name] = None
             else:
-                errors.append(FieldError('This field cannot take a None value.'))
+                errors.append(field._call_format_error(field.ERR_NONE_DISALLOWED, self, None))
             return errors
 
         if not lazy_validation:
@@ -212,7 +217,7 @@ class Schema(metaclass=_SchemaMeta):
             final_value = field.value_load(value, context)
         except (ValueError, AssertionError, FieldError) as err:
             if not isinstance(err, FieldError):
-                err = FieldError._from_standard_error(err)
+                err = FieldError._from_standard_error(err, schema=self, field=field, value=value)
             errors.append(err)
         else:
             if not lazy_validation:
@@ -364,7 +369,7 @@ class Schema(metaclass=_SchemaMeta):
                 out[name] = field.value_dump(value, context)
             except (ValueError, AssertionError, FieldError) as err:
                 if not isinstance(err, FieldError):
-                    err = FieldError._from_standard_error(err)
+                    err = FieldError._from_standard_error(err, schema=self, field=field, value=value)
                 errors.append(err)
             finally:
                 current_field_name.reset(field_token)

@@ -52,7 +52,7 @@ def test_nostrict_fields():
     assert nostrict.boolean == True
 
 def test_string_strictness():
-    with pytest.raises(oblate.ValidationError, match='must be a string'):
+    with pytest.raises(oblate.ValidationError, match='Value must be a string'):
         _TestSchemaStrict({
             'string': 123,
             'integer': '123',
@@ -61,7 +61,7 @@ def test_string_strictness():
         })
 
 def test_integer_strictness():
-    with pytest.raises(oblate.ValidationError, match='integer-convertable'):
+    with pytest.raises(oblate.ValidationError, match="Failed to coerce 'invalid int' to integer"):
         _TestSchemaNoStrict({
             'string': 123,
             'integer': 'invalid int',
@@ -69,7 +69,7 @@ def test_integer_strictness():
             'boolean': True,
         })
 
-    with pytest.raises(oblate.ValidationError, match='must be an integer'):
+    with pytest.raises(oblate.ValidationError, match='Value must be an integer'):
         _TestSchemaStrict({
             'string': 123,
             'integer': '123',
@@ -78,7 +78,7 @@ def test_integer_strictness():
         })
 
 def test_float_strictness():
-    with pytest.raises(oblate.ValidationError, match='float-convertable'):
+    with pytest.raises(oblate.ValidationError, match="Failed to coerce 'bad float' to float"):
         _TestSchemaNoStrict({
             'string': 123,
             'integer': 1234,
@@ -86,7 +86,7 @@ def test_float_strictness():
             'boolean': True,
         })
 
-    with pytest.raises(oblate.ValidationError, match='must be a float'):
+    with pytest.raises(oblate.ValidationError, match='Value must be a float'):
         _TestSchemaStrict({
             'string': 123,
             'integer': 123,
@@ -96,7 +96,7 @@ def test_float_strictness():
 
 
 def test_boolean_strictness():
-    with pytest.raises(oblate.ValidationError, match='boolean-convertable'):
+    with pytest.raises(oblate.ValidationError, match="Failed to coerce 'bad boolean' to boolean"):
         _TestSchemaNoStrict({
             'string': 123,
             'integer': 123,
@@ -104,7 +104,7 @@ def test_boolean_strictness():
             'boolean': 'bad boolean',
         })
 
-    with pytest.raises(oblate.ValidationError, match='must be a boolean'):
+    with pytest.raises(oblate.ValidationError, match='Value must be a boolean'):
         _TestSchemaStrict({
             'string': 123,
             'integer': 123,
@@ -120,7 +120,7 @@ def test_boolean_values():
     assert _TestSchema({'boolean': 'true 1'}).boolean == True
     assert _TestSchema({'boolean': '0'}).boolean == False
 
-    with pytest.raises(oblate.ValidationError, match='boolean-convertable'):
+    with pytest.raises(oblate.ValidationError, match="Failed to coerce 'bad boolean' to boolean"):
         _TestSchema({'boolean': 'bad boolean'})
 
 def test_dump():

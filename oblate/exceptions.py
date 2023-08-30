@@ -23,10 +23,11 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Optional, List, Dict, Union
-from oblate.utils import current_field_name, current_context, current_schema
+from oblate.utils import current_field_name, current_context, current_schema, MISSING
 
 if TYPE_CHECKING:
     from oblate.fields.base import Field
+    from oblate.schema import Schema
 
 __all__ = (
     'OblateException',
@@ -82,12 +83,18 @@ class FieldError(OblateException):
         super().__init__(message)
 
     @classmethod
-    def _from_standard_error(cls, err: Union[ValueError, AssertionError]) -> FieldError:
+    def _from_standard_error(
+        cls,
+        err: Union[ValueError, AssertionError],
+        schema: Schema,
+        field: Field[Any, Any],
+        value: Any = MISSING,
+    ) -> FieldError:
         message = str(err)
         if not message:
-            message = 'Validation failed for this field.'
-
-        return cls(message)
+            return field._call_format_error(field.ERR_VALIDATION_FAILED, schema, value)
+        else:
+            return cls(message)
 
     @property
     def field(self) -> Optional[Field[Any, Any]]:

@@ -22,12 +22,12 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Optional, Sequence, Union
 from oblate.fields.base import Field
 from oblate.exceptions import FieldError
 
 if TYPE_CHECKING:
-    from oblate.contexts import LoadContext, DumpContext
+    from oblate.contexts import LoadContext, DumpContext, ErrorContext
 
 __all__ = (
     'String',
@@ -48,6 +48,8 @@ class String(Field[str, str]):
         Whether to only allow string data types. If this is set to False,
         any value is type casted to string. Defaults to True.
     """
+    ERR_INVALID_DATATYPE = 'string.invalid_datatype'
+
     __slots__ = (
         'strict',
     )
@@ -56,17 +58,22 @@ class String(Field[str, str]):
         self.strict = strict
         super().__init__(**kwargs)
 
-    def _process_value(self, value: Any) -> str:
+    def _process_value(self, value: Any, ctx: LoadContext) -> str:
         if not isinstance(value, str):
             if self.strict:
-                raise FieldError('Value of this field must be a string')
-
+                raise self._call_format_error(self.ERR_INVALID_DATATYPE, ctx.schema, value)
             return str(value)
         else:
             return value
 
+    def format_error(self, error_code: Any, context: ErrorContext) -> Union[FieldError, str]:
+        if error_code == self.ERR_INVALID_DATATYPE:
+            return 'Value must be a string'
+
+        return super().format_error(error_code, context)
+
     def value_load(self, value: str, context: LoadContext) -> str:
-        return self._process_value(context.value)
+        return self._process_value(context.value, context)
 
     def value_dump(self, value: str, context: DumpContext) -> str:
         return value
@@ -84,6 +91,9 @@ class Integer(Field[int, int]):
         Whether to only allow integer data types. If this is set to False,
         any integer-castable value is type casted to integer. Defaults to True.
     """
+    ERR_INVALID_DATATYPE = 'integer.invalid_datatype'
+    ERR_COERCION_FAILED  = 'integer.coercion_failed'
+
     __slots__ = (
         'strict',
     )
@@ -92,19 +102,27 @@ class Integer(Field[int, int]):
         self.strict = strict
         super().__init__(**kwargs)
 
-    def _process_value(self, value: Any) -> int:
+    def _process_value(self, value: Any, ctx: LoadContext) -> int:
         if not isinstance(value, int):
             if self.strict:
-                raise FieldError('Value of this field must be an integer')
+                raise self._call_format_error(self.ERR_INVALID_DATATYPE, ctx.schema, value)
             try:
                 return int(value)
             except Exception:
-                raise FieldError('Value of this field must be an integer-convertable value') from None
+                raise self._call_format_error(self.ERR_COERCION_FAILED, ctx.schema, value) from None
         else:
             return value
 
+    def format_error(self, error_code: Any, context: ErrorContext) -> Union[FieldError, str]:
+        if error_code == self.ERR_INVALID_DATATYPE:
+            return 'Value must be an integer'
+        if error_code == self.ERR_COERCION_FAILED:
+            return f'Failed to coerce {context._value!r} to integer'
+
+        return super().format_error(error_code, context)
+
     def value_load(self, value: int, context: LoadContext) -> int:
-        return self._process_value(context.value)
+        return self._process_value(context.value, context)
 
     def value_dump(self, value: int, context: DumpContext) -> int:
         return value
@@ -146,6 +164,9 @@ class Boolean(Field[bool, bool]):
         'NO', 'No', 'no', '0'
     )
 
+    ERR_INVALID_DATATYPE = 'boolean.invalid_datatype'
+    ERR_COERCION_FAILED  = 'boolean.coercion_failed'
+
     __slots__ = (
         'strict',
         '_true_values',
@@ -167,22 +188,30 @@ class Boolean(Field[bool, bool]):
         self._true_values = true_values if true_values is not None else self.TRUE_VALUES
         self._false_values = false_values if false_values is not None else self.FALSE_VALUES
 
-    def _process_value(self, value: Any) -> bool:
+    def _process_value(self, value: Any, ctx: LoadContext) -> bool:
         if not isinstance(value, bool):
             if self.strict:
-                raise FieldError('Value of this field must be a boolean')
+                raise self._call_format_error(self.ERR_INVALID_DATATYPE, ctx.schema, value)
             value = str(value)
             if value in self._true_values:
                 return True
             if value in self._false_values:
                 return False
             else:
-                raise FieldError('Value of this field must be a boolean-convertable value')
+                raise self._call_format_error(self.ERR_COERCION_FAILED, ctx.schema, value)
         else:
             return value
 
+    def format_error(self, error_code: Any, context: ErrorContext) -> Union[FieldError, str]:
+        if error_code == self.ERR_INVALID_DATATYPE:
+            return 'Value must be a boolean'
+        if error_code == self.ERR_COERCION_FAILED:
+            return f'Failed to coerce {context._value!r} to boolean'
+
+        return super().format_error(error_code, context)  # pragma: no cover
+
     def value_load(self, value: bool, context: LoadContext) -> bool:
-        return self._process_value(context.value)
+        return self._process_value(context.value, context)
 
     def value_dump(self, value: bool, context: DumpContext) -> bool:
         return value
@@ -200,6 +229,9 @@ class Float(Field[float, float]):
         Whether to only allow float data types. If this is set to False,
         any float-castable value is type casted to float. Defaults to True.
     """
+    ERR_INVALID_DATATYPE = 'float.invalid_datatype'
+    ERR_COERCION_FAILED  = 'float.coercion_failed'
+
     __slots__ = (
         'strict',
     )
@@ -208,19 +240,27 @@ class Float(Field[float, float]):
         self.strict = strict
         super().__init__(**kwargs)
 
-    def _process_value(self, value: Any) -> float:
+    def _process_value(self, value: Any, ctx: LoadContext) -> float:
         if not isinstance(value, float):
             if self.strict:
-                raise FieldError('Value of this field must be a float')
+                raise self._call_format_error(self.ERR_INVALID_DATATYPE, ctx.schema, value)
             try:
                 return float(value)
             except Exception:
-                raise FieldError('Value of this field must be a float-convertable value') from None
+                raise self._call_format_error(self.ERR_COERCION_FAILED, ctx.schema, value) from None
         else:
             return value
 
+    def format_error(self, error_code: Any, context: ErrorContext) -> Union[FieldError, str]:
+        if error_code == self.ERR_INVALID_DATATYPE:
+            return 'Value must be a floating point number'
+        if error_code == self.ERR_COERCION_FAILED:
+            return f'Failed to coerce {context._value!r} to float'
+
+        return super().format_error(error_code, context)  # pragma: no cover
+
     def value_load(self, value: float, context: LoadContext) -> float:
-        return self._process_value(context.value)
+        return self._process_value(context.value, context)
 
     def value_dump(self, value: float, context: DumpContext) -> float:
         return value

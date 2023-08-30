@@ -23,6 +23,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Set, Dict
+from oblate.utils import MISSING
 
 if TYPE_CHECKING:
     from oblate.schema import Schema
@@ -32,6 +33,7 @@ __all__ = (
     'SchemaContext',
     'LoadContext',
     'DumpContext',
+    'ErrorContext',
 )
 
 
@@ -71,7 +73,7 @@ class SchemaContext:
 
 class _BaseValueContext:
     __slots__ = (
-        'field',
+        '_field',
         'value',
         'schema',
         'state'
@@ -85,10 +87,15 @@ class _BaseValueContext:
             schema: Schema,
         ) -> None:
 
-        self.field = field
+        self._field = field
         self.value = value
         self.schema = schema
         self.state: Dict[str, Any] = {}
+
+    @property
+    def field(self) -> Field[Any, Any]:
+        return self._field  # type: ignore  # pragma: no cover
+
 
 class LoadContext(_BaseValueContext):
     """Context for value deserialization.
@@ -109,6 +116,8 @@ class LoadContext(_BaseValueContext):
         A dictionary to store any state data. This can be used to propagate or store
         important data while working with schema.
     """
+    __slots__ = ()
+
     def is_update(self) -> bool:
         """Indicates whether the value is being updated.
 
@@ -140,6 +149,10 @@ class DumpContext(_BaseValueContext):
         A dictionary to store any state data. This can be used to propagate or store
         important data while working with schema.
     """
+    __slots__ = (
+        'included_fields',
+    )
+
     def __init__(
             self,
             included_fields: Set[str],
@@ -148,3 +161,59 @@ class DumpContext(_BaseValueContext):
 
         self.included_fields = included_fields
         super().__init__(**kwargs)
+
+class ErrorContext:
+    """Context for error handling.
+
+    The instance of this class is passed to :meth:`Field.format_error` method
+    and holds information about the error.
+
+    Attributes
+    ----------
+    error_code:
+        The error code indicating the error raised.
+    field: :class:`fields.Field`
+        The field that the error belongs to.
+    schema: :class:`Schema`
+        The schema that the error was caused from.
+    """
+    __slots__ = (
+        'schema',
+        'error_code',
+        '_value',
+        '_field',
+    )
+
+    def __init__(
+            self,
+            *,
+            error_code: Any,
+            schema: Schema,
+            field: Field[Any, Any],
+            value: Any = MISSING,
+        ):
+
+        self.error_code = error_code
+        self.schema = schema
+        self._field = field
+        self._value = value
+
+    @property
+    def field(self) -> Field[Any, Any]:
+        return self._field  # type: ignore  # pragma: no cover
+
+    def get_value(self) -> Any:
+        """Returns the value that caused the error.
+
+        This method will raise a :exc:`ValueError` if no value is
+        associated to the error. This is only the case for the 
+        :attr:`~fields.Field.FIELD_REQUIRED` error code.
+
+        Raises
+        ------
+        ValueError
+            No value associated to the error.
+        """
+        if self._value is MISSING:
+            raise ValueError('No value associated to the error')
+        return self._value

@@ -7,11 +7,15 @@ Error Handling
 This page covers the methods of dealing with validation errors and customizing the default error
 handling system.
 
+.. _guide-errors-intro:
+
 Introduction
 ------------
 
 It is recommended that you see the :ref:`tutorial-error-handling` section in the :ref:`tutorial` section
 for a basic overview of how errors work in Oblate.
+
+.. _guide-errors-validationerror-and-fielderror:
 
 ValidationError and FieldError
 ------------------------------
@@ -30,6 +34,8 @@ failure.
 In more simpler terms, you should always use :class:`ValidationError` when you are initializing or
 updating a :class:`Schema` and want to catch any validation errors and you should raise the
 :class:`FieldError` in your validators or other user side code to indicate validation failure.
+
+.. _guide-errors-user-side-errors:
 
 User side errors
 ----------------
@@ -60,6 +66,8 @@ Example::
     @validate.field('id')
     def validate_id(self, value, ctx):
         assert not value > 100, 'Invalid ID, must be less than 100'
+
+.. _guide-errors-error-formatting:
 
 Error formatting
 ----------------
@@ -94,6 +102,8 @@ to make the error more easily readable. This format also nicely adapts to :ref:`
 
 In this case, ``actor`` was a nested schema which had errors so the level of indentation increases
 with level of nesting for indicating errors in nested fields.
+
+.. _guide-errors-raw-error-formatting:
 
 Raw error formatting
 --------------------
@@ -138,6 +148,8 @@ After that, you can change the :ref:`guide-config-global-config` so that your su
 instead of default :class:`ValidationError`::
 
     oblate.config.validation_error_cls = CustomValidationError
+
+.. _guide-errors-state:
 
 Attaching arbitrary state
 -------------------------
@@ -184,3 +196,56 @@ Output::
 
     {'error_code': 1}
     {'error_code': 2}
+
+.. _guide-errors-custom-errors:
+
+Custom error messages
+---------------------
+
+Oblate allows customizing the default error messages. This is done by overriding the
+:meth:`fields.Field.format_error` method.
+
+The first parameter to this method is an *error code*. An error code is used to indicate the type
+of error raised. All fields have the following error codes:
+
+- :attr:`fields.Field.ERR_FIELD_REQUIRED`
+- :attr:`fields.Field.ERR_NONE_DISALLOWED`
+- :attr:`fields.Field.ERR_VALIDATION_FAILED`
+
+Other error codes are specific to each field and their documentation can be found in the relevant
+field's documentation.  Error codes are detailed under each field. They are upper case class attributes
+prefixed with ``ERR_``.
+
+The second parameter to :meth:`~fields.Field.format_error` is the :class:`ErrorContext` instance
+holding the contextual information about the error. The method should return a :class:`str` or A
+:class:`FieldError` instance.
+
+Example::
+
+    class Integer(fields.Integer):
+        def format_error(self, error_code, ctx) -> None:
+            if error_code == self.ERR_INVALID_DATATYPE:
+                return f'{ctx.get_value()!r} is not an integer'
+
+            super().format_error(error_code, ctx)
+
+    class User(oblate.Schema):
+        id = Integer()
+
+    try:
+        User({'id': 'invalid'})
+    except oblate.ValidationError as err:
+        print(err.raw())
+
+Output::
+
+    {'id': ["'invalid' is not an integer"]}
+
+:meth:`ErrorContext.get_value` returns the value that caused the error. In case of certain
+error codes, the error doesn't have a causative value. In this case, a :exc:`ValueError` is
+raised. Currently, the only error that doesn't have a value is :attr:`~fields.Field.ERR_FIELD_REQUIRED`.
+
+.. warning::
+
+    It is important and required to return ``super().format_error()`` at the end so other errors can
+    be handled properly.

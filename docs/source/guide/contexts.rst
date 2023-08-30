@@ -33,6 +33,12 @@ There are two field contexts:
 as :meth:`fields.Field.value_load` and validators while :class:`DumpContext` is passed to
 :meth:`fields.Field.value_dump`.
 
+Error Context
+-------------
+
+:class:`ErrorContext` holds contextual information about a validation error. The instance of this
+class is passed to :meth:`fields.Field.format_error`.
+
 Context States
 --------------
 

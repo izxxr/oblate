@@ -22,7 +22,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Type, Mapping, TypeVar, Any
+from typing import TYPE_CHECKING, Type, Mapping, TypeVar, Any, Union
 from oblate.fields.base import Field
 from oblate.schema import Schema
 from oblate.exceptions import FieldError, ValidationError
@@ -30,7 +30,7 @@ from oblate.exceptions import FieldError, ValidationError
 import collections.abc
 
 if TYPE_CHECKING:
-    from oblate.contexts import LoadContext, DumpContext
+    from oblate.contexts import LoadContext, DumpContext, ErrorContext
 
 __all__ = (
     'Object',
@@ -69,6 +69,8 @@ class Object(Field[Mapping[str, Any], SchemaT]):
     schema_cls: Type[:class:`Schema`]
         The schema class that the field accepts.
     """
+    ERR_INVALID_DATATYPE = 'object.invalid_datatype'
+
     __slots__ = (
         'schema_cls',
     )
@@ -80,9 +82,15 @@ class Object(Field[Mapping[str, Any], SchemaT]):
         self.schema_cls = schema_cls
         super().__init__(**kwargs)
 
+    def format_error(self, error_code: Any, context: ErrorContext) -> Union[FieldError, str]:
+        if error_code == self.ERR_INVALID_DATATYPE:
+            return f'Value must be a {self.schema_cls.__name__} object'
+
+        return super().format_error(error_code, context)  # pragma: no cover
+
     def value_load(self, value: Mapping[str, Any], context: LoadContext) -> SchemaT:
         if not isinstance(value, collections.abc.Mapping):
-            raise FieldError(f'Value for this field must be a {self.schema_cls.__name__} object')
+            raise self._call_format_error(self.ERR_INVALID_DATATYPE, context.schema, value)
 
         try:
             return self.schema_cls(context.value)  # type: ignore

@@ -15,3 +15,6 @@ typically not created manually but their instances are provided by the library.
 
 .. autoclass:: DumpContext
     :members:
+
+.. autoclass:: ErrorContext
+    :members:

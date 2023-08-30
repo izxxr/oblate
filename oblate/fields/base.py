@@ -38,15 +38,16 @@ from typing import (
     overload,
 )
 from typing_extensions import Self
+from oblate.schema import Schema
 from oblate.validate import Validator, ValidatorCallbackT, InputT
 from oblate.utils import MISSING, current_field_name, current_schema
 from oblate.exceptions import FieldError
+from oblate.contexts import ErrorContext
 from oblate.configs import config
 
 import copy
 
 if TYPE_CHECKING:
-    from oblate.schema import Schema
     from oblate.contexts import LoadContext, DumpContext
 
 
@@ -122,6 +123,9 @@ class Field(Generic[RawValueT, FinalValueT]):
             ) -> Field[Any, Any]:
             ...
 
+    ERR_FIELD_REQUIRED = 'field.field_required'
+    ERR_NONE_DISALLOWED = 'field.none_disallowed'
+    ERR_VALIDATION_FAILED = 'field.validation_failed'
 
     __slots__ = (
         'none',
@@ -204,10 +208,26 @@ class Field(Generic[RawValueT, FinalValueT]):
                 validator(context.schema, value, context)
             except (FieldError, AssertionError, ValueError) as err:
                 if isinstance(err, (AssertionError, ValueError)):
-                    err = FieldError._from_standard_error(err)
+                    err = FieldError._from_standard_error(err, schema=context.schema, field=self, value=value)
                 errors.append(err)
 
         return errors
+
+    def _call_format_error(self, error_code: str, schema: Schema, value: Any = MISSING) -> FieldError:
+        ctx = ErrorContext(
+            error_code=error_code,
+            value=value,
+            field=self,
+            schema=schema,
+        )
+
+        error = self.format_error(error_code, ctx)
+        if isinstance(error, str):
+            return FieldError(error)
+        if isinstance(error, FieldError):
+            return error
+        else:
+            raise TypeError('format_error() must return a FieldError or a str')  # pragma: no cover
 
     @property
     def default(self) -> Any:
@@ -321,6 +341,48 @@ class Field(Generic[RawValueT, FinalValueT]):
 
         for validator in validators:
             yield validator
+
+    def format_error(self, error_code: Any, context: ErrorContext, /) -> Union[FieldError, str]:
+        """Formats the error.
+
+        This method can be overriden to add custom error messages for default
+        errors. It should return a :class:`FieldError` or :class`str`.
+
+        .. note::
+
+            You must call ``super().format_error()`` if you intend to override
+            this method. This is to ensure that default error messages are returned
+            properly for error codes that are not covered by your method implementation.
+
+            Example::
+
+                def format_error(self, error_code, context):
+                    if error_code == self.FIELD_REQUIRED:
+                        return 'This field must be provided
+
+                    # call this at the end
+                    return super().format_error(error_code, context)
+
+        Parameters
+        ----------
+        error_code: :class:`str`
+            The error code indicating the error that was raised.
+        context: :class:`ErrorContext`
+            The context holding useful information about error.
+
+        Returns
+        -------
+        Union[:class:`FieldError`, :class:`str`]
+            The formatted error.
+        """
+        if error_code == self.ERR_VALIDATION_FAILED:
+            return 'Validation failed for this field.'
+        if error_code == self.ERR_NONE_DISALLOWED:
+            return 'This field must not be None.'
+        if error_code == self.ERR_FIELD_REQUIRED:
+            return 'This field is required.'
+
+        return 'An unknown error occurred while validating this field'  # pragma: no cover
 
     def value_load(self, value: Any, context: LoadContext, /) -> FinalValueT:
         """Deserializes a raw value.
