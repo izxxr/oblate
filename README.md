@@ -1,7 +1,4 @@
 # Oblate — dealing with data made easy
-
-> ⚠ This project is currently under pre-alpha (0.x) phase.
-
 Oblate is a Python library that provides modern and robust interface for data and schema validation.
 
 Focused around simplicity and flexibility, Oblate has the following features:
@@ -12,15 +9,14 @@ Focused around simplicity and flexibility, Oblate has the following features:
 - Robust with no compromise on performance
 - Properly type hinted to maximize the developer experience
 
-[Documentation](https://oblate.readthedocs.io) • [Source Code](https://github.com/izxxr/oblate) • [PyPi Package](https://pypi.org/project/oblate) 
+[Documentation](https://oblate.readthedocs.io) • [Source Code](https://github.com/izxxr/oblate-v1) • [Python Package Index](https://pypi.org/project/oblate)
 
 ## Installation
-Oblate is available on [PyPi](https://pypi.org/project/oblate) and can be installed using `pip`.
+Oblate is available on PyPi and can be installed using pip.
 ```
 $ pip install oblate 
 ```
-Try prefixing the above command with `python -m` if you don't have `pip` on `PATH` or the command
-doesn't work for some reason.
+> **ℹ️ Didn't work?** Try prefixing the above command with `python -m` if you don't have `pip` on PATH or the command doesn't work for some reason.
 
 ## Usage
 Here's a quick look to what Oblate has to offer. This brief tutorial will give you a quickstart
@@ -38,19 +34,10 @@ class User(oblate.Schema):
     password = fields.String()
     is_employee = fields.Boolean(default=False)
 ```
-We can now easily initialize the `User` object. One of the important feature of Oblate is
-designed to work for all use cases.
-
-You can either use it as a basic library for your normal classes (similar to `dataclasses`
-but with validation!)
-```py
-user = User(id=1, name='John', password='123456789')
-print(user.username)
-```
-or use it as a data/schema validation library for REST APIs or databases:
+We can now easily initialize the `User` object.
 ```py
 user = User({'id': 1, 'name': 'John', 'password': '123456789'})
-print(user.username)
+print(user.username)  # John
 ```
 
 ### Handling Errors
@@ -63,7 +50,7 @@ data = {
 try:
     user = User(data)  # ERRORS: Missing username field and invalid data type for id
 except SchemaValidationError as err:
-    err.raw()
+    print(err.raw())
 ```
 The output will be:
 ```py
@@ -108,7 +95,7 @@ class User(oblate.Schema):
             raise oblate.ValidationError('Password must be at least 8 characters long.')
         return True
 
-user = User(id=1, name='John', password='12345')
+user = User({'id': 1, 'name': 'John', 'password': '12345'})
 ```
 The error in case the validation fail will be:
 ```py
@@ -126,3 +113,4 @@ The error in case the validation fail will be:
 Oblate has a lot more to feature and discussing all of that here is not possible. Check the
 [Oblate's documentation](https://oblate.readthedocs.io) that includes examples and pages to get
 you started with using Oblate for your project along with details on all the features Oblate has.
+

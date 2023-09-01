@@ -2,21 +2,18 @@
 Oblate
 ~~~~~~
 
-Oblate is a Python library that provides modern and robust interface
-for data and schema validation.
+Python library for data validation.
 
-Licensed under MIT license. Copyright (c) 2023 Izhar Ahmad.
-For more information, see the project's LICENSE.
+Copyright (C) Izhar Ahmad 2023, licensed under MIT license.
+See LICENSE at project's root for more information.
 """
 
-__version__ = '0.2.0'
-__author__  = 'Izhar Ahmad (izxxr) <https://github.com/izxxr>'
+__version__ = '1.0.0'
+__author__  = 'Izhar Ahmad (izxxr)'
 
+from oblate import fields as fields
+from oblate import validate as validate
 from oblate.schema import *
-from oblate.exceptions import *
 from oblate.contexts import *
-from oblate import (
-    fields as fields,
-    config as config,
-    errors as errors,
-)
+from oblate.exceptions import *
+from oblate.configs import *

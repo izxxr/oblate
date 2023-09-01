@@ -22,38 +22,22 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
-from contextvars import ContextVar
+from typing import Any
+from oblate import fields
 
-if TYPE_CHECKING:
-    from oblate.contexts import _BaseValueContext
-    from oblate.schema import Schema
+import oblate
+from oblate.contexts import LoadContext
 
-__all__ = (
-    'MissingType',
-    'MISSING',
-    'current_context',
-    'current_field_key',
-)
+def test_is_update():
+    class _TestField(fields.Field[Any, Any]):
+        def value_load(self, value: Any, context: LoadContext) -> Any:
+            return True if context.is_update() else False
 
-class MissingType:
-    """Type for representing unaltered/default/missing values.
+    class _TestSchema(oblate.Schema):
+        field = _TestField()
 
-    Used as sentinel to differentiate between default and None values.
-    utils.MISSING is a type safe instance of this class.
-    """
-    def __repr__(self) -> str:
-        return '...'  # pragma: no cover
+    test = _TestSchema({'field': ''})
+    assert test.field == False
 
-    def __bool__(self) -> bool:
-        return False  # pragma: no cover
-
-
-MISSING: Any = MissingType()
-
-
-### Context variables ###
-
-current_context: ContextVar[_BaseValueContext] = ContextVar('_current_context')
-current_field_key: ContextVar[str] = ContextVar('current_field_key')
-current_schema: ContextVar[Schema] = ContextVar('current_schema')
+    test.field = ''
+    assert test.field == True

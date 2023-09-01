@@ -22,285 +22,369 @@
 
 from __future__ import annotations
 
-from typing import Optional, Mapping, Dict, Set, Any, Sequence
-from typing_extensions import Self
-from oblate import config, errors
-from oblate.fields import Field, Partial, Object
-from oblate.utils import maybe_callable, MISSING
-from oblate.exceptions import ValidationError
+from typing import TYPE_CHECKING, Dict, Any, Mapping, List, Optional, Sequence, Tuple, Type
+from oblate.contexts import SchemaContext, LoadContext, DumpContext
+from oblate.utils import MISSING, current_field_key, current_context, current_schema
+from oblate.exceptions import FieldError
+from oblate.configs import config, SchemaConfig
 
-import collections.abc
 import inspect
+
+if TYPE_CHECKING:
+    from oblate.fields.base import Field
 
 __all__ = (
     'Schema',
 )
 
+def _schema_repr(self: Schema) -> str:
+    attrs = ', '.join((f'{name}={value}' for name, value in self._field_values.items()))  # pragma: no cover
+    return f'{self.__class__.__name__}({attrs})'  # pragma: no cover
 
-class Schema:
-    """The base class that all schemas must inherit from.
+
+class _SchemaMeta(type):
+    def __new__(cls, clsname: str, bases: Tuple[type, ...], attrs: Dict[str, Any]):
+        config = SchemaConfig
+        found = False
+        for _, value in attrs.items():
+            # Search for Config subclass in the class being created
+            if inspect.isclass(value) and issubclass(value, SchemaConfig):
+                found = True
+                config = value
+                break
+
+        if not found:
+            # If class doesn't have a Config defined, look it up in
+            # the bases of class
+            for base in bases:
+                if issubclass(base, Schema) and hasattr(base, '__config__'):
+                    config = base.__config__
+
+        if config.slotted:
+            attrs.setdefault('__slots__', ())
+
+        attrs['__config__'] = config
+        return super().__new__(cls, clsname, bases, attrs)
+
+
+class Schema(metaclass=_SchemaMeta):
+    """The base class for all schemas.
+
+    All user defined schemas must inherit from this class. When initializing
+    the raw data is passed in form of dictionary or other mapping as a
+    positional argument.
 
     Parameters
     ----------
     data: Mapping[:class:`str`, Any]
-        The data to load the schema with. Cannot be mixed with keyword
-        arguments.
-    **kwargs:
-        The keyword arguments to initialize the schema with. Cannot be
-        mixed with ``data``.
+        The raw data to initialize the schema with.
     """
-
-    __fields__: Dict[str, Field]
-    __load_key_fields__: Dict[str, Field]
+    __fields__: Dict[str, Field[Any, Any]]
+    __load_fields__: Dict[str, Field[Any, Any]]
+    __config__: Type[SchemaConfig] = SchemaConfig
 
     __slots__ = (
-        '_initialized',
         '_field_values',
-        '_default_fields',
-        '_from_data',
-        '_partial',
-        '_partial_included_fields',
+        '_context',
     )
 
-    def __init__(self, data: Optional[Mapping[str, Any]] = None, **kwargs: Any) -> None:
-        if data is not None:
-            if kwargs:
-                raise TypeError('Cannot mix data argument with keyword arguments')
-            from_data = True
-        else:
-            data = kwargs
-            from_data = False
-
-        self._init(data, from_data=from_data)
+    def __init__(self, data: Mapping[str, Any], /) -> None:
+        token = current_schema.set(self)
+        try:
+            self._field_values: Dict[str, Any] = {}
+            self._context = SchemaContext(self)
+            self._prepare_from_data(data)
+        finally:
+            current_schema.reset(token)
 
     def __init_subclass__(cls) -> None:
-        cls.__fields__ = {}
-        cls.__load_key_fields__ = {}
+        # circular import
+        from oblate.fields.base import Field
 
-        for name, field in inspect.getmembers(cls):
-            if not isinstance(field, Field):
-                continue
-            
-            field._schema = cls
-            field._name = name
-            cls.__fields__[name] = field
-
-            if field.load_key:
-                cls.__load_key_fields__[field.load_key] = field
-
-    @classmethod
-    def _from_nested_object(cls, parent: Object, data: Mapping[str, Any]) -> Self:
-        if not isinstance(data, collections.abc.Mapping):
-            raise parent._format_validation_error(errors.INVALID_DATATYPE, data)
-
-        return cls(data)
-    
-    @classmethod
-    def _from_partial(
-        cls,
-        parent: Partial,
-        data: Mapping[str, Any],
-        include: Set[str],
-        from_data: bool = False,
-    ) -> Self:
-        if not isinstance(data, collections.abc.Mapping):
-            raise parent._format_validation_error(errors.INVALID_DATATYPE, data)
-
-        self = cls.__new__(cls)  # Bypass Schema.__init__()
-        self._init(
-            data,
-            from_data=from_data,
-            partial=True,
-            partial_included_fields=include,
-        )
-
-        return self
-
-    def _init(
-            self, 
-            data: Mapping[str, Any],
-            from_data: bool = False,
-            partial: bool = False,
-            partial_included_fields: Set[str] = MISSING,
-        ) -> None:
-
-        self._field_values: Dict[str, Any] = {}
-        self._default_fields: Set[str] = set()
-        self._initialized = False
-        self._from_data = from_data
-        self._partial = partial
-        self._partial_included_fields = partial_included_fields
-        self._prepare(data, include=partial_included_fields, from_data=from_data)
-        self._initialized = True
-        self.after_init_hook(data, from_data)
-
-    def _assign_field_value(self, value: Any, field: Field[Any, Any], from_data: bool = False) -> Any:
-        if value is None:
-            if not field.none:
-                raise field._format_validation_error(errors.NONE_DISALLOWED, value)
-            else:
-                self._field_values[field._name] = None
-            return
-
-        if from_data:
-            self._field_values[field._name] = final_value = field.value_load(value)
+        if hasattr(cls, '__fields__'):
+            # When a schema is subclassed, the fields have to be copied so
+            # the parent schema's fields are not modified
+            cls.__fields__ = cls.__fields__.copy()
+            cls.__load_fields__ = cls.__load_fields__.copy()
         else:
-            self._field_values[field._name] = final_value = field.value_set(value, True)
-        
-        return final_value
+            cls.__fields__ = {}
+            cls.__load_fields__ = {}
 
-    def _transform_to_partial(self, include: Set[str]) -> None:
-        if self._partial:
-            return
+        members = vars(cls).copy()
+        for name, member in members.items():
+            if isinstance(member, Field):
+                member._bind(name, cls)
+                cls.__fields__[name] = member
+                cls.__load_fields__[member.load_key] = member
+            elif callable(member) and hasattr(member, '__validator_field__'):
+                field = member.__validator_field__
+                if isinstance(field, str):
+                    try:
+                        field = members[field]
+                    except KeyError:  # pragma: no cover
+                        pass
+                if not isinstance(field, Field):
+                    raise TypeError(f'Validator {member.__name__} got an unknown field {field}')  # pragma: no cover
 
-        for name, field in self.__fields__.items():
-            if name in include:
-                continue
+                field.add_validator(member)
+
+        if cls.__config__.add_repr and '__repr__' not in members:
+            cls.__repr__ = _schema_repr
+
+    def _prepare_from_data(self, data: Mapping[str, Any]) -> None:
+        fields = self.__load_fields__.copy()
+        validators: List[Tuple[Field[Any, Any], Any, LoadContext, bool]] = []
+        errors: List[FieldError] = []
+
+        for key, value in data.items():
+            token = current_field_key.set(key)
             try:
-                value = self._field_values[field._name]
+                field = fields.pop(key)
             except KeyError:
-                continue
+                errors.append(FieldError(f'Invalid or unknown field.'))
             else:
-                if field._name in self._default_fields:
-                    continue
+                # See comment in _process_field_values() for explanation on how
+                # validators are handled.
+                process_errors = self._process_field_value(field, value, validators)
+                errors.extend(process_errors)
+            finally:
+                current_field_key.reset(token)
 
-                raise field._format_validation_error(errors.DISALLOWED_FIELD, value)
-
-        self._partial = True
-        self._partial_included_fields = include
-
-    def _prepare(self, data: Mapping[str, Any], include: Set[str] = MISSING, from_data: bool = False) -> None:
-        fields = self.__fields__.copy()
-        to_validate = []  # List of three element tuple: (field_instance, value_to_validate, is_value_raw)
-        errs = []
-
-        for arg, value in data.items():
+        for key, field in fields.items():
+            token = current_field_key.set(key)
             try:
-                field = fields.pop(arg)
-            except KeyError:
-                if from_data and arg in self.__load_key_fields__:
-                    field = self.__load_key_fields__[arg]
-                    fields.pop(field._name, None)
-                else:
-                    errs.append(ValidationError(f'Unknown or invalid field {arg!r} provided.'))
-                    continue
+                if field.required:
+                    errors.append(field._call_format_error(field.ERR_FIELD_REQUIRED, self, MISSING))
+                if field._default is not MISSING:
+                    self._field_values[field._name] = field._default(self._context, field) \
+                                                      if callable(field._default) else field._default
+            finally:
+                current_field_key.reset(token)
 
-            if include and field._name not in include:
-                errs.append(field._format_validation_error(errors.DISALLOWED_FIELD, value))
-
+        for field, value, context, raw in validators:
+            ctx_token = current_context.set(context)
+            field_token = current_field_key.set(field.load_key)
+            schema_token = current_schema.set(self)
             try:
-                assigned_value = self._assign_field_value(value, field, from_data=from_data)
-            except ValidationError as exc:
-                exc._bind(field)
-                errs.append(exc)
+                errors.extend(field._run_validators(value, context, raw=raw))
+            finally:
+                current_context.reset(ctx_token)
+                current_field_key.reset(field_token)
+                current_schema.reset(schema_token)
+
+        if errors:
+            raise config.validation_error_cls(errors)
+
+        self._context._initialized = True
+
+    def _process_field_value(
+            self,
+            field: Field[Any, Any],
+            value: Any,
+            validators: Optional[List[Tuple[Field[Any, Any], Any, LoadContext, bool]]] = None,
+        ) -> List[FieldError]:
+
+        # A little overview of how external validations are handled by
+        # this method:
+        #
+        # If the validators parameter is not provided (None), the validators
+        # are ran directly and any errors raised by them are appended to the
+        # list of returned errors. (e.g. Field.__set__ does this)
+        #
+        # In contrary case, if the validators parameter is provided, it is a
+        # list of 4 element tuples: the field to validate, the value validated,
+        # the load context, and a boolean indicating whether the validation is
+        # performed by raw validators. This validation data appended to the given
+        # validators list by this method and the validators are ran lazily later
+        # using this data. This is done when validators are ran on initialization
+        # of schema. (e.g. Schema._prepare_from_data does this)
+
+        name = field._name
+        lazy_validation = validators is not None
+        errors: List[FieldError] = []
+        validator_errors: List[FieldError] = []
+        context = LoadContext(field=field, value=value, schema=self)
+        token = current_context.set(context)
+
+        if field._raw_validators and lazy_validation:
+            validators.append((field, value, context, True))
+
+        if value is None:
+            if field.none:
+                self._field_values[name] = None
             else:
-                if field._raw_validators:
-                    to_validate.append((field, value, True))
-                if field._validators:
-                    to_validate.append((field, assigned_value, False))
+                errors.append(field._call_format_error(field.ERR_NONE_DISALLOWED, self, None))
+            return errors
 
-        for _, field in fields.items():
-            if include and field._name not in include:
-                continue
+        if not lazy_validation:
+            validator_errors.extend(field._run_validators(value, context, raw=True))
+        try:
+            final_value = field.value_load(value, context)
+        except (ValueError, AssertionError, FieldError) as err:
+            if not isinstance(err, FieldError):
+                err = FieldError._from_standard_error(err, schema=self, field=field, value=value)
+            errors.append(err)
+        else:
+            if not lazy_validation:
+                validator_errors.extend(field._run_validators(final_value, context, raw=False))
+            else:
+                validators.append((field, final_value, context, False))
+            if not validator_errors:
+                self._field_values[name] = final_value
+            errors.extend(validator_errors)
+        finally:
+            current_context.reset(token)
 
-            if field.missing:
-                if field.default is not MISSING:
-                    self._field_values[field._name] = maybe_callable(field.default)
-                    self._default_fields.add(field._name)
-                continue
+        return errors
 
-            errs.append(field._format_validation_error(errors.FIELD_REQUIRED))
+    @property
+    def context(self) -> SchemaContext:
+        """The context for this schema.
 
-        for field, value, raw in to_validate:
-            validator_errors = field._run_validators(self, value, raw)
-            errs.extend(validator_errors)
+        Schema context holds the information about schema and its state.
 
-        if errs:
-            cls = config.get_validation_fail_exception()
-            raise cls(errs, self)
+        :type: :class:`SchemaContext`
+        """
+        return self._context
 
-    def after_init_hook(self, data: Mapping[str, Any], is_data: bool, /):
-        """A hook called when the schema has successfully initialized.
+    def get_value_for(self, field_name: str, default: Any = MISSING, /) -> Any:
+        """Returns the value for a field.
 
-        This is meant to be overriden in subclasses and does nothing
-        by default.        
+        If field has no value set, a :class:`ValueError` is raised
+        unless a ``default`` is provided.
+
+        Parameters
+        ----------
+        field_name: :class:`str`
+            The name of field to get value for. This can either be field (attribute)
+            name or the value of :attr:`fields.Field.load_key`.
+        default:
+            The default value to return if field has no value.
+
+        Returns
+        -------
+        The field value.
+
+        Raises
+        ------
+        RuntimeError
+            Invalid field name.
+        ValueError
+            Field value not set.
+        """
+        if field_name not in self.__fields__:
+            if field_name in self.__load_fields__:
+                field_name = self.__load_fields__[field_name]._name
+            else:
+                raise RuntimeError(f'Field name {field_name!r} is invalid.')
+        try:
+            return self._field_values[field_name]
+        except KeyError:
+            if default is not MISSING:
+                return default
+            raise ValueError('No value set for this field.') from None
+
+    def update(self, data: Mapping[str, Any], /) -> None:
+        """Updates the schema with the given data.
+
+        If the update fails i.e one or more fields fail to validate, the
+        schema's state (field values) is rolled back to previous state.
 
         Parameters
         ----------
         data: Mapping[:class:`str`, Any]
-            The data used to initialize the model. This either corresponds
-            to the value of data argument in ``Schema.__init__()`` or the
-            keyword arguments passed.
-        is_data: :class:`bool`
-            Whether the ``data`` parameter value corresponds to the ``data``
-            argument in ``Schema.__init__()``.
+            The data to update with.
+
+        Raises
+        ------
+        ValidationError
+            The validation failed.
         """
+        fields = self.__load_fields__
+        errors: List[FieldError] = []
+        old_values = self._field_values.copy()
 
-    def is_data_initialized(self) -> bool:
-        """Indicates whether the schema was initialized using raw data."""
-        return self._from_data
+        for key, value in data.items():
+            token = current_field_key.set(key)
+            try:
+                field = fields[key]
+            except KeyError:
+                errors.append(FieldError(f'Invalid or unknown field.'))
+            else:
+                errors.extend(self._process_field_value(field, value))
+            finally:
+                current_field_key.reset(token)
 
-    def is_initialized(self) -> bool:
-        """Indicates whether the schema has been initialized.
+        if errors:
+            # fallback to original state in case update fails
+            self._field_values = old_values
+            raise config.validation_error_cls(errors)
 
-        This only returns True when all fields have been set
-        and validated.
-        """
-        return self._initialized
+    def dump(self, *, include: Sequence[str] = MISSING, exclude: Sequence[str] = MISSING) -> Dict[str, Any]:
+        """Serializes the schema to raw form.
 
-    def is_partial(self) -> bool:
-        """Indicates whether the schema is a partial schema (see :class:`fields.Partial` for more info)."""
-        return self._partial
-
-    def dump(self, *, include: Optional[Sequence[str]] = None, exclude: Optional[Sequence[str]] = None) -> Dict[str, Any]:
-        """Deserializes the schema.
-
-        The returned value is deserialized data in dictionary form. The
+        The returned value is serialized data in dictionary form. The
         ``include`` and ``exclude`` parameters are mutually exclusive.
 
         Parameters
         ----------
-        include: Optional[Sequence[:class:`str`]]
+        include: Sequence[:class:`str`]
             The fields to include in the returned data.
-        exclude: Optional[Sequence[:class:`str`]]
+        exclude: Sequence[:class:`str`]
             The fields to exclude from the returned data.
 
         Returns
         -------
         Dict[:class:`str`, Any]
-            The deserialized data.
+            The serialized data.
+
+        Raises
+        ------
+        TypeError
+            Both include and exclude provided.
+        ValidationError
+            Validation failed while serializing one or more fields.
         """
         fields = set(self.__fields__.keys())
-        if include is not None and exclude is not None:
+        if include is not MISSING and exclude is not MISSING:
             raise TypeError('include and exclude are mutually exclusive parameters.')
-        if include is not None:
+        if include is not MISSING:
             fields = fields.intersection(set(include))
-        if exclude is not None:
+        if exclude is not MISSING:
             fields = fields.difference(set(exclude))
 
-        out = {}
-        errors = []
-        partial_included = self._partial_included_fields
+        current_schema.set(self)
+        out: Dict[str, Any] = {}
+        errors: List[FieldError] = []
 
         for name in fields:
             field = self.__fields__[name]
-            if partial_included and name not in partial_included:
-                continue
-            key = field.dump_key if field.dump_key else field._name
             try:
                 value = self._field_values[name]
-            except KeyError:
-                if field.default is not MISSING:
-                    out[key] = maybe_callable(field.default)
+            except KeyError:  # pragma: no cover
+                # This should never happen I guess.
+                # XXX: Raise an error here?
                 continue
+
+            context = DumpContext(
+                schema=self,
+                field=field,
+                value=value,
+                included_fields=fields,
+            )
+            field_token = current_field_key.set(field.load_key)
+            context_token = current_context.set(context)
             try:
-                out[key] = field.value_dump(value)
-            except ValidationError as err:
-                err._bind(field)
+                out[field.dump_key] = field.value_dump(value, context)
+            except (ValueError, AssertionError, FieldError) as err:
+                if not isinstance(err, FieldError):
+                    err = FieldError._from_standard_error(err, schema=self, field=field, value=value)
                 errors.append(err)
+            finally:
+                current_field_key.reset(field_token)
+                current_context.reset(context_token)
 
         if errors:
-            cls = config.get_validation_fail_exception()
-            raise cls(errors, self)
+            raise config.validation_error_cls(errors)
 
         return out

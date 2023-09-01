@@ -22,85 +22,33 @@
 
 from __future__ import annotations
 
-from typing import Any, Sequence, Optional, TYPE_CHECKING
-from oblate.fields.base import Field, RawT, SerializedT
-from oblate.utils import MISSING
-from oblate.exceptions import ValidationError
-from oblate import errors
+from typing import TYPE_CHECKING, Any, Optional, Sequence, Union
+from oblate.fields.base import Field
+from oblate.exceptions import FieldError
 
 if TYPE_CHECKING:
-    from oblate.contexts import ErrorFormatterContext
+    from oblate.contexts import LoadContext, DumpContext, ErrorContext
 
 __all__ = (
-    'BasePrimitiveField',
     'String',
     'Integer',
     'Float',
     'Boolean',
 )
 
+class String(Field[str, str]):
+    """Field representing a string (:class:`str`) value.
 
-class BasePrimitiveField(Field[RawT, SerializedT]):
-    """Base class for fields relating to primitive data types.
+    This class is a subclass of :class:`Field` and supports the features
+    documented in that class.
 
-    This class is a subclass of :class:`Field` and has the following
-    further subclasses:
-
-    - :class:`String`
-    - :class:`Integer`
-    - :class:`Float`
-    - :class:`Boolean`
-
-    Parameters
+    Attributes
     ----------
-    strict_load: :class:`bool`
-        Whether to use :ref:`strict validation <tut-fields-strict-fields>` for loading fields
-        using raw data.
-    strict_set: :class:`bool`
-        Whether to use :ref:`strict validation <tut-fields-strict-fields>` for setting fields.
-    strict: :class:`bool`
-        A shorthand to control the ``strict_load`` and ``strict_set`` parameters.
-    """
-    __slots__ = (
-        'strict_set',
-        'strict_load',
-    )
-
-    def __init__(
-            self,
-            *,
-            strict_load: bool = True,
-            strict_set: bool = True,
-            strict: bool = MISSING,
-            **kwargs: Any,
-    ):
-        if strict is not MISSING:
-            self.strict_load = strict
-            self.strict_set = strict
-        else:
-            self.strict_load = strict_load
-            self.strict_set = strict_set
-        
-        super().__init__(**kwargs)
-
-    @property
-    def strict(self) -> bool:
-        return self.strict_load and self.strict_set
-
-    def _check_strict(self, load: bool, init: bool) -> bool:
-        if load:
-            return self.strict_load
-        if init:
-            return self.strict_set
-
-        return self.strict
-
-
-class String(BasePrimitiveField[Any, str]):
-    """Representation of a string field.
-
-    This class is a subclass of :class:`BasePrimitiveField` and supports
-    the features documented in that class.
+    ERR_INVALID_DATATYPE:
+        Error code raised when invalid data type is given in raw data.
+    ERR_COERCION_FAILED:
+        Error code raised when strict mode is disabled and given raw value
+        cannot be converted to relevant data type.
 
     Parameters
     ----------
@@ -108,38 +56,50 @@ class String(BasePrimitiveField[Any, str]):
         Whether to only allow string data types. If this is set to False,
         any value is type casted to string. Defaults to True.
     """
-    _ERROR_MESSAGES = {
-        errors.INVALID_DATATYPE: 'Value for this field must be of string data type.',
-    }
+    ERR_INVALID_DATATYPE = 'string.invalid_datatype'
 
-    @errors.error_formatter(errors.INVALID_DATATYPE)
-    def _format_validation_error_string(self, ctx: ErrorFormatterContext) -> ValidationError:
-        return ValidationError(self._ERROR_MESSAGES[ctx.error_code])
+    __slots__ = (
+        'strict',
+    )
 
-    def _process_value(self, value: Any, load: bool, init: bool) -> str:
+    def __init__(self, strict: bool = True, **kwargs: Any) -> None:
+        self.strict = strict
+        super().__init__(**kwargs)
+
+    def _process_value(self, value: Any, ctx: LoadContext) -> str:
         if not isinstance(value, str):
-            if self._check_strict(load=load, init=init):
-                raise self._format_validation_error(errors.INVALID_DATATYPE, value)
-
+            if self.strict:
+                raise self._call_format_error(self.ERR_INVALID_DATATYPE, ctx.schema, value)
             return str(value)
         else:
             return value
 
-    def value_set(self, value: Any, init: bool) -> str:
-        return self._process_value(value, load=False, init=True)
+    def format_error(self, error_code: Any, context: ErrorContext) -> Union[FieldError, str]:
+        if error_code == self.ERR_INVALID_DATATYPE:
+            return 'Value must be a string'
 
-    def value_load(self, value: Any) -> str:
-        return self._process_value(value, load=True, init=False)
+        return super().format_error(error_code, context)
 
-    def value_dump(self, value: Any) -> str:
+    def value_load(self, value: str, context: LoadContext) -> str:
+        return self._process_value(context.value, context)
+
+    def value_dump(self, value: str, context: DumpContext) -> str:
         return value
 
 
-class Integer(BasePrimitiveField[Any, int]):
-    """Representation of an integer field.
+class Integer(Field[int, int]):
+    """Field representing an integer (:class:`int`) value.
 
-    This class is a subclass of :class:`BasePrimitiveField` and supports
-    the features documented in that class.
+    This class is a subclass of :class:`Field` and supports the features
+    documented in that class.
+
+    Attributes
+    ----------
+    ERR_INVALID_DATATYPE:
+        Error code raised when invalid data type is given in raw data.
+    ERR_COERCION_FAILED:
+        Error code raised when strict mode is disabled and given raw value
+        cannot be converted to relevant data type.
 
     Parameters
     ----------
@@ -147,41 +107,48 @@ class Integer(BasePrimitiveField[Any, int]):
         Whether to only allow integer data types. If this is set to False,
         any integer-castable value is type casted to integer. Defaults to True.
     """
-    _ERROR_MESSAGES = {
-        errors.INVALID_DATATYPE: 'Value for this field must be of integer data type.',
-        errors.NONCONVERTABLE_VALUE: 'Value for this field must be an integer-convertable value.',
-    }
+    ERR_INVALID_DATATYPE = 'integer.invalid_datatype'
+    ERR_COERCION_FAILED  = 'integer.coercion_failed'
 
-    @errors.error_formatter(errors.INVALID_DATATYPE, errors.NONCONVERTABLE_VALUE)
-    def _format_validation_error_integer(self, ctx: ErrorFormatterContext) -> ValidationError:
-        return ValidationError(self._ERROR_MESSAGES[ctx.error_code])
+    __slots__ = (
+        'strict',
+    )
 
-    def _process_value(self, value: Any, load: bool, init: bool) -> int:
+    def __init__(self, strict: bool = True, **kwargs: Any) -> None:
+        self.strict = strict
+        super().__init__(**kwargs)
+
+    def _process_value(self, value: Any, ctx: LoadContext) -> int:
         if not isinstance(value, int):
-            if self._check_strict(load=load, init=init):
-                raise self._format_validation_error(errors.INVALID_DATATYPE, value)
+            if self.strict:
+                raise self._call_format_error(self.ERR_INVALID_DATATYPE, ctx.schema, value)
             try:
                 return int(value)
             except Exception:
-                raise self._format_validation_error(errors.NONCONVERTABLE_VALUE, value) from None
+                raise self._call_format_error(self.ERR_COERCION_FAILED, ctx.schema, value) from None
         else:
-            return value 
+            return value
 
-    def value_set(self, value: Any, init: bool) -> int:
-        return self._process_value(value, load=False, init=True)
+    def format_error(self, error_code: Any, context: ErrorContext) -> Union[FieldError, str]:
+        if error_code == self.ERR_INVALID_DATATYPE:
+            return 'Value must be an integer'
+        if error_code == self.ERR_COERCION_FAILED:
+            return f'Failed to coerce {context._value!r} to integer'
 
-    def value_load(self, value: Any) -> int:
-        return self._process_value(value, load=True, init=False)
+        return super().format_error(error_code, context)
 
-    def value_dump(self, value: Any) -> int:
+    def value_load(self, value: int, context: LoadContext) -> int:
+        return self._process_value(context.value, context)
+
+    def value_dump(self, value: int, context: DumpContext) -> int:
         return value
 
 
-class Boolean(BasePrimitiveField[Any, bool]):
-    """Representation of a boolean field.
+class Boolean(Field[bool, bool]):
+    """Representation of a boolean (:class:`bool`) field.
 
-    This class is a subclass of :class:`BasePrimitiveField` and supports
-    the features documented in that class.
+    This class is a subclass of :class:`Field` and supports the features
+    documented in that class.
 
     Attributes
     ----------
@@ -189,17 +156,23 @@ class Boolean(BasePrimitiveField[Any, bool]):
         The true values used when strict validation is disabled.
     FALSE_VALUES: Tuple[:class:`str`, ...]
         The false values used when strict validation is disabled.
+    ERR_INVALID_DATATYPE:
+        Error code raised when invalid data type is given in raw data.
+    ERR_COERCION_FAILED:
+        Error code raised when strict mode is disabled and given raw value
+        cannot be converted to relevant data type.
+
 
     Parameters
     ----------
     true_values: Sequence[:class:`str`]
         The values to use for true boolean conversion. These are only respected
-        when :ref:`strict validation <tut-fields-strict-fields>` is disabled.
+        when :ref:`strict validation <guide-fields-strict-mode>` is disabled.
 
         Defaults to :attr:`.TRUE_VALUES` if not provided.
     false_values: Sequence[:class:`str`]
         The values to use for false boolean conversion. These are only respected
-        when :ref:`strict validation <tut-fields-strict-fields>` is disabled.
+        when :ref:`strict validation <guide-fields-strict-mode>` is disabled.
 
         Defaults to :attr:`.FALSE_VALUES` if not provided.
     """
@@ -213,12 +186,11 @@ class Boolean(BasePrimitiveField[Any, bool]):
         'NO', 'No', 'no', '0'
     )
 
-    _ERROR_MESSAGES = {
-        errors.INVALID_DATATYPE: 'Value for this field must be of boolean data type.',
-        errors.NONCONVERTABLE_VALUE: 'Value for this field must be a boolean-convertable value.',
-    }
+    ERR_INVALID_DATATYPE = 'boolean.invalid_datatype'
+    ERR_COERCION_FAILED  = 'boolean.coercion_failed'
 
     __slots__ = (
+        'strict',
         '_true_values',
         '_false_values',
     )
@@ -226,6 +198,7 @@ class Boolean(BasePrimitiveField[Any, bool]):
     def __init__(
             self,
             *,
+            strict: bool = True,
             true_values: Optional[Sequence[str]] = None,
             false_values: Optional[Sequence[str]] = None,
             **kwargs: Any,
@@ -233,42 +206,52 @@ class Boolean(BasePrimitiveField[Any, bool]):
 
         super().__init__(**kwargs)
 
+        self.strict = strict
         self._true_values = true_values if true_values is not None else self.TRUE_VALUES
         self._false_values = false_values if false_values is not None else self.FALSE_VALUES
 
-    @errors.error_formatter(errors.INVALID_DATATYPE, errors.NONCONVERTABLE_VALUE)
-    def _format_validation_error_boolean(self, ctx: ErrorFormatterContext) -> ValidationError:
-        return ValidationError(self._ERROR_MESSAGES[ctx.error_code])
-
-    def _process_value(self, value: Any, load: bool, init: bool) -> bool:
+    def _process_value(self, value: Any, ctx: LoadContext) -> bool:
         if not isinstance(value, bool):
-            if self._check_strict(load=load, init=init):
-                raise self._format_validation_error(errors.INVALID_DATATYPE, value)
+            if self.strict:
+                raise self._call_format_error(self.ERR_INVALID_DATATYPE, ctx.schema, value)
             value = str(value)
             if value in self._true_values:
                 return True
             if value in self._false_values:
                 return False
             else:
-                raise self._format_validation_error(errors.NONCONVERTABLE_VALUE, value)
+                raise self._call_format_error(self.ERR_COERCION_FAILED, ctx.schema, value)
         else:
             return value
 
-    def value_set(self, value: Any, init: bool) -> bool:
-        return self._process_value(value, load=False, init=True)
+    def format_error(self, error_code: Any, context: ErrorContext) -> Union[FieldError, str]:
+        if error_code == self.ERR_INVALID_DATATYPE:
+            return 'Value must be a boolean'
+        if error_code == self.ERR_COERCION_FAILED:
+            return f'Failed to coerce {context._value!r} to boolean'
 
-    def value_load(self, value: Any) -> bool:
-        return self._process_value(value, load=True, init=False)
+        return super().format_error(error_code, context)  # pragma: no cover
 
-    def value_dump(self, value: Any) -> bool:
+    def value_load(self, value: bool, context: LoadContext) -> bool:
+        return self._process_value(context.value, context)
+
+    def value_dump(self, value: bool, context: DumpContext) -> bool:
         return value
 
 
-class Float(BasePrimitiveField[Any, float]):
-    """Representation of a float field.
+class Float(Field[float, float]):
+    """Representation of a float (:class:`float`) field.
 
-    This class is a subclass of :class:`BasePrimitiveField` and supports
-    the features documented in that class.
+    This class is a subclass of :class:`Field` and supports the features
+    documented in that class.
+
+    Attributes
+    ----------
+    ERR_INVALID_DATATYPE:
+        Error code raised when invalid data type is given in raw data.
+    ERR_COERCION_FAILED:
+        Error code raised when strict mode is disabled and given raw value
+        cannot be converted to relevant data type.
 
     Parameters
     ----------
@@ -276,31 +259,38 @@ class Float(BasePrimitiveField[Any, float]):
         Whether to only allow float data types. If this is set to False,
         any float-castable value is type casted to float. Defaults to True.
     """
-    _ERROR_MESSAGES = {
-        errors.INVALID_DATATYPE: 'Value for this field must be of float data type.',
-        errors.NONCONVERTABLE_VALUE: 'Value for this field must be a float-convertable value.',
-    }
+    ERR_INVALID_DATATYPE = 'float.invalid_datatype'
+    ERR_COERCION_FAILED  = 'float.coercion_failed'
 
-    @errors.error_formatter(errors.INVALID_DATATYPE, errors.NONCONVERTABLE_VALUE)
-    def _format_validation_error_float(self, ctx: ErrorFormatterContext) -> ValidationError:
-        return ValidationError(self._ERROR_MESSAGES[ctx.error_code])
+    __slots__ = (
+        'strict',
+    )
 
-    def _process_value(self, value: Any, load: bool, init: bool) -> float:
+    def __init__(self, strict: bool = True, **kwargs: Any) -> None:
+        self.strict = strict
+        super().__init__(**kwargs)
+
+    def _process_value(self, value: Any, ctx: LoadContext) -> float:
         if not isinstance(value, float):
-            if self._check_strict(load=load, init=init):
-                raise self._format_validation_error(errors.INVALID_DATATYPE, value)
+            if self.strict:
+                raise self._call_format_error(self.ERR_INVALID_DATATYPE, ctx.schema, value)
             try:
                 return float(value)
             except Exception:
-                raise self._format_validation_error(errors.NONCONVERTABLE_VALUE, value) from None
+                raise self._call_format_error(self.ERR_COERCION_FAILED, ctx.schema, value) from None
         else:
             return value
 
-    def value_set(self, value: Any, init: bool) -> float:
-        return self._process_value(value, load=False, init=True)
+    def format_error(self, error_code: Any, context: ErrorContext) -> Union[FieldError, str]:
+        if error_code == self.ERR_INVALID_DATATYPE:
+            return 'Value must be a floating point number'
+        if error_code == self.ERR_COERCION_FAILED:
+            return f'Failed to coerce {context._value!r} to float'
 
-    def value_load(self, value: Any) -> float:
-        return self._process_value(value, load=True, init=False)
+        return super().format_error(error_code, context)  # pragma: no cover
 
-    def value_dump(self, value: Any) -> float:
+    def value_load(self, value: float, context: LoadContext) -> float:
+        return self._process_value(context.value, context)
+
+    def value_dump(self, value: float, context: DumpContext) -> float:
         return value

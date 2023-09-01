@@ -26,419 +26,416 @@ from typing import (
     TYPE_CHECKING,
     TypeVar,
     Generic,
-    Optional,
     Any,
-    Union,
-    Callable,
     Type,
-    List,
     Literal,
+    Optional,
+    Union,
+    List,
+    Sequence,
+    Iterator,
     Dict,
     overload,
 )
 from typing_extensions import Self
-from oblate.utils import MISSING, bound_validation_error
-from oblate.exceptions import ValidationError
-from oblate.contexts import ErrorFormatterContext
-from oblate import config, errors
+from oblate.schema import Schema
+from oblate.validate import Validator, ValidatorCallbackT, InputT
+from oblate.utils import MISSING, current_field_key, current_schema
+from oblate.exceptions import FieldError
+from oblate.contexts import ErrorContext
+from oblate.configs import config
 
 import copy
 
 if TYPE_CHECKING:
-    from oblate.schema import Schema
-    from oblate.errors import ErrorFormatterT
+    from oblate.contexts import LoadContext, DumpContext
 
-    SerializedValidatorCallbackT = Callable[['SchemaT', 'SerializedT'], bool]
-    RawValidatorCallbackT = Callable[['SchemaT', 'RawT'], bool]
-    ValidatorCallbackT = Union[SerializedValidatorCallbackT, RawValidatorCallbackT]
 
 __all__ = (
     'Field',
 )
 
-RawT = TypeVar('RawT')
-SerializedT = TypeVar('SerializedT')
 SchemaT = TypeVar('SchemaT', bound='Schema')
+RawValueT = TypeVar('RawValueT')
+FinalValueT = TypeVar('FinalValueT')
+ValidatorT = Union[Validator[InputT], ValidatorCallbackT[SchemaT, InputT]]
 
-DEFAULT_ERROR_MESSAGES = {
-    errors.FIELD_REQUIRED: 'This field is required.',
-    errors.VALIDATION_FAILED: 'Validation failed for this field.',
-    errors.NONE_DISALLOWED: 'Value for this field cannot be None',
-    errors.INVALID_DATATYPE: 'Value for this field is of improper datatype.',
-    errors.NONCONVERTABLE_VALUE: 'Value for this field cannot be converted to supported data type.',
-    errors.DISALLOWED_FIELD: 'This field cannot be set on this partial object.',
-}
+class Field(Generic[RawValueT, FinalValueT]):
+    """The base class for all fields.
 
-class Field(Generic[RawT, SerializedT]):
-    """The base class that all fields inside a schema must inherit from.
+    All fields provided by Oblate inherit from this class. If you intend to create
+    a custom field, you must use this class to inherit the field from. Subclasses
+    must implement the following methods:
 
-    When subclassing this class, you must implement the following abstract
-    methods:
-
-    - :meth:`.value_set`
     - :meth:`.value_load`
     - :meth:`.value_dump`
 
-    This class is a typing generic and takes two type arguments, the first
-    one being the type of raw (unserialized) value and second one being the
-    type of (serialized) value to which the raw value is finally converted in.
+    .. tip::
+
+        This class is a :class:`typing.Generic` and takes two type arguments. The
+        raw value type i.e the type of raw value which will be deserialized to final
+        value and the type of deserialized value.
+
+    Attributes
+    ----------
+    ERR_FIELD_REQUIRED:
+        Error code raised when a required field is not given in raw data.
+    ERR_NONE_DISALLOWED:
+        Error code raised when a field with ``none=False`` is given a value of ``None``.
+    ERR_VALIDATION_FAILED:
+        Error code raised when a validator fails for a field without an explicit
+        error message.
 
     Parameters
     ----------
-    missing: :class:`bool`
-        Whether this field can be missing. Set this to True to make this field
-        optional. Regardless of provided value, if a ``default`` is provided,
-        the value for this will automatically be set to True.
     none: :class:`bool`
-        Whether this field can have a value of None.
+        Whether this field allows None values to be set.
+    required: :class:`bool`
+        Whether this field is required.
     default:
-        The value to assign to this field when it's missing. If this is not provided
-        and a field is marked as missing, accessing the field at runtime would result
-        in an AttributeError.
-    load_key: Optional[:class:`str`]
-        The key that refers to this field in the data when loading this field
-        using raw data.
+        The default value for this field. If this is passed, the field is automatically
+        marked as optional i.e ``required`` parameter gets ignored.
 
-        .. note::
-
-            This parameter is only applicable when loading data with raw data
-            i.e using the ``data`` parameter in the :class:`Schema` object and
-            does not relate to argument name while initializing schema with keyword
-            arguments.
-
-    dump_key: Optional[:class:`str`]
-        The key to which the deserialized value of this field should be set in the
-        data returned by :meth:`Schema.dump`.
+        A callable can also be passed in this parameter that returns the default
+        value. The callable takes two parameters, that is the current :class:`SchemaContext`
+        instance and the current :class:`Field` instance.
+    validators: List[Union[callable, :class:`Validator`]]
+        The list of validators for this field.
+    extras: Dict[:class:`str`, Any]
+        A dictionary of extra data that can be attached to this field. This parameter is
+        useful when you want to attach your own extra metadata to the field. Library does
+        not perform any manipulation on the data.
+    load_key: :class:`str`
+        The key that points to value of this field in raw data. Defaults to the name
+        of field.
+    dump_key: :class:`str`
+        The key that points to value of this field in serialized data returned by
+        :meth:`Schema.dump`. Defaults to the name of field.
+    data_key: :class:`str`
+        A shorthand parameter to control the value of both ``load_key`` and ``dump_key``
+        parameters.
     """
-    __error_formatters__: Dict[int, ErrorFormatterT]
-    __valid_overrides__ = (
-        'missing',
-        'none',
-        'default',
-        'load_key',
-        'dump_key',
-    )
+    ERR_FIELD_REQUIRED = 'field.field_required'
+    ERR_NONE_DISALLOWED = 'field.none_disallowed'
+    ERR_VALIDATION_FAILED = 'field.validation_failed'
 
     __slots__ = (
-        'missing',
         'none',
-        'default',
-        'load_key',
-        'dump_key',
+        'required',
+        'extras',
+        '_default',
+        '_name',
+        '_schema',
         '_validators',
         '_raw_validators',
-        '_schema',
-        '_name',
+        '_load_key',
+        '_dump_key',
     )
 
     def __init__(
             self,
             *,
-            missing: bool = False,
             none: bool = False,
+            required: bool = True,
             default: Any = MISSING,
-            load_key: Optional[str] = None,
-            dump_key: Optional[str] = None,
+            validators: Sequence[ValidatorT[Any, Any]] = MISSING,
+            extras: Dict[str, Any] = MISSING,
+            dump_key: str = MISSING,
+            load_key: str = MISSING,
+            data_key: str = MISSING,
         ) -> None:
 
-        self.missing = missing or (default is not MISSING)
         self.none = none
-        self.default = default
-        self.load_key = load_key
-        self.dump_key = dump_key
-        self._validators: List[SerializedValidatorCallbackT[Any, SerializedT]] = []
-        self._raw_validators: List[RawValidatorCallbackT[Any, RawT]] = []
-        self._clear_state()
+        self.required = required and (default is MISSING)
+        self.extras = extras if extras is not MISSING else {}
+        self._load_key = data_key if data_key is not MISSING else load_key
+        self._dump_key = data_key if data_key is not MISSING else dump_key
+        self._default = default
+        self._validators: List[ValidatorT[FinalValueT, Any]] = []
+        self._raw_validators: List[ValidatorT[Any, Any]] = []
+        self._unbind()
 
-    def __init_subclass__(cls, **kwargs: Any) -> None:
-        cls.__error_formatters__ = {}
-        for _, member in vars(cls).items():
-            if not hasattr(member, '__oblate_error_formatter_codes__'):
-                continue
+        if validators is not MISSING:
+            for validator in validators:
+                self.add_validator(validator)
 
-            for code in member.__oblate_error_formatter_codes__:
-                cls.__error_formatters__[code] = member
-        
     @overload
     def __get__(self, instance: Literal[None], owner: Type[Schema]) -> Self:
         ...
 
     @overload
-    def __get__(self, instance: Schema, owner: Type[Schema]) -> SerializedT:
+    def __get__(self, instance: Schema, owner: Type[Schema]) -> FinalValueT:
         ...
 
-    def __get__(self, instance: Optional[Schema], owner: Type[Schema]) -> Union[SerializedT, Self]:
+    def __get__(self, instance: Optional[Schema], owner: Type[Schema]) -> Union[FinalValueT, Self]:
         if instance is None:
             return self
+
+        return instance.get_value_for(self._name)
+
+    def __set__(self, instance: Schema, value: RawValueT) -> None:
+        schema_token = current_schema.set(instance)
+        field_name = current_field_key.set(self._name)
         try:
-            return instance._field_values[self._name]
-        except KeyError:
-            raise AttributeError(f'No value available for field {owner.__qualname__}.{self._name}') from None
+            errors = instance._process_field_value(self, value)
+            if errors:
+                raise config.validation_error_cls(errors)
+        finally:
+            current_schema.reset(schema_token)
+            current_field_key.reset(field_name)
 
-    def __set__(self, instance: Schema, value: Any) -> None:
-        errs = []
-        name = self._name
-        run_validators = True
-        if instance._partial and name not in instance._partial_included_fields:
-            errs.append(self._format_validation_error(errors.DISALLOWED_FIELD, value))
-        else:
-            if value is None:
-                if self.none:
-                    instance._field_values[name] = None
-                else:
-                    run_validators = False
-                    errs.append(self._format_validation_error(errors.NONE_DISALLOWED, value))
-        if not errs:
-            values = instance._field_values
-            old_value = values.get(name, MISSING)
-            try:
-                values[name] = assigned_value = self.value_set(value, False)
-            except ValidationError as err:
-                error = config.get_validation_fail_exception()([err], instance)
-                errs.append(bound_validation_error(error.raw(), self))
-            else:
-                if run_validators:
-                    errs.extend(self._run_validators(instance, value, raw=True))
-                    errs.extend(self._run_validators(instance, assigned_value, raw=False))
-                if name in instance._default_fields and not errs:
-                    instance._default_fields.remove(name)
-                if errs and old_value is not MISSING:
-                    # Reset to old value if errors have occured
-                    values[name] = old_value
-
-        if errs:
-            cls = config.get_validation_fail_exception()
-            raise cls(errs, instance)
-
-    def _clear_state(self) -> None:
-        self._schema: Type[Schema] = MISSING
+    def _unbind(self) -> None:
         self._name: str = MISSING
+        self._schema: Type[Schema] = MISSING
 
-    def _run_validators(self, schema: Schema, value: Any, raw: bool = False) -> List[ValidationError]:
-        errs = []
+    def _is_bound(self) -> bool:
+        return self._name is not MISSING and self._schema is not MISSING
+
+    def _bind(self, name: str, schema: Type[Schema]) -> None:
+        if self._is_bound():
+            raise RuntimeError(f"Field {schema.__name__}.{name} is already bound to {self._schema.__name__}.{self._name}")
+
+        self._name = name
+        self._schema = schema
+
+    def _run_validators(self, value: Any, context: LoadContext, raw: bool = False) -> List[FieldError]:
         validators = self._raw_validators if raw else self._validators
+        errors: List[FieldError] = []
 
         for validator in validators:
             try:
-                validated = validator(schema, value)
-                if not validated:
-                    raise self._format_validation_error(errors.VALIDATION_FAILED, value)
-            except ValidationError as err:
-                err._bind(self)
-                errs.append(err)
+                validator(context.schema, value, context)
+            except (FieldError, AssertionError, ValueError) as err:
+                if isinstance(err, (AssertionError, ValueError)):
+                    err = FieldError._from_standard_error(err, schema=context.schema, field=self, value=value)
+                errors.append(err)
 
-        return errs
+        return errors
 
-    def _proper_name(self) -> str:
-        return f'{self._schema.__qualname__}.{self._name}'
-
-    def _make_error_context(self, error_code: int, value: Any = MISSING, **kwargs: Any) -> ErrorFormatterContext:
-        return ErrorFormatterContext(
+    def _call_format_error(self, error_code: str, schema: Schema, value: Any = MISSING) -> FieldError:
+        ctx = ErrorContext(
             error_code=error_code,
             value=value,
-            **kwargs,
+            field=self,
+            schema=schema,
         )
 
-    def _call_error_formatter(self, ctx: ErrorFormatterContext) -> ValidationError:
-        error_code = ctx.error_code
-        if error_code not in self.__error_formatters__:
-            error = ValidationError(DEFAULT_ERROR_MESSAGES[error_code])
+        error = self.format_error(error_code, ctx)
+        if isinstance(error, str):
+            return FieldError(error)
+        if isinstance(error, FieldError):
+            return error
         else:
-            formatter = self.__error_formatters__[error_code]
-            error = formatter(self, ctx)
-
-            if not isinstance(error, ValidationError):
-                raise TypeError(f'Error formatter {formatter.__name__} must return a ValidationError instance')
-
-        error._bind(self)
-        return error
-
-    def _format_validation_error(self, error_code: int, value: Any = MISSING) -> ValidationError:
-        ctx = self._make_error_context(error_code, value)
-        return self._call_error_formatter(ctx)
+            raise TypeError('format_error() must return a FieldError or a str')  # pragma: no cover
 
     @property
-    def raw_validators(self) -> List[RawValidatorCallbackT]:
-        """The list of raw validators for this field."""
-        return self._raw_validators.copy()
+    def load_key(self) -> str:
+        return self._name if self._load_key is MISSING else self._load_key
 
     @property
-    def validators(self) -> List[SerializedValidatorCallbackT]:
-        """The list of validators for this field."""
-        return self._validators.copy()
+    def dump_key(self) -> str:
+        return self._name if self._dump_key is MISSING else self._dump_key
 
     @property
-    def schema(self) -> Type[Schema]:
-        """The :class:`Schema` class that this field belongs to."""
-        # self._schema should never be MISSING as it is a late-binding
-        return self._schema
+    def default(self) -> Any:
+        return self._default if self._default is not MISSING else None
 
-    @property
-    def name(self) -> str:
-        """The name for this class that this field belongs to."""
-        # self._name should never be MISSING as it is a late-binding
-        return self._name
+    def has_default(self) -> bool:
+        """Indicates whether the field has a default value."""
+        return self._default is not MISSING
 
-    def value_set(self, value: Any, init: bool, /) -> SerializedT:
-        """A method called when a value is being set.
+    def copy(self) -> Field[RawValueT, FinalValueT]:
+        """Copies a field.
 
-        This method is called when a :class:`Schema` is initialized
-        using keyword arguments or when a value is being set on a
-        Schema manually. This is **not** called when a schema is
-        loaded using raw data.
+        This method is useful when you want to reuse fields from other
+        schemas. For example::
 
-        You can use this method to validate a value. The returned
-        value should be the value to set on the field.
+            class User(oblate.Schema):
+                id = fields.Integer(strict=False)
+                username = fields.String()
 
-        Parameters
-        ----------
-        value:
-            The value to set.
-        init: :class:`bool`
-            Whether the method is called due to initialization. This is True
-            when Schema is initialized and False when value is being set.
-        
-        Returns
-        -------
-        The value to set.
-        """
-        ...
-
-    def value_load(self, value: RawT) -> SerializedT:
-        """A method called when a value is being serialized.
-
-        This method is called when a :class:`Schema` is initialized
-        using raw data.
-
-        You can use this method to validate or serialize a value. The
-        returned value should be the value to set on the field.
-
-        Parameters
-        ----------
-        value:
-            The value to serialize.
+            class Game(oblate.Schema):
+                id = User.id.copy()
+                name = fields.String()
 
         Returns
         -------
-        The serialized value.
+        :class:`Field`
+            The new field.
         """
-        ...
+        field = copy.copy(self)
+        field._unbind()
+        return field
 
-    def value_dump(self, value: SerializedT) -> RawT:
-        """A method called when a value is being deserialized.
+    def add_validator(self, validator: ValidatorT[Any, Any], *, raw: bool = False) -> None:
+        """Registers a validator for this field.
 
-        This method is called when a :class:`Schema` is being
-        deserialized using :meth:`Schema.dump` method.
+        Parameters
+        ----------
+        validator: Union[callable, :class:`validate.Validator`]
+            The validator to register. This can be a callable function or a 
+            :class:`validate.Validator` instance.
+        raw: :class:`bool`
+            Whether a raw validator is being registered. This parameter is only
+            taken into account when a callable is passed instead of a 
+            :class:`validate.Validator` instance.
+        """
+        if not callable(validator):
+            raise TypeError('validator must be a callable or Validator class instance')  # pragma: no cover
 
-        You can use this method to validate or deserialize a value. The
-        returned value should be the value to include in the deserialized
-        data.
+        raw = getattr(validator, '__validator_is_raw__', raw)
+        self._raw_validators.append(validator) if raw else self._validators.append(validator)
+
+    def remove_validator(self, validator: ValidatorT[Any, Any], *, raw: bool = False) -> None:
+        """Removes a validator from this field.
+
+        No error is raised if the given validator is not already registered.
+
+        Parameters
+        ----------
+        validator: Union[callable, :class:`validate.Validator`]
+            The validator to remove. This can be a callable function or a 
+            :class:`validate.Validator` instance.
+        raw: :class:`bool`
+            Whether the validator being removed is raw. This parameter is only
+            taken into account when a callable is passed instead of a 
+            :class:`validate.Validator` instance.
+        """
+        if not callable(validator):
+            raise TypeError('validator must be a callable or Validator class instance')  # pragma: no cover
+
+        raw = getattr(validator, '__validator_is_raw__', raw)
+        try:
+            self._raw_validators.remove(validator) if raw else self._validators.remove(validator)
+        except ValueError:  # pragma: no cover
+            pass
+
+    def clear_validators(self, *, raw: bool = MISSING) -> None:
+        """Removes all validator from this field.
+
+        Parameters
+        ----------
+        raw: :class:`bool`
+            Whether to remove raw validators only. If this is not passed, all validators
+            are removed. If this is True, only raw validators are removed and when False,
+            only non-raw validators are removed.
+        """
+        if raw is MISSING:
+            self._validators.clear()
+            self._raw_validators.clear()
+        elif raw:
+            self._raw_validators.clear()
+        else:
+            self._validators.clear()
+
+    def walk_validators(self, *, raw: bool = MISSING) -> Iterator[ValidatorCallbackT[Any, Any]]:
+        """Iterates through the validator from this field.
+
+        Parameters
+        ----------
+        raw: :class:`bool`
+            Whether to iterate through raw validators only. If this is not passed,
+            all validators are iterated. If this is True, only raw validators
+            are iterated  and when False, only non-raw validators are iterated.
+        """
+        if raw is MISSING:
+            validators = self._validators.copy()
+            validators.extend(self._raw_validators)
+        elif raw:
+            validators = self._raw_validators
+        else:
+            validators = self._validators
+
+        for validator in validators:
+            yield validator
+
+    def format_error(self, error_code: Any, context: ErrorContext, /) -> Union[FieldError, str]:
+        """Formats the error.
+
+        This method can be overriden to add custom error messages for default
+        errors. It should return a :class:`FieldError` or :class`str`.
+
+        .. note::
+
+            You must call ``super().format_error()`` if you intend to override
+            this method. This is to ensure that default error messages are returned
+            properly for error codes that are not covered by your method implementation.
+
+            Example::
+
+                def format_error(self, error_code, context):
+                    if error_code == self.FIELD_REQUIRED:
+                        return 'This field must be provided
+
+                    # call this at the end
+                    return super().format_error(error_code, context)
+
+        Parameters
+        ----------
+        error_code: :class:`str`
+            The error code indicating the error that was raised.
+        context: :class:`ErrorContext`
+            The context holding useful information about error.
+
+        Returns
+        -------
+        Union[:class:`FieldError`, :class:`str`]
+            The formatted error.
+        """
+        if error_code == self.ERR_VALIDATION_FAILED:
+            return 'Validation failed for this field.'
+        if error_code == self.ERR_NONE_DISALLOWED:
+            return 'This field must not be None.'
+        if error_code == self.ERR_FIELD_REQUIRED:
+            return 'This field is required.'
+
+        return 'An unknown error occurred while validating this field'  # pragma: no cover
+
+    def value_load(self, value: Any, context: LoadContext, /) -> FinalValueT:
+        """Deserializes a raw value.
+
+        This is an abstract method that must be implemented by subclasses. This
+        method is called by the library when a field is being loaded.
+
+        The instances when this method is called are:
+
+        - Initializing a :class:`Schema`
+        - Updating a field value on an existing :class:`Schema` instance
+
+        The returned value is the value assigned to :class:`Schema` field
+        attribute.
 
         Parameters
         ----------
         value:
             The value to deserialize.
+        context: :class:`LoadContext`
+            The deserialization context.
 
         Returns
         -------
-        The deserialized value.
+        The serialized value.
         """
-        ...
+        raise NotImplementedError
 
-    def add_validator(self, callback: ValidatorCallbackT, *, raw: bool = False) -> None:
-        """Adds a validator for this field.
+    def value_dump(self, value: FinalValueT, context: DumpContext, /) -> Any:
+        """Serializes the value to raw form.
 
-        Instead of using this method, consider using the :meth:`.validate`
-        method for a simpler interface.
+        This is an abstract method that must be implemented by subclasses. This
+        method is called by the library when a field is being dumped.
+
+        The only time this method is called when the :meth:`Schema.dump` method
+        is called. The returned value is the value included in serialized data.
 
         Parameters
         ----------
-        callback:
-            The validator callback function.
-        raw: :class:`bool`
-            Whether this is a raw validator that takes raw value rather than
-            serialized one.
-        """
-        if raw:
-            self._raw_validators.append(callback)
-        else:
-            self._validators.append(callback)
-
-    def validate(self, *, raw: bool = False) -> Callable[[ValidatorCallbackT], ValidatorCallbackT]:
-        """A decorator for registering a validator for this field.
-
-        This is a much simpler interface for the :meth:`.add_validator`
-        method. The decorated function takes a single parameter apart
-        from self and that is the value to validate.
-
-        This decorator takes same keyword arguments as :meth:`.add_validator`.
-        """
-        def __decorator(func: ValidatorCallbackT) -> ValidatorCallbackT:
-            self.add_validator(func, raw=raw)
-            return func
-        return __decorator
-
-    def remove_validator(self, callback: ValidatorCallbackT) -> None:
-        """Removes a validator.
-
-        This method does not raise any error if the given callback
-        function does not exist as a validator.
-
-        Parameters
-        ----------
-        callback:
-            The validator callback function.
-        """
-        if callback in self._validators:
-            self._validators.remove(callback)
-        if callback in self._raw_validators:
-            self._raw_validators.remove(callback)
-
-
-    def copy(self: Field[RawT, SerializedT], *, validators: bool = True, **overrides: Any) -> Field[RawT, SerializedT]:
-        """Copies a field.
-
-        This method is useful when you want to reuse complex fields from
-        another schema without having to redefine the fields.
-
-        Example::
-
-            from oblate import Schema, fields
-
-            class User(Schema):
-                id = fields.Integer(strict=False)
-                username = fields.String()
-            
-            class Game(Schema):
-                id = User.id.copy()
-                rating = fields.Integer()
-
-        Parameters
-        ----------
-        validators: :class:`bool`
-            Whether to copy field validators. When this is True, validators
-            from the target field are also copied.
-        **overrides:
-            The keyword arguments to overriding certain attributes of field. This
-            may not support all attributes of a field. Supported overrides are
-            :attr:`Field.__valid_overrides__`.
+        value:
+            The value to serialize.
+        context: :class:`DumpContext`
+            The serialization context.
 
         Returns
         -------
-        :class:`Field`
-            The copied field.
+        The serialized value.
         """
-        field = copy.copy(self)
-        field._clear_state()
-
-        if not validators:
-            field._validators.clear()
-            field._raw_validators.clear()
-
-        for arg, val in overrides.items():
-            if not arg in self.__valid_overrides__:
-                raise TypeError(f'{arg!r} is not a valid override keyword argument.')
-
-            setattr(field, arg, val)
-
-        return field
+        raise NotImplementedError

@@ -22,53 +22,198 @@
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Set, Dict
 from oblate.utils import MISSING
 
 if TYPE_CHECKING:
-    from oblate.fields import Field
+    from oblate.schema import Schema
+    from oblate.fields.base import Field
 
 __all__ = (
-    'ErrorFormatterContext',
+    'SchemaContext',
+    'LoadContext',
+    'DumpContext',
+    'ErrorContext',
 )
 
-class ErrorFormatterContext:
-    """The error formatter context.
 
-    This class holds important information that is passed to an error
-    formatter. It should not be initialized manually.
+class SchemaContext:
+    """Context for a schema instance.
+
+    This class holds information about a :class:`Schema` state. The instance of this class
+    is accessed by the :attr:`Schema.context` attribute.
 
     Attributes
     ----------
-    error_code: :class:`int`
-        The error code used to determine the type of error.
+    schema: :class:`Schema`
+        The schema that this context belongs to.
+    config: :class:`SchemaConfig`
+        The configuration of schema.
+    state: Dict[:class:`str`, Any]
+        A dictionary to store any state data. This can be used to propagate or store
+        important data while working with schema.
     """
     __slots__ = (
-        'error_code',
-        '_value',
+        'schema',
+        'state',
+        'config',
+        '_initialized'
+    )
+
+    def __init__(self, schema: Schema) -> None:
+        self.schema = schema
+        self.config = schema.__config__
+        self.state: Dict[str, Any] = {}
+        self._initialized = False
+
+    def is_initialized(self) -> bool:
+        """Indicates whether the schema has initialized successfully."""
+        return self._initialized
+
+
+class _BaseValueContext:
+    __slots__ = (
+        '_field',
+        'value',
+        'schema',
+        'state'
     )
 
     def __init__(
             self,
             *,
-            error_code: int,
+            field: Field[Any, Any],
+            value: Any,
+            schema: Schema,
+        ) -> None:
+
+        self._field = field
+        self.value = value
+        self.schema = schema
+        self.state: Dict[str, Any] = {}
+
+    @property
+    def field(self) -> Field[Any, Any]:
+        return self._field  # type: ignore  # pragma: no cover
+
+
+class LoadContext(_BaseValueContext):
+    """Context for value deserialization.
+
+    This class holds important and useful information regarding deserialization
+    of a value. The instance of this class is passed to :meth:`fields.Field.value_load`
+    while a field is being serialized.
+
+    Attributes
+    ----------
+    field: :class:`fields.Field`
+        The field that the context belongs to.
+    schema: :class:`Schema`
+        The schema that the context belongs to.
+    value:
+        The raw value being deserialized.
+    state: Dict[:class:`str`, Any]
+        A dictionary to store any state data. This can be used to propagate or store
+        important data while working with schema.
+    """
+    __slots__ = ()
+
+    def is_update(self) -> bool:
+        """Indicates whether the value is being updated.
+
+        This is True when value is being updated and False when value is
+        being initially set during schema initialization.
+        """
+        # Update can only occur after schema initialization
+        return self.schema._context.is_initialized()
+
+
+class DumpContext(_BaseValueContext):
+    """Context for value serialization.
+
+    This class holds important and useful information regarding serialization
+    of a value. The instance of this class is passed to :meth:`fields.Field.value_dump`
+    while a field is being deserialized.
+
+    Attributes
+    ----------
+    field: :class:`fields.Field`
+        The field that the context belongs to.
+    schema: :class:`Schema`
+        The schema that the context belongs to.
+    value:
+        The value being serialized.
+    included_fields: Set[:class:`str`]
+        The set of names of fields that are being serialized.
+    state: Dict[:class:`str`, Any]
+        A dictionary to store any state data. This can be used to propagate or store
+        important data while working with schema.
+    """
+    __slots__ = (
+        'included_fields',
+    )
+
+    def __init__(
+            self,
+            included_fields: Set[str],
+            **kwargs: Any,
+        ):
+
+        self.included_fields = included_fields
+        super().__init__(**kwargs)
+
+class ErrorContext:
+    """Context for error handling.
+
+    The instance of this class is passed to :meth:`Field.format_error` method
+    and holds information about the error.
+
+    Attributes
+    ----------
+    error_code:
+        The error code indicating the error raised.
+    field: :class:`fields.Field`
+        The field that the error belongs to.
+    schema: :class:`Schema`
+        The schema that the error was caused from.
+    """
+    __slots__ = (
+        'schema',
+        'error_code',
+        '_value',
+        '_field',
+    )
+
+    def __init__(
+            self,
+            *,
+            error_code: Any,
+            schema: Schema,
+            field: Field[Any, Any],
             value: Any = MISSING,
         ):
 
         self.error_code = error_code
+        self.schema = schema
+        self._field = field
         self._value = value
 
+    @property
+    def field(self) -> Field[Any, Any]:
+        return self._field  # type: ignore  # pragma: no cover
+
     def get_value(self) -> Any:
-        """Gets the value that caused the error.
+        """Returns the value that caused the error.
 
-        .. note::
+        This method will raise a :exc:`ValueError` if no value is
+        associated to the error. This is only the case for the 
+        :attr:`~fields.Field.FIELD_REQUIRED` error code.
 
-            For some error codes, there is no value associated to the error. In
-            those cases, a ValueError is raised indicating that the error has
-            no value associated.
+        Raises
+        ------
+        ValueError
+            No value associated to the error.
         """
-        value = self._value
-        if value is MISSING:
-            raise ValueError('This error has no value')
-        
-        return value
+        if self._value is MISSING:
+            raise ValueError('No value associated to the error')  # pragma: no cover
+        return self._value

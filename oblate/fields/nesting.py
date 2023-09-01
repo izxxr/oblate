@@ -22,133 +22,85 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Mapping, Any, Type, Sequence, Set
-from oblate.fields.base import Field, SchemaT
-from oblate.exceptions import ValidationError, SchemaValidationFailed
-from oblate.utils import MISSING
-from oblate import errors
+from typing import TYPE_CHECKING, Type, Mapping, TypeVar, Any, Union
+from oblate.fields.base import Field
+from oblate.schema import Schema
+from oblate.exceptions import FieldError, ValidationError
 
 import collections.abc
 
 if TYPE_CHECKING:
-    from oblate.schema import Schema
-    from oblate.contexts import ErrorFormatterContext
+    from oblate.contexts import LoadContext, DumpContext, ErrorContext
 
 __all__ = (
     'Object',
-    'Partial',
 )
+
+SchemaT = TypeVar('SchemaT', bound=Schema)
 
 
 class Object(Field[Mapping[str, Any], SchemaT]):
-    """Field that allows nesting of schemas.
+    """Field representing a :class:`Schema` object.
+
+    This field is used for nested objects in raw data. The first argument
+    when initializing this field is the schema class that is accepted by the
+    field. For example::
+
+        class Author(oblate.Schema):
+            name = fields.String()
+            rating = fields.Integer()
+
+        class Book(oblate.Schema):
+            title = fields.String()
+            author = fields.Object(Author)
+
+        data = {
+            'title': 'A book title',
+            'author': {
+                'name': 'John',
+                'rating': 10,
+            }
+        }
+        book = Book(data)
+        print(book.author.name, 'has rating of', book.author.rating)  # John has rating of 10
+
+    Attributes
+    ----------
+    ERR_INVALID_DATATYPE:
+        Error code raised when invalid data type is given in raw data.
 
     Parameters
     ----------
-    schema_type: Type[:class:`Schema`]
-        The schema to represent in this field.
+    schema_cls: Type[:class:`Schema`]
+        The schema class that the field accepts.
     """
+    ERR_INVALID_DATATYPE = 'object.invalid_datatype'
+
     __slots__ = (
-        'schema_type',
+        'schema_cls',
     )
 
-    def __init__(self, schema_type: Type[SchemaT], **kwargs: Any) -> None:
-        self.schema_type = schema_type
+    def __init__(self, schema_cls: Type[SchemaT], **kwargs: Any) -> None:
+        if not issubclass(schema_cls, Schema):
+            raise TypeError('schema_cls must be a subclass of Schema')  # pragma: no cover
+
+        self.schema_cls = schema_cls
         super().__init__(**kwargs)
 
-    @errors.error_formatter(errors.INVALID_DATATYPE)
-    def _format_validation_error_object(self, ctx: ErrorFormatterContext) -> ValidationError:
-        return ValidationError(f'Value for this field must be a {self.schema_type.__qualname__} object.')
+    def format_error(self, error_code: Any, context: ErrorContext) -> Union[FieldError, str]:
+        if error_code == self.ERR_INVALID_DATATYPE:
+            return f'Value must be a {self.schema_cls.__name__} object'
 
-    def value_set(self, value: Any, init: bool) -> SchemaT:
-        if isinstance(value, collections.abc.Mapping):
-            return self.value_load(value)
-        if isinstance(value, self.schema_type):
-            return value
-        else:
-            raise self._format_validation_error(errors.INVALID_DATATYPE, value)
+        return super().format_error(error_code, context)  # pragma: no cover
 
-    def value_load(self, value: Mapping[str, Any]) -> SchemaT:
+    def value_load(self, value: Mapping[str, Any], context: LoadContext) -> SchemaT:
+        if not isinstance(value, collections.abc.Mapping):
+            raise self._call_format_error(self.ERR_INVALID_DATATYPE, context.schema, value)
+
         try:
-            return self.schema_type._from_nested_object(self, value)
-        except SchemaValidationFailed as err:
-            raise ValidationError(err.raw()) from None
+            return self.schema_cls(context.value)  # type: ignore
+        except ValidationError as err:
+            raise FieldError(err._raw_std(include_message=False)) from None
 
-    def value_dump(self, value: Schema) -> Mapping[str, Any]:
-        return value.dump()
-
-
-class Partial(Field[Mapping[str, Any], SchemaT]):
-    """Field that allows nesting of partial schemas.
-
-    Partial schemas are schemas with a subset of fields of the
-    original schema.
-
-    Parameters
-    ----------
-    schema_type: Type[:class:`Schema`]
-        The schema to represent in this field.
-    include: Sequence[:class:`str`]
-        The list of fields to include in partial schema.
-    exclude: Sequence[:class:`str`]
-        The list of fields to exclude from partial schema.
-    """
-    __slots__ = (
-        'schema_type',
-        'include',
-        'exclude',
-    )
-
-    def __init__(
-            self,
-            schema_type: Type[SchemaT],
-            include: Sequence[str] = MISSING,
-            exclude: Sequence[str] = MISSING,
-            **kwargs: Any,
-        ) -> None:
-
-        if include is not MISSING and exclude is not MISSING:
-            raise TypeError('include and exclude are mutually exclusive')
-        if not include and not exclude:
-            raise TypeError('one of include or exclude must be provided')
-
-        self.schema_type = schema_type
-        self.include = set() if include is MISSING else set(include)
-        self.exclude = set() if exclude is MISSING else set(exclude)
-        super().__init__(**kwargs)
-
-    @errors.error_formatter(errors.INVALID_DATATYPE)
-    def _format_validation_error_partial(self, ctx: ErrorFormatterContext) -> ValidationError:
-        return ValidationError(f'Value for this field must be a {self.schema_type.__qualname__} object.')
-
-    @property
-    def fields(self) -> Set[str]:
-        """The set of field names to include in partial schema.
-
-        This attribute is resolved using :attr:`.include` or :attr:`.exclude`.
-        """
-        total = set(self.schema_type.__fields__.keys())
-        if self.exclude:
-            return total.difference(self.exclude)
-        if self.include:
-            return total.intersection(self.include)
-
-        raise RuntimeError('This should never be reached')
-
-    def value_set(self, value: Any, init: bool) -> SchemaT:
-        if isinstance(value, collections.abc.Mapping):
-            return self.value_load(value)
-        if isinstance(value, self.schema_type):
-            value._transform_to_partial(include=self.fields)
-            return value
-        else:
-            raise self._format_validation_error(errors.INVALID_DATATYPE, value)
-
-    def value_load(self, value: Mapping[str, Any]) -> SchemaT:
-        try:
-            return self.schema_type._from_partial(self, value, include=self.fields, from_data=True)
-        except SchemaValidationFailed as err:
-            raise ValidationError(err.raw()) from None
-
-    def value_dump(self, value: Schema) -> Mapping[str, Any]:
+    def value_dump(self, value: SchemaT, context: DumpContext) -> Mapping[str, Any]:
         return value.dump()
