@@ -42,6 +42,14 @@ class String(Field[str, str]):
     This class is a subclass of :class:`Field` and supports the features
     documented in that class.
 
+    Attributes
+    ----------
+    ERR_INVALID_DATATYPE:
+        Error code raised when invalid data type is given in raw data.
+    ERR_COERCION_FAILED:
+        Error code raised when strict mode is disabled and given raw value
+        cannot be converted to relevant data type.
+
     Parameters
     ----------
     strict: :class:`bool`
@@ -84,6 +92,14 @@ class Integer(Field[int, int]):
 
     This class is a subclass of :class:`Field` and supports the features
     documented in that class.
+
+    Attributes
+    ----------
+    ERR_INVALID_DATATYPE:
+        Error code raised when invalid data type is given in raw data.
+    ERR_COERCION_FAILED:
+        Error code raised when strict mode is disabled and given raw value
+        cannot be converted to relevant data type.
 
     Parameters
     ----------
@@ -140,6 +156,12 @@ class Boolean(Field[bool, bool]):
         The true values used when strict validation is disabled.
     FALSE_VALUES: Tuple[:class:`str`, ...]
         The false values used when strict validation is disabled.
+    ERR_INVALID_DATATYPE:
+        Error code raised when invalid data type is given in raw data.
+    ERR_COERCION_FAILED:
+        Error code raised when strict mode is disabled and given raw value
+        cannot be converted to relevant data type.
+
 
     Parameters
     ----------
@@ -222,6 +244,14 @@ class Float(Field[float, float]):
 
     This class is a subclass of :class:`Field` and supports the features
     documented in that class.
+
+    Attributes
+    ----------
+    ERR_INVALID_DATATYPE:
+        Error code raised when invalid data type is given in raw data.
+    ERR_COERCION_FAILED:
+        Error code raised when strict mode is disabled and given raw value
+        cannot be converted to relevant data type.
 
     Parameters
     ----------

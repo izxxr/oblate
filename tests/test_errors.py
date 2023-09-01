@@ -49,7 +49,7 @@ def test_error_field_binding():
     except oblate.ValidationError as err:
         for error in err.errors:
             assert error.field == error.field
-            assert error.field_name == f'field_{error.context.value}'  # type: ignore
+            assert error.key == f'field_{error.context.value}'  # type: ignore
 
 def test_standard_errors():
     class _TestFieldAssertionError(fields.Field[Any, Any]):
@@ -98,7 +98,7 @@ def test_field_format_error():
             if error_code == self.ERR_INVALID_DATATYPE:
                 return oblate.FieldError('Invalid datatype, must be string')
             if error_code == self.ERR_COERCION_FAILED:
-                return 'Coercion to integer failed'
+                return f'Coercion to integer failed for {context.get_value()}'
 
             return super().format_error(error_code, context)
 
@@ -111,7 +111,5 @@ def test_field_format_error():
     with pytest.raises(oblate.ValidationError, match='Invalid datatype, must be string'):
         _TestSchema({'integer': 'invalid'})
 
-    with pytest.raises(oblate.ValidationError, match='Coercion to integer failed'):
+    with pytest.raises(oblate.ValidationError, match='Coercion to integer failed for invalid'):
         _TestSchemaNoStrict({'integer': 'invalid'})
-
-

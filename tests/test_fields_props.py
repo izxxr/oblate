@@ -78,3 +78,19 @@ def test_field_copying():
         id = _TestSchema.id.copy()
 
     assert _TestSchemaNew({'id': '1234'}).id == 1234
+
+def test_field_data_keys():
+    class _TestSchema(oblate.Schema):
+        id = fields.Integer(data_key='Id')
+        name = fields.String()
+
+    schema = _TestSchema({'Id': 20, 'name': 'John'})
+
+    assert schema.id == 20
+    assert schema.dump()['Id'] == 20
+
+    with pytest.raises(oblate.ValidationError, match='Invalid or unknown field'):
+        _TestSchema({'id': 20, 'name': 'John'})
+
+    assert schema.get_value_for('Id') == 20
+    assert schema.get_value_for('id') == 20

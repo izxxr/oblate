@@ -22,8 +22,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional, List, Dict, Union
-from oblate.utils import current_field_name, current_context, current_schema, MISSING
+from typing import TYPE_CHECKING, Any, Optional, List, Dict, Union, Literal, overload
+from oblate.utils import current_field_key, current_context, current_schema, MISSING
 
 if TYPE_CHECKING:
     from oblate.fields.base import Field
@@ -71,7 +71,7 @@ class FieldError(OblateException):
         'message',
         'state',
         'context',
-        '_field_name',
+        '_key',
     )
 
     def __init__(self, message: Any, /, state: Any = None) -> None:
@@ -79,7 +79,7 @@ class FieldError(OblateException):
         self.state = state
         self.context = current_context.get(None)
         self.schema = current_schema.get()
-        self._field_name = current_field_name.get()
+        self._key = current_field_key.get()
         super().__init__(message)
 
     @classmethod
@@ -106,18 +106,18 @@ class FieldError(OblateException):
 
         :type: :class:`fields.Field`
         """
-        return self.schema.__fields__.get(self._field_name, None)
+        return self.schema.__load_fields__.get(self._key, None)
 
     @property
-    def field_name(self) -> str:
-        """The name of field that caused the error.
+    def key(self) -> str:
+        """The key that points to the erroneous value in raw data.
 
-        This name might not always point to an existing field. For example,
-        if the causative field doesn't exist.
+        This is essentially the name of field that has the error but may
+        not always be a valid field name.
 
         :type: :class:`str`
         """
-        return self._field_name
+        return self._key
 
 
 class ValidationError(OblateException):
@@ -135,9 +135,9 @@ class ValidationError(OblateException):
         self.schema = current_schema.get()
         super().__init__(self._make_message())
 
-    def _make_message(self, field_errors: Optional[Dict[str, List[str]]] = None, level: int = 0) -> str:
+    def _make_message(self, field_errors: Optional[Dict[str, List[FieldError]]] = None, level: int = 0) -> str:
         if field_errors is None:
-            field_errors = self._raw_std()
+            field_errors = self._raw_std(include_message=False)
 
         builder: List[str] = []
         if level == 0:
@@ -147,27 +147,69 @@ class ValidationError(OblateException):
         indent = level*4
         for name, errors in field_errors.items():
             builder.append(f'{" "*indent}│')
-            builder.append(f'{" "*indent}└── In field {name}:')
+            message = f'{" "*indent}└── In field {name}:'
+            if errors:
+                field = errors[0].field
+                if field and name != field._name:
+                    message = f'{" "*indent}└── In field {name} ({field._name}):'
+
+            builder.append(message)
             for idx, error in enumerate(errors):
-                if isinstance(error, dict):
-                    builder.append(self._make_message(error, level=level+1))
+                if isinstance(error.message, dict):
+                    builder.append(self._make_message(error.message, level=level+1))  # type: ignore
                     continue
 
                 prefix = '└──' if idx == len(errors) - 1 else '├──' 
-                builder.append(f'{" "*(indent+4)}{prefix} {error}')
+                builder.append(f'{" "*(indent+4)}{prefix} {error.message}')
 
         if level != 0:
             return '\n'.join(builder)
 
         return '\n│\n' + '\n'.join(builder)
 
-    def _raw_std(self) -> Dict[str, List[str]]:
-        out: Dict[str, List[str]] = {}
+    @overload
+    def _raw_std(
+        self,
+        *,
+        include_message: Literal[True] = True
+    ) -> Dict[str, List[str]]:
+        ...
+
+    @overload
+    def _raw_std(
+        self,
+        *,
+        include_message: Literal[False] = False
+    ) -> Dict[str, List[FieldError]]:
+        ...
+
+    def _ensure_string(self, obj: Any) -> Any:
+        if isinstance(obj, FieldError):
+            return self._ensure_string(obj.message)
+        elif isinstance(obj, dict):
+            new_dict: Dict[str, Any] = {}
+            for k, v in obj.items():  # type: ignore
+                new_dict[k] = self._ensure_string(v)  # type: ignore
+            return new_dict
+        elif isinstance(obj, list):
+            new_list: List[Any] = []
+            for item in obj:  # type: ignore
+                new_list.append(self._ensure_string(item))
+            return new_list
+        return str(obj)
+
+    def _raw_std(self, *, include_message: bool = True) -> Any:
+        out: Dict[str, Any] = {}
         for error in self.errors:
-            if error.field_name in out:
-                out[error.field_name].append(error.message)
+            if include_message:
+                value = self._ensure_string(error.message)
             else:
-                out[error.field_name] = [error.message]
+                value = error
+
+            if error.key in out:
+                out[error.key].append(value)
+            else:
+                out[error.key] = [value]
 
         return out
 

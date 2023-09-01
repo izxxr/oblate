@@ -40,7 +40,7 @@ from typing import (
 from typing_extensions import Self
 from oblate.schema import Schema
 from oblate.validate import Validator, ValidatorCallbackT, InputT
-from oblate.utils import MISSING, current_field_name, current_schema
+from oblate.utils import MISSING, current_field_key, current_schema
 from oblate.exceptions import FieldError
 from oblate.contexts import ErrorContext
 from oblate.configs import config
@@ -60,7 +60,6 @@ RawValueT = TypeVar('RawValueT')
 FinalValueT = TypeVar('FinalValueT')
 ValidatorT = Union[Validator[InputT], ValidatorCallbackT[SchemaT, InputT]]
 
-
 class Field(Generic[RawValueT, FinalValueT]):
     """The base class for all fields.
 
@@ -76,6 +75,16 @@ class Field(Generic[RawValueT, FinalValueT]):
         This class is a :class:`typing.Generic` and takes two type arguments. The
         raw value type i.e the type of raw value which will be deserialized to final
         value and the type of deserialized value.
+
+    Attributes
+    ----------
+    ERR_FIELD_REQUIRED:
+        Error code raised when a required field is not given in raw data.
+    ERR_NONE_DISALLOWED:
+        Error code raised when a field with ``none=False`` is given a value of ``None``.
+    ERR_VALIDATION_FAILED:
+        Error code raised when a validator fails for a field without an explicit
+        error message.
 
     Parameters
     ----------
@@ -96,33 +105,16 @@ class Field(Generic[RawValueT, FinalValueT]):
         A dictionary of extra data that can be attached to this field. This parameter is
         useful when you want to attach your own extra metadata to the field. Library does
         not perform any manipulation on the data.
+    load_key: :class:`str`
+        The key that points to value of this field in raw data. Defaults to the name
+        of field.
+    dump_key: :class:`str`
+        The key that points to value of this field in serialized data returned by
+        :meth:`Schema.dump`. Defaults to the name of field.
+    data_key: :class:`str`
+        A shorthand parameter to control the value of both ``load_key`` and ``dump_key``
+        parameters.
     """
-    if TYPE_CHECKING:
-        @overload
-        def __new__(
-            cls,
-            *,
-            none: Literal[False] = False,
-            **kwargs: Any,
-        ) -> Field[RawValueT, FinalValueT]:
-            ...
-
-        @overload
-        def __new__(
-            cls,
-            *,
-            none: Literal[True] = True,
-            **kwargs: Any,
-        ) -> Field[Optional[RawValueT], Optional[FinalValueT]]:
-            ...
-
-        def __new__(
-                cls,
-                none: bool = False,
-                **kwargs: Any,
-            ) -> Field[Any, Any]:
-            ...
-
     ERR_FIELD_REQUIRED = 'field.field_required'
     ERR_NONE_DISALLOWED = 'field.none_disallowed'
     ERR_VALIDATION_FAILED = 'field.validation_failed'
@@ -136,6 +128,8 @@ class Field(Generic[RawValueT, FinalValueT]):
         '_schema',
         '_validators',
         '_raw_validators',
+        '_load_key',
+        '_dump_key',
     )
 
     def __init__(
@@ -146,11 +140,16 @@ class Field(Generic[RawValueT, FinalValueT]):
             default: Any = MISSING,
             validators: Sequence[ValidatorT[Any, Any]] = MISSING,
             extras: Dict[str, Any] = MISSING,
+            dump_key: str = MISSING,
+            load_key: str = MISSING,
+            data_key: str = MISSING,
         ) -> None:
 
         self.none = none
         self.required = required and (default is MISSING)
         self.extras = extras if extras is not MISSING else {}
+        self._load_key = data_key if data_key is not MISSING else load_key
+        self._dump_key = data_key if data_key is not MISSING else dump_key
         self._default = default
         self._validators: List[ValidatorT[FinalValueT, Any]] = []
         self._raw_validators: List[ValidatorT[Any, Any]] = []
@@ -176,14 +175,14 @@ class Field(Generic[RawValueT, FinalValueT]):
 
     def __set__(self, instance: Schema, value: RawValueT) -> None:
         schema_token = current_schema.set(instance)
-        field_name = current_field_name.set(self._name)
+        field_name = current_field_key.set(self._name)
         try:
             errors = instance._process_field_value(self, value)
             if errors:
                 raise config.validation_error_cls(errors)
         finally:
             current_schema.reset(schema_token)
-            current_field_name.reset(field_name)
+            current_field_key.reset(field_name)
 
     def _unbind(self) -> None:
         self._name: str = MISSING
@@ -228,6 +227,14 @@ class Field(Generic[RawValueT, FinalValueT]):
             return error
         else:
             raise TypeError('format_error() must return a FieldError or a str')  # pragma: no cover
+
+    @property
+    def load_key(self) -> str:
+        return self._name if self._load_key is MISSING else self._load_key
+
+    @property
+    def dump_key(self) -> str:
+        return self._name if self._dump_key is MISSING else self._dump_key
 
     @property
     def default(self) -> Any:

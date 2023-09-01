@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Dict, Any, Mapping, List, Optional, Sequence, Tuple, Type
 from oblate.contexts import SchemaContext, LoadContext, DumpContext
-from oblate.utils import MISSING, current_field_name, current_context, current_schema
+from oblate.utils import MISSING, current_field_key, current_context, current_schema
 from oblate.exceptions import FieldError
 from oblate.configs import config, SchemaConfig
 
@@ -80,6 +80,7 @@ class Schema(metaclass=_SchemaMeta):
         The raw data to initialize the schema with.
     """
     __fields__: Dict[str, Field[Any, Any]]
+    __load_fields__: Dict[str, Field[Any, Any]]
     __config__: Type[SchemaConfig] = SchemaConfig
 
     __slots__ = (
@@ -104,14 +105,17 @@ class Schema(metaclass=_SchemaMeta):
             # When a schema is subclassed, the fields have to be copied so
             # the parent schema's fields are not modified
             cls.__fields__ = cls.__fields__.copy()
+            cls.__load_fields__ = cls.__load_fields__.copy()
         else:
             cls.__fields__ = {}
+            cls.__load_fields__ = {}
 
         members = vars(cls).copy()
         for name, member in members.items():
             if isinstance(member, Field):
                 member._bind(name, cls)
                 cls.__fields__[name] = member
+                cls.__load_fields__[member.load_key] = member
             elif callable(member) and hasattr(member, '__validator_field__'):
                 field = member.__validator_field__
                 if isinstance(field, str):
@@ -128,14 +132,14 @@ class Schema(metaclass=_SchemaMeta):
             cls.__repr__ = _schema_repr
 
     def _prepare_from_data(self, data: Mapping[str, Any]) -> None:
-        fields = self.__fields__.copy()
+        fields = self.__load_fields__.copy()
         validators: List[Tuple[Field[Any, Any], Any, LoadContext, bool]] = []
         errors: List[FieldError] = []
 
-        for name, value in data.items():
-            token = current_field_name.set(name)
+        for key, value in data.items():
+            token = current_field_key.set(key)
             try:
-                field = fields.pop(name)
+                field = fields.pop(key)
             except KeyError:
                 errors.append(FieldError(f'Invalid or unknown field.'))
             else:
@@ -144,27 +148,28 @@ class Schema(metaclass=_SchemaMeta):
                 process_errors = self._process_field_value(field, value, validators)
                 errors.extend(process_errors)
             finally:
-                current_field_name.reset(token)
+                current_field_key.reset(token)
 
-        for name, field in fields.items():
-            token = current_field_name.set(name)
+        for key, field in fields.items():
+            token = current_field_key.set(key)
             try:
                 if field.required:
                     errors.append(field._call_format_error(field.ERR_FIELD_REQUIRED, self, MISSING))
                 if field._default is not MISSING:
-                    self._field_values[name] = field._default(self._context, field) if callable(field._default) else field._default
+                    self._field_values[field._name] = field._default(self._context, field) \
+                                                      if callable(field._default) else field._default
             finally:
-                current_field_name.reset(token)
+                current_field_key.reset(token)
 
         for field, value, context, raw in validators:
             ctx_token = current_context.set(context)
-            field_token = current_field_name.set(field._name)
+            field_token = current_field_key.set(field.load_key)
             schema_token = current_schema.set(self)
             try:
                 errors.extend(field._run_validators(value, context, raw=raw))
             finally:
                 current_context.reset(ctx_token)
-                current_field_name.reset(field_token)
+                current_field_key.reset(field_token)
                 current_schema.reset(schema_token)
 
         if errors:
@@ -251,7 +256,8 @@ class Schema(metaclass=_SchemaMeta):
         Parameters
         ----------
         field_name: :class:`str`
-            The name of field to get value for.
+            The name of field to get value for. This can either be field (attribute)
+            name or the value of :attr:`fields.Field.load_key`.
         default:
             The default value to return if field has no value.
 
@@ -267,7 +273,10 @@ class Schema(metaclass=_SchemaMeta):
             Field value not set.
         """
         if field_name not in self.__fields__:
-            raise RuntimeError(f'Field name {field_name!r} is invalid.')
+            if field_name in self.__load_fields__:
+                field_name = self.__load_fields__[field_name]._name
+            else:
+                raise RuntimeError(f'Field name {field_name!r} is invalid.')
         try:
             return self._field_values[field_name]
         except KeyError:
@@ -291,12 +300,12 @@ class Schema(metaclass=_SchemaMeta):
         ValidationError
             The validation failed.
         """
-        fields = self.__fields__
+        fields = self.__load_fields__
         errors: List[FieldError] = []
         old_values = self._field_values.copy()
 
         for key, value in data.items():
-            token = current_field_name.set(key)
+            token = current_field_key.set(key)
             try:
                 field = fields[key]
             except KeyError:
@@ -304,7 +313,7 @@ class Schema(metaclass=_SchemaMeta):
             else:
                 errors.extend(self._process_field_value(field, value))
             finally:
-                current_field_name.reset(token)
+                current_field_key.reset(token)
 
         if errors:
             # fallback to original state in case update fails
@@ -363,16 +372,16 @@ class Schema(metaclass=_SchemaMeta):
                 value=value,
                 included_fields=fields,
             )
-            field_token = current_field_name.set(name)
+            field_token = current_field_key.set(field.load_key)
             context_token = current_context.set(context)
             try:
-                out[name] = field.value_dump(value, context)
+                out[field.dump_key] = field.value_dump(value, context)
             except (ValueError, AssertionError, FieldError) as err:
                 if not isinstance(err, FieldError):
                     err = FieldError._from_standard_error(err, schema=self, field=field, value=value)
                 errors.append(err)
             finally:
-                current_field_name.reset(field_token)
+                current_field_key.reset(field_token)
                 current_context.reset(context_token)
 
         if errors:

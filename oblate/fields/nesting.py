@@ -64,6 +64,11 @@ class Object(Field[Mapping[str, Any], SchemaT]):
         book = Book(data)
         print(book.author.name, 'has rating of', book.author.rating)  # John has rating of 10
 
+    Attributes
+    ----------
+    ERR_INVALID_DATATYPE:
+        Error code raised when invalid data type is given in raw data.
+
     Parameters
     ----------
     schema_cls: Type[:class:`Schema`]
@@ -95,7 +100,7 @@ class Object(Field[Mapping[str, Any], SchemaT]):
         try:
             return self.schema_cls(context.value)  # type: ignore
         except ValidationError as err:
-            raise FieldError(err.raw()) from None
+            raise FieldError(err._raw_std(include_message=False)) from None
 
     def value_dump(self, value: SchemaT, context: DumpContext) -> Mapping[str, Any]:
         return value.dump()

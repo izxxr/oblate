@@ -260,6 +260,37 @@ Example::
     :class:`fields.Field` is a typing generic and takes two type arguments. The first one is
     the expected raw value type and the second one is the type of deserialized value.
 
+.. _guide-fields-data-key:
+
+Custom data keys
+----------------
+
+A data key is the name of key in raw data that points to the value of a field in raw data. By default,
+the name of attribute that the field is bound to is used as data key for that field.
+
+To provide a custom data key, the ``data_key`` parameter can be used::
+
+    class User(oblate.Schema):
+        id = fields.Integer(data_key='userId')
+
+    user = User({'userId': 1234})
+
+    print(user.id)  # 1234
+    print(user.dump())  {'userId': 1234}
+
+If you want to separate the data keys for deserialization and serialization of data, the ``load_key``
+and ``dump_key`` parameters can be used::
+
+    class User(oblate.Schema):
+        id = fields.Integer(load_key='userId', dump_key='user_id')
+
+    user = User({'userId': 1234})
+
+    print(user.id)  # 1234
+    print(user.dump())  {'user_id': 1234}
+
+All of these parameters default to the field name.
+
 .. _guide-fields-nesting:
 
 Nested schemas

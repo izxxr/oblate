@@ -215,5 +215,5 @@ class ErrorContext:
             No value associated to the error.
         """
         if self._value is MISSING:
-            raise ValueError('No value associated to the error')
+            raise ValueError('No value associated to the error')  # pragma: no cover
         return self._value
