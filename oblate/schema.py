@@ -78,6 +78,11 @@ class Schema(metaclass=_SchemaMeta):
     ----------
     data: Mapping[:class:`str`, Any]
         The raw data to initialize the schema with.
+    ignore_extra: :class:`bool`
+        Whether to ignore extra (invalid) fields in the data.
+
+        This parameter overrides the :attr:`SchemaConfig.ignore_extra`
+        configuration.
     """
     __fields__: Dict[str, Field[Any, Any]]
     __load_fields__: Dict[str, Field[Any, Any]]
@@ -88,12 +93,12 @@ class Schema(metaclass=_SchemaMeta):
         '_context',
     )
 
-    def __init__(self, data: Mapping[str, Any], /) -> None:
+    def __init__(self, data: Mapping[str, Any], /, *, ignore_extra: bool = MISSING):
         token = current_schema.set(self)
         try:
             self._field_values: Dict[str, Any] = {}
             self._context = SchemaContext(self)
-            self._prepare_from_data(data)
+            self._prepare_from_data(data, ignore_extra=ignore_extra)
         finally:
             current_schema.reset(token)
 
@@ -131,7 +136,10 @@ class Schema(metaclass=_SchemaMeta):
         if cls.__config__.add_repr and '__repr__' not in members:
             cls.__repr__ = _schema_repr
 
-    def _prepare_from_data(self, data: Mapping[str, Any]) -> None:
+    def _prepare_from_data(self, data: Mapping[str, Any], *, ignore_extra: bool = MISSING) -> None:
+        if ignore_extra is MISSING:
+            ignore_extra = self.__config__.ignore_extra
+
         fields = self.__load_fields__.copy()
         validators: List[Tuple[Field[Any, Any], Any, LoadContext, bool]] = []
         errors: List[FieldError] = []
@@ -141,7 +149,8 @@ class Schema(metaclass=_SchemaMeta):
             try:
                 field = fields.pop(key)
             except KeyError:
-                errors.append(FieldError(f'Invalid or unknown field.'))
+                if not ignore_extra:
+                    errors.append(FieldError(f'Invalid or unknown field.'))
             else:
                 # See comment in _process_field_values() for explanation on how
                 # validators are handled.
@@ -284,7 +293,7 @@ class Schema(metaclass=_SchemaMeta):
                 return default
             raise ValueError('No value set for this field.') from None
 
-    def update(self, data: Mapping[str, Any], /) -> None:
+    def update(self, data: Mapping[str, Any], /, *, ignore_extra: bool = MISSING) -> None:
         """Updates the schema with the given data.
 
         If the update fails i.e one or more fields fail to validate, the
@@ -294,12 +303,20 @@ class Schema(metaclass=_SchemaMeta):
         ----------
         data: Mapping[:class:`str`, Any]
             The data to update with.
+        ignore_extra: :class:`bool`
+            Whether to ignore extra (invalid) fields in the data.
+
+            This parameter overrides the :attr:`SchemaConfig.ignore_extra`
+            configuration.
 
         Raises
         ------
         ValidationError
             The validation failed.
         """
+        if ignore_extra is MISSING:
+            ignore_extra = self.__config__.ignore_extra
+
         fields = self.__load_fields__
         errors: List[FieldError] = []
         old_values = self._field_values.copy()
@@ -309,7 +326,8 @@ class Schema(metaclass=_SchemaMeta):
             try:
                 field = fields[key]
             except KeyError:
-                errors.append(FieldError(f'Invalid or unknown field.'))
+                if not ignore_extra:
+                    errors.append(FieldError(f'Invalid or unknown field.'))
             else:
                 errors.extend(self._process_field_value(field, value))
             finally:

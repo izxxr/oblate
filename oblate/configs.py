@@ -147,3 +147,10 @@ class SchemaConfig:
     set any extra attributes on the schema. This is ignored when the
     schema has already defined ``__slots__``.
     """
+
+    ignore_extra = False
+    """Whether to ignore extra (invalid) field names when initializing schema.
+
+    This configuration can be overriden per initialization/update using the
+    ``ignore_extra`` parameter in :class:`Schema` initialization.
+    """

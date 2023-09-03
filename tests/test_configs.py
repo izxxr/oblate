@@ -59,6 +59,18 @@ def test_schema_config():
     assert _Schema.__config__ == _Schema.Config
     assert _SchemaNoConfig.__config__ == oblate.SchemaConfig
 
+def test_inherited_config():
+    class Base(oblate.Schema):
+        class Config(oblate.SchemaConfig): ...
+
+    class Child(Base): ...
+    class Override(Base):
+        class NewConfig(oblate.SchemaConfig): ...
+
+    assert Base.__config__ == Base.Config
+    assert Child.__config__ == Base.Config
+    assert Override.__config__ == Override.NewConfig
+
 
 def test_schema_config_add_repr():
     class _SchemaDefault(oblate.Schema):
@@ -98,16 +110,25 @@ def test_schema_config_slotted():
     schema.test = None  # type: ignore
     assert schema.test == None  # type: ignore
 
+def test_schema_config_ignore_extra():
+    class _SchemaDefault(oblate.Schema):
+        ...
 
-def test_inherited_config():
-    class Base(oblate.Schema):
-        class Config(oblate.SchemaConfig): ...
+    class _SchemaIgnoreExtra(oblate.Schema):
+        class Config(oblate.SchemaConfig):
+            ignore_extra = True
 
-    class Child(Base): ...
-    class Override(Base):
-        class NewConfig(oblate.SchemaConfig): ...
+    class _SchemaNoIgnoreExtra(oblate.Schema):
+        class Config(oblate.SchemaConfig):
+            ignore_extra = False
 
-    assert Base.__config__ == Base.Config
-    assert Child.__config__ == Base.Config
-    assert Override.__config__ == Override.NewConfig
+    with pytest.raises(oblate.ValidationError, match="Invalid or unknown field"):
+        _SchemaDefault({'test': '2'})
 
+    with pytest.raises(oblate.ValidationError, match="Invalid or unknown field"):
+        _SchemaNoIgnoreExtra({'test': '2'})
+
+    schema = _SchemaIgnoreExtra({'test': '2'})
+
+    with pytest.raises(RuntimeError):
+        schema.get_value_for('test')
