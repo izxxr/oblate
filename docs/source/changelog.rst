@@ -5,6 +5,14 @@ Changelog
 
 This page has changelogs for all releases of Oblate.
 
+v1.0.0
+------
+
+This version brings an entire rewrite of the library. Many features have been removed along with
+many additions and breaking changes. 0.2.0 and former are not compatible with this version.
+
+For an overview of changes, see `this pull request <https://github.com/izxxr/oblate/pulls/3>`_.
+
 v0.2.0
 ------
 

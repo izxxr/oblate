@@ -22,38 +22,37 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
-from contextvars import ContextVar
+from oblate import fields
+import oblate
+import pytest
 
-if TYPE_CHECKING:
-    from oblate.contexts import _BaseValueContext
-    from oblate.schema import Schema
+def test_field_object():
+    class User(oblate.Schema):
+        id = fields.Integer()
+        name = fields.String()
 
-__all__ = (
-    'MissingType',
-    'MISSING',
-    'current_context',
-    'current_field_key',
-)
+    class Game(oblate.Schema):
+        id = fields.Integer()
+        author = fields.Object(User)
 
-class MissingType:
-    """Type for representing unaltered/default/missing values.
+    user_data = {'id': 1, 'name': 'John'}
+    game_data = {'id': 2, 'author': user_data}
 
-    Used as sentinel to differentiate between default and None values.
-    utils.MISSING is a type safe instance of this class.
-    """
-    def __repr__(self) -> str:
-        return '...'  # pragma: no cover
+    game = Game(game_data)
+    assert game.author.id == 1
+    assert game.author.name == 'John'
+    assert game.dump() == game_data
 
-    def __bool__(self) -> bool:
-        return False  # pragma: no cover
+    user_data.pop('id')
 
+    try:
+        Game(game_data)
+    except oblate.ValidationError as err:
+        raw = err.raw()
+        assert 'id' in raw['author'][0]
+        assert 'required' in raw['author'][0]['id'][0]
 
-MISSING: Any = MissingType()
+    game_data['author'] = 'invalid'  # type: ignore
 
-
-### Context variables ###
-
-current_context: ContextVar[_BaseValueContext] = ContextVar('_current_context')
-current_field_key: ContextVar[str] = ContextVar('current_field_key')
-current_schema: ContextVar[Schema] = ContextVar('current_schema')
+    with pytest.raises(oblate.ValidationError, match='User object'):
+        Game(game_data)

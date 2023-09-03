@@ -1,128 +1,57 @@
-# Oblate — dealing with data made easy
-
-> ⚠ This project is current under pre-alpha (0.x) phase.
-
+# Oblate — data, made easy
 Oblate is a Python library that provides modern and robust interface for data and schema validation.
 
 Focused around simplicity and flexibility, Oblate has the following features:
 
 - Intuitive and modern object oriented interface
 - Built in support for commonly used data structures
-- Easily extendible to suit every use case
-- Robust with no compromise on performance
-- Properly type hinted to maximize the developer experience
+- Easily extendible and customizable to suit every use case
+- Robust with no compromise on performance and speed
+- Typed and plays well with static type checking
 
-[Documentation](https://oblate.readthedocs.io) • [Source Code](https://github.com/izxxr/oblate) • [PyPi Package](https://pypi.org/project/oblate) 
+**[Documentation](https://oblate.readthedocs.io) • [Source Code](https://github.com/izxxr/oblate) • [Python Package Index](https://pypi.org/project/oblate)**
 
 ## Installation
-Oblate is available on [PyPi](https://pypi.org/project/oblate) and can be installed using `pip`.
+Oblate is available on PyPi and can be installed using pip.
 ```
 $ pip install oblate 
 ```
-Try prefixing the above command with `python -m` if you don't have `pip` on `PATH` or the command
-doesn't work for some reason.
+> **ℹ️ Didn't work?** Try prefixing the above command with `python -m` if you don't have `pip` on PATH or the command doesn't work for some reason.
 
 ## Usage
-Here's a quick look to what Oblate has to offer. This brief tutorial will give you a quickstart
-with Oblate.
-
-### Basic look
-The main class of Oblate is `oblate.Schema` that all schemas must inherit from.
+Oblate is focused around simplicity and ease of usage. Below snippet is an example of how data
+is handled using Oblate:
 ```py
-from oblate import fields
+from oblate import validate, fields
 import oblate
 
-class User(oblate.Schema):
-    id = fields.Integer()
-    name = fields.String()
-    password = fields.String()
-    is_employee = fields.Boolean(default=False)
-```
-We can now easily initialize the `User` object. One of the important feature of Oblate is
-designed to work for all use cases.
+# A schema defines the structure of data
+class Author(oblate.Schema):
+    name = fields.String()  # Field must be a string
+    bio = fields.String(none=True)  # Field allows None to be passed
+    rating = fields.Integer(default=0)  # Optional field that defaults to 0
 
-You can either use it as a basic library for your normal classes (similar to `dataclasses`
-but with validation!)
-```py
-user = User(id=1, name='John', password='123456789')
-print(user.username)
-```
-or use it as a data/schema validation library for REST APIs or databases:
-```py
-user = User({'id': 1, 'name': 'John', 'password': '123456789'})
-print(user.username)
-```
+    # Apply custom validations to a field
+    @validate.field(rating)
+    def validate_rating(self, value, ctx):
+        assert value >= 0 and value <= 10, 'Rating must be in range 0-10 inclusive'
 
-### Handling Errors
-Oblate provides a consistent and customizable errors handling system.
-```py
+class Book(oblate.Schema):
+    title = fields.String()
+    price = fields.Float()
+    author = fields.Object(Author)
+
 data = {
-    'id': True,
-    'password': '123456789',
-}
-try:
-    user = User(data)  # ERRORS: Missing username field and invalid data type for id
-except SchemaValidationError as err:
-    err.raw()
-```
-The output will be:
-```py
-{
-    "errors": [],
-    "field_errors": {
-        "id": [
-            "Value for this field must be of integer data type."
-        ],
-        "username": [
-            "This field is required."
-        ]
+    'title': 'Art of Data Validation',
+    'price': 20.30,
+    'author': {
+        'name': 'John',
+        'bio': None,
+        'rating': 4,
     }
 }
+book = Book(data)
+print(f"{book.title} by {book.author.name}")
 ```
-The errors handling system is highly customizable and you can easily customize the above
-error format to match the style or convention of your project.
-
-### Validators
-Validators are an important feature of any data validation library. Certain common
-validations are already part of the library such as allowing/disallowing nullable
-fields etc.
-```py
-class User(oblate.Schema):
-    id = fields.Integer()
-    name = fields.String(none=True)  # This field can be None
-    password = fields.String()
-    is_employee = fields.Boolean(default=False)
-```
-However, in some cases, you might want to create your own validators. Fortunately, Oblate
-makes it incredibly simple for you to acheive that.
-```py
-class User(oblate.Schema):
-    id = fields.Integer()
-    name = fields.String()
-    password = fields.String()
-    is_employee = fields.Boolean(default=False)
-
-    @password.validate()
-    def validate_password(self, value: str) -> bool:
-        if len(value) < 8:
-            raise oblate.ValidationError('Password must be at least 8 characters long.')
-        return True
-
-user = User(id=1, name='John', password='12345')
-```
-The error in case the validation fail will be:
-```py
-{
-    "errors": [],
-    "field_errors": {
-        "password": [
-            "Password must be at least 8 characters long."
-        ]
-    }
-}
-```
-
-## Documentation
-Oblate has a lot more to feature and discussing all of that here is not possible. Check the
-[Oblate's documentation](https://oblate.readthedocs.io) that includes examples and pages to get
-you started with using Oblate for your project along with details on all the features Oblate has.
+Check the [**Quickstart**](https://oblate.readthedocs.io/en/latest/tutorial/index.html) section in
+documentation for an introduction to the basics of library.

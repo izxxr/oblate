@@ -1,6 +1,6 @@
 from setuptools import setup
 
-VERSION = "0.2.0"
+VERSION = "1.0.0"
 GITHUB = "https://github.com/izxxr/oblate"
 DOCUMENTATION = "https://oblate.readthedocs.io"
 LICENSE = "MIT"
