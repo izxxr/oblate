@@ -78,6 +78,10 @@ class Schema(metaclass=_SchemaMeta):
     ----------
     data: Mapping[:class:`str`, Any]
         The raw data to initialize the schema with.
+    state:
+        The initial value for :attr:`SchemaContext.state` attribute. This can
+        be used to store and propagate custom stateful information which may be
+        useful in deserialization of data.
     ignore_extra: :class:`bool`
         Whether to ignore extra (invalid) fields in the data.
 
@@ -93,11 +97,19 @@ class Schema(metaclass=_SchemaMeta):
         '_context',
     )
 
-    def __init__(self, data: Mapping[str, Any], /, *, ignore_extra: bool = MISSING):
+    def __init__(
+            self,
+            data: Mapping[str, Any],
+            /,
+            *,
+            state: Any = None,
+            ignore_extra: bool = MISSING,
+        ):
+
         token = current_schema.set(self)
         try:
             self._field_values: Dict[str, Any] = {}
-            self._context = SchemaContext(self)
+            self._context = SchemaContext(self, state=state)
             self._prepare_from_data(data, ignore_extra=ignore_extra)
         finally:
             current_schema.reset(token)
