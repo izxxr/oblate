@@ -28,7 +28,7 @@ import oblate
 # A schema defines the structure of data
 class Author(oblate.Schema):
     name = fields.String()  # Field must be a string
-    bio = fields.String(null=True)  # Field allows None to be passed
+    bio = fields.String(none=True)  # Field allows None to be passed
     rating = fields.Integer(default=0)  # Optional field that defaults to 0
 
     # Apply custom validations to a field
