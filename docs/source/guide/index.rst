@@ -9,7 +9,7 @@ reference, this section covers the topics in a much easy to understand and frien
 If you're looking for a quickstart tutorial, check the :ref:`tutorial` section.
 
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 2
 
     schema
     fields

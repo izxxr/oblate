@@ -109,3 +109,105 @@ Output::
 
     The serialized data is not always the same as the data used to initialize
     the schema.
+
+Slotted Schemas
+---------------
+
+By default, all schemas have defined ``__slots__`` for performance purposes. This however, prohibits
+adding custom attributes to the schema::
+
+    class User(oblate.Schema):
+        id = fields.Integer()
+
+    user = User({'id': 1})
+    user.test = 'test'  # AttributeError
+
+In order to prevent this, it is recommended that you define your own slots::
+
+    class User(oblate.Schema):
+        __slots__ = (
+            'test',
+        )
+
+        id = fields.Integer()
+
+    user = User({'id': 1})
+    user.test = 'test'  # No error
+
+Alternatively, :attr:`SchemaConfig.slotted` can be set to ``False`` which would disable automatic
+``__slots__`` setting in :class:`Schema`.
+
+See :ref:`guide-config-schema-config` for information on manipulating schema configuration.
+
+Representation of schema
+------------------------
+
+All schemas have a ``__repr__`` defined which returns useful information when schema is printed.
+
+    class User(oblate.Schema):
+        id = fields.Integer()
+        username = fields.String()
+
+    user = User({'id': 1, 'username': 'John'})
+    print(user)  # User(id=1, username='John')
+
+You can also change the default ``__repr__`` by implementing your own::
+
+    class User(oblate.Schema):
+        id = fields.Integer()
+        username = fields.String()
+
+        def __repr__(self):
+            return f'User {self.id}: {self.username}'
+
+    user = User({'id': 1, 'username': 'John'})
+    print(user)  # User 1: John
+
+If you don't want Oblate to add a ``__repr__`` to schema, set :attr:`SchemaConfig.add_repr` to
+``False``. When this is done, no ``__repr__`` would be added by Oblate and Python's default ``__repr__``
+would be used.
+
+See :ref:`guide-config-schema-config` for information on manipulating schema configuration.
+
+Passing unknown fields
+----------------------
+
+You can dictate the behaviour when passing invalid or extra fields to the schema. By default, validation
+error is raised when this is done.::
+
+    class User(oblate.Schema):
+        id = fields.Integer()
+        username = fields.String()
+
+    user = User({'id': 1, 'username': 'John', 'extra': '1'})  # Error
+
+Error::
+
+    oblate.exceptions.ValidationError:
+    │
+    │ 1 validation error in schema 'User'
+    │
+    └── In field extra:
+        └── Invalid or unknown field.
+
+This can be changed by setting the :attr:`SchemaConfig.ignore_extra` option to ``True``::
+
+    class User(oblate.Schema):
+        id = fields.Integer()
+        username = fields.String()
+
+        class Config(oblate.SchemaConfig):
+            ignore_extra = True
+
+    user = User({'id': 1, 'username': 'John', 'extra': '1'})  # extra fields silently ignored
+
+``ignore_extra`` can be passed to :class:`Schema` initialization as keyword argument too. This
+argument overrides the value defined in config. Updating the schema also supports this option.::
+
+    user = User(data, ignore_extra=True)  # User.Config.ignore_extra ignored
+    user.update(new_data, ignore_extra=True)
+
+In both of these cases, the ``ignore_extra`` parameter takes priority over the value set for this
+configuration in the schema config.
+
+See :ref:`guide-config-schema-config` for information on manipulating schema configuration.
