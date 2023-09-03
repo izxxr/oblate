@@ -9,7 +9,7 @@ Focused around simplicity and flexibility, Oblate has the following features:
 - Robust with no compromise on performance and speed
 - Typed and plays well with static type checking
 
-[Documentation](https://oblate.readthedocs.io) • [Source Code](https://github.com/izxxr/oblate) • [Python Package Index](https://pypi.org/project/oblate)
+**[Documentation](https://oblate.readthedocs.io) • [Source Code](https://github.com/izxxr/oblate) • [Python Package Index](https://pypi.org/project/oblate)**
 
 ## Installation
 Oblate is available on PyPi and can be installed using pip.
