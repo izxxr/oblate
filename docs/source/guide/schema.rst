@@ -110,6 +110,19 @@ Output::
     The serialized data is not always the same as the data used to initialize
     the schema.
 
+Schema State
+------------
+
+``Schema.context.state`` (:attr:`SchemaContext.state`) is used to store and propagate stateful
+information which could be useful in deserialization or serialization. For more information,
+see :ref:`guide-contexts-context-states`.
+
+When initializing, the initial value of state can be set using the ``state`` parameter. This
+value can be accessed and manipulated by validators or user side code.::
+
+    schema = UserSchema(data, state={'key': 'value'})
+    print(schema.context.state)  # {'key': 'value'}
+
 Slotted Schemas
 ---------------
 
