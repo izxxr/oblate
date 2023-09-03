@@ -155,7 +155,7 @@ See :ref:`guide-config-schema-config` for information on manipulating schema con
 Representation of schema
 ------------------------
 
-All schemas have a ``__repr__`` defined which returns useful information when schema is printed.
+All schemas have a ``__repr__`` defined which returns useful information when schema is printed.::
 
     class User(oblate.Schema):
         id = fields.Integer()
