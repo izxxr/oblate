@@ -160,6 +160,9 @@ class Range(Validator[int]):
     )
 
     def __init__(self, lb: int = MISSING, ub: int = MISSING, /) -> None:
+        if lb is MISSING and ub is MISSING:
+            raise TypeError('Range() must take at least one argument')  # pragma: no cover
+
         if ub is MISSING:
             ub = lb
             lb = 0
