@@ -104,3 +104,40 @@ def test_validators_methods():
     User.id.add_validator(User.validate_raw_id)
     User.id.clear_validators()
     assert list(User.id.walk_validators()) == []
+
+
+def test_validators_range():
+    msg = 'Value must be in range {lb} to {ub} inclusive'
+
+    class User(oblate.Schema):
+        id = fields.Integer(validators=[validate.Range(1000, 9999)])
+
+    assert User({'id': 1020}).id == 1020
+    assert User({'id': 1000}).id == 1000
+    assert User({'id': 9999}).id == 9999
+
+    with pytest.raises(oblate.ValidationError, match=msg.format(lb='1000', ub='9999')):
+        User({'id': 900})
+    with pytest.raises(oblate.ValidationError, match=msg.format(lb='1000', ub='9999')):
+        User({'id': 10000})
+
+    class UserNoUB(oblate.Schema):
+        id = fields.Integer(validators=[validate.Range(10)])
+
+    assert UserNoUB({'id': 10}).id == 10
+    assert UserNoUB({'id': 0}).id == 0
+
+    with pytest.raises(oblate.ValidationError, match=msg.format(lb='0', ub='10')):
+        UserNoUB({'id': -2}).id
+    with pytest.raises(oblate.ValidationError, match=msg.format(lb='0', ub='10')):
+        UserNoUB({'id': 11}).id
+
+    class UserStd(oblate.Schema):
+        id = fields.Integer(validators=[validate.Range.from_standard(range(5))])  # 0, 1, 2, 3, 4
+
+    assert UserStd({'id': 2}).id == 2
+    assert UserStd({'id': 4}).id == 4
+
+    with pytest.raises(oblate.ValidationError, match=msg.format(lb='0', ub='4')):
+        UserStd({'id': 5}).id
+

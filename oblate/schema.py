@@ -131,8 +131,8 @@ class Schema(metaclass=_SchemaMeta):
         for name, member in members.items():
             if isinstance(member, Field):
                 member._bind(name, cls)
-                cls.__fields__[name] = member
-                cls.__load_fields__[member.load_key] = member
+                cls.__fields__[name] = member  # type: ignore
+                cls.__load_fields__[member.load_key] = member  # type: ignore
             elif callable(member) and hasattr(member, '__validator_field__'):
                 field = member.__validator_field__
                 if isinstance(field, str):

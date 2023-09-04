@@ -8,7 +8,7 @@ Copyright (C) Izhar Ahmad 2023, licensed under MIT license.
 See LICENSE at project's root for more information.
 """
 
-__version__ = '1.0.0'
+__version__ = '1.1.0'
 __author__  = 'Izhar Ahmad (izxxr)'
 
 from oblate import fields as fields

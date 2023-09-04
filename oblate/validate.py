@@ -23,6 +23,8 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Union, TypeVar, Callable, Generic, Any, Literal, overload
+from typing_extensions import Self
+from oblate.utils import MISSING
 
 if TYPE_CHECKING:
     from oblate.fields.base import Field
@@ -33,6 +35,7 @@ if TYPE_CHECKING:
 __all__ = (
     'Validator',
     'field',
+    'Range',
 )
 
 SchemaT = TypeVar('SchemaT', bound='Schema')
@@ -131,3 +134,51 @@ def field(
         return func
 
     return __wrapper
+
+
+class Range(Validator[int]):
+    """Validates the range of a :class:`~fields.Integer` field.
+
+    Initialization of this validator is similar to Python's :func:`range`
+    function with an exception that upper bound is inclusive. That is:
+
+    - ``Range(5)`` must be between 0-5 inclusive (equivalent to ``Range(0, 5)``)
+    - ``Range(2, 10)`` must be between 2-10 inclusive
+
+    Parameters
+    ----------
+    lb: :class:`int`
+        The lower bound. This parameter acts as an upper bound if no ``ub`` is provided
+        and lower bound is defaulted to 0.
+    ub: :class:`int`
+        The upper bound. If not provided, ``lb`` is considered upper bound and 0 as
+        lower bound.
+    """
+    __slots__ = (
+        '_range',
+        '_msg',
+    )
+
+    def __init__(self, lb: int = MISSING, ub: int = MISSING, /) -> None:
+        if ub is MISSING:
+            ub = lb
+            lb = 0
+
+        self._msg = f'Value must be in range {lb} to {ub} inclusive'
+        self._range = range(lb, ub + 1)
+
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}({self._range.start}, {self._range.stop - 1})'  # pragma: no cover
+
+    def validate(self, value: int, context: LoadContext) -> Any:
+        assert value in self._range, self._msg
+
+    @classmethod
+    def from_standard(cls, obj: range, /) -> Self:
+        """Constructs a :class:`validate.Range` from the Python's :func:`range` object.
+
+        When constructed with this function, the returned range validator instance
+        would only include the integers accounted by the given standard :func:`range`
+        (i.e upper bound not inclusive).
+        """
+        return cls(obj.start, obj.stop - 1)

@@ -5,6 +5,14 @@ Changelog
 
 This page has changelogs for all releases of Oblate.
 
+v1.1.0
+------
+
+New features
+~~~~~~~~~~~~
+
+- Add :class:`validate.Range` validator
+
 v1.0.0
 ------
 

@@ -132,3 +132,21 @@ In order to turn a class-based validator into a raw validator, the ``raw`` param
 
     :class:`validate.Validator` is a typing generic and takes a single type argument which is
     the expected type of value that is being validated.
+
+Prebuilt Validators
+-------------------
+
+Some validators are provided by Oblate to suit common use cases. These validators are provided
+by the :mod:`oblate.validate` module. All validators provided by Oblate are class based and
+are registered the same way as described above.
+
+For example, the :class:`validate.Range` validator for validating integer ranges::
+
+    class User(oblate.Schema):
+        id = fields.Integer(validators=[validate.Range(100, 999)])
+
+    User({'id': 120})  # valid
+    User({'id': 1023})  # invalid
+    User({'id': 23})  # invalid
+
+All prebuilt validators are documented in :ref:`Validators section of API reference <api-validators-prebuilt-validators>`.
