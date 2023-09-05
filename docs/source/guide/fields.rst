@@ -322,6 +322,10 @@ Example::
     film = Film(data)
     print(film.actor.name)  # John
 
+The ``actor`` key in ``data`` can also take a ``Actor`` instance instead of raw data. If raw
+data is given, it is automatically converted to ``Actor`` instance. Similarly, if an instance
+is given, it is returned as-is.
+
 If an error occurs in a nested schema, the causative nested fields are indicated using indentation.
 
 Example invalid data::

@@ -39,10 +39,10 @@ __all__ = (
 SchemaT = TypeVar('SchemaT', bound=Schema)
 
 
-class Object(Field[Mapping[str, Any], SchemaT]):
-    """Field representing a :class:`Schema` object.
+class Object(Field[Union[Mapping[str, Any], SchemaT], SchemaT]):
+    """Field that deserializes to a :class:`Schema` instance.
 
-    This field is used for nested objects in raw data. The first argument
+    This field is used for nested schemas in raw data. The first argument
     when initializing this field is the schema class that is accepted by the
     field. For example::
 
@@ -93,14 +93,16 @@ class Object(Field[Mapping[str, Any], SchemaT]):
 
         return super().format_error(error_code, context)  # pragma: no cover
 
-    def value_load(self, value: Mapping[str, Any], context: LoadContext) -> SchemaT:
-        if not isinstance(value, collections.abc.Mapping):
-            raise self._call_format_error(self.ERR_INVALID_DATATYPE, context.schema, value)
+    def value_load(self, value: Union[Mapping[str, Any], SchemaT], context: LoadContext) -> SchemaT:
+        if isinstance(value, self.schema_cls):
+            return value
+        if isinstance(value, collections.abc.Mapping):
+            try:
+                return self.schema_cls(value)
+            except ValidationError as err:
+                raise FieldError(err._raw_std(include_message=False)) from None
 
-        try:
-            return self.schema_cls(context.value)  # type: ignore
-        except ValidationError as err:
-            raise FieldError(err._raw_std(include_message=False)) from None
+        raise self._call_format_error(self.ERR_INVALID_DATATYPE, context.schema, value)
 
     def value_dump(self, value: SchemaT, context: DumpContext) -> Mapping[str, Any]:
         return value.dump()

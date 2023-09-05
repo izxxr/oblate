@@ -11,7 +11,12 @@ v1.1.0
 New features
 ~~~~~~~~~~~~
 
-- Add :class:`validate.Range` validator
+- Add :class:`validate.Range` validator.
+
+Improvements
+~~~~~~~~~~~~
+
+- :class:`fields.Object` field now supports passing :class:`Schema` instances directly instead of raw data.
 
 v1.0.0
 ------
