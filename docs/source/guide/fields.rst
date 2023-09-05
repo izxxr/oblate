@@ -351,3 +351,39 @@ Raised error::
     │
     └── In field rating:
         └── This field is required.
+
+You can also pass ``init_kwargs`` parameter to :class:`~fields.Object` to include any keyword
+parameters that should be passed to schema while initializing it.
+
+For example, in order to ignore :ref:`unknown fields <guide-schema-passing-unknown-fields>`::
+
+    class Film(oblate.Schema):
+        name = fields.String()
+        rating = fields.Integer()
+        actor = fields.Object(Actor, init_kwargs=dict(ignore_extra=True))
+
+    data = {
+        'name': 'A nice film',
+        'rating': 10,
+        'actor': {
+            'name': 'John',
+            'film_count': 13,
+            'invalid_field': 'test',
+        }
+    }
+    film = Film(data)  # No error, invalid fields ignored silently
+
+.. note::
+
+    ``init_kwargs`` are only used when the raw data is passed to object field. In a case,
+    where the schema instance is passed directly to object field, ``init_kwargs`` is not
+    used as schema is already initialized.
+
+    For example, ``init_kwargs`` would not be used in this case::
+
+        actor = Actor({'name': 'John', 'film_count': 13})
+        data = {
+            'name': 'A nice film',
+            'rating': 10,
+            'actor': actor,
+        }

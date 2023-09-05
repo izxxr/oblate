@@ -12,6 +12,7 @@ New features
 ~~~~~~~~~~~~
 
 - Add :class:`validate.Range` validator.
+- Add ``init_kwargs`` parameter in :class:`fields.Object` to support passing initialization arguments.
 
 Improvements
 ~~~~~~~~~~~~

@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Type, Mapping, TypeVar, Any, Union
 from oblate.fields.base import Field
 from oblate.schema import Schema
 from oblate.exceptions import FieldError, ValidationError
+from oblate.utils import MISSING
 
 import collections.abc
 
@@ -73,18 +74,26 @@ class Object(Field[Union[Mapping[str, Any], SchemaT], SchemaT]):
     ----------
     schema_cls: Type[:class:`Schema`]
         The schema class that the field accepts.
+    init_kwargs: Mapping[:class:`str`, Any]
+        The mapping of keyword arguments that should be passed to ``schema_cls`` while
+        initializing it.
+
+        This parameter is only taken into account when raw data is being deserialized to
+        ``schema_cls``. If a ``schema_cls`` instance is passed, this parameter is ignored.
     """
     ERR_INVALID_DATATYPE = 'object.invalid_datatype'
 
     __slots__ = (
         'schema_cls',
+        'init_kwargs',
     )
 
-    def __init__(self, schema_cls: Type[SchemaT], **kwargs: Any) -> None:
+    def __init__(self, schema_cls: Type[SchemaT], *, init_kwargs: Mapping[str, Any] = MISSING, **kwargs: Any):
         if not issubclass(schema_cls, Schema):
             raise TypeError('schema_cls must be a subclass of Schema')  # pragma: no cover
 
         self.schema_cls = schema_cls
+        self.init_kwargs: Mapping[str, Any] = init_kwargs if init_kwargs is not MISSING else {}
         super().__init__(**kwargs)
 
     def format_error(self, error_code: Any, context: ErrorContext) -> Union[FieldError, str]:
@@ -98,7 +107,7 @@ class Object(Field[Union[Mapping[str, Any], SchemaT], SchemaT]):
             return value
         if isinstance(value, collections.abc.Mapping):
             try:
-                return self.schema_cls(value)
+                return self.schema_cls(value, **self.init_kwargs)
             except ValidationError as err:
                 raise FieldError(err._raw_std(include_message=False)) from None
 
