@@ -353,7 +353,7 @@ class Field(Generic[RawValueT, FinalValueT]):
         """Formats the error.
 
         This method can be overriden to add custom error messages for default
-        errors. It should return a :class:`FieldError` or :class`str`.
+        errors. It should return a :class:`FieldError` or :class:`str`.
 
         .. note::
 
