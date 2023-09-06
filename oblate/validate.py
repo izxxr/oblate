@@ -167,7 +167,11 @@ class Range(Validator[int]):
             ub = lb
             lb = 0
 
-        self._msg = f'Value must be in range {lb} to {ub} inclusive'
+        if ub == lb:
+            self._msg = f'Value must be equal to {lb}'
+        else:
+            self._msg = f'Value must be in range {lb} to {ub} inclusive'
+
         self._range = range(lb, ub + 1)
 
     def __repr__(self) -> str:

@@ -128,9 +128,9 @@ def test_validators_range():
     assert UserNoUB({'id': 0}).id == 0
 
     with pytest.raises(oblate.ValidationError, match=msg.format(lb='0', ub='10')):
-        UserNoUB({'id': -2}).id
+        UserNoUB({'id': -2})
     with pytest.raises(oblate.ValidationError, match=msg.format(lb='0', ub='10')):
-        UserNoUB({'id': 11}).id
+        UserNoUB({'id': 11})
 
     class UserStd(oblate.Schema):
         id = fields.Integer(validators=[validate.Range.from_standard(range(5))])  # 0, 1, 2, 3, 4
@@ -139,5 +139,12 @@ def test_validators_range():
     assert UserStd({'id': 4}).id == 4
 
     with pytest.raises(oblate.ValidationError, match=msg.format(lb='0', ub='4')):
-        UserStd({'id': 5}).id
+        UserStd({'id': 5})
 
+    class UserExact(oblate.Schema):
+        id = fields.Integer(validators=[validate.Range(2, 2)])
+
+    assert UserExact({'id': 2}).id == 2
+
+    with pytest.raises(oblate.ValidationError, match='Value must be equal to 2'):
+        UserExact({'id': 5})
