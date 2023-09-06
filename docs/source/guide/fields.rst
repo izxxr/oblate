@@ -402,3 +402,22 @@ Example::
         something = fields.Any()
 
     Model({'something': 'any arbitrary type'})
+
+
+.. _guide-fields-literal-field:
+
+Literal field
+-------------
+
+The :class:`fields.Literal` acts in a similar fashion to :class:`typing.Literal`. The field
+only accepts the values provided during initialization as literals.
+
+Example::
+
+    class User(oblate.Schema):
+        role = fields.Literal('owner', 'manager', 'employee')
+
+    User({'role': 'owner'})  # OK
+    User({'role': 'manager'})  # OK
+    User({'role': 'employee'})  # OK
+    User({'role': 'unknown'})  # ValidationError raised

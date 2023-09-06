@@ -6,3 +6,6 @@ Typings
 
 .. autoclass:: oblate.fields.Any
     :members:
+
+.. autoclass:: oblate.fields.Literal
+    :members:
