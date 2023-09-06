@@ -387,3 +387,18 @@ For example, in order to ignore :ref:`unknown fields <guide-schema-passing-unkno
             'rating': 10,
             'actor': actor,
         }
+
+.. _guide-fields-no-validation-field:
+
+No validation field
+-------------------
+
+The :class:`fields.Any` is a field that performs no validation on the given value and returns
+it as-is. This is similar to ``typing.Any``.
+
+Example::
+
+    class Model(oblate.Schema):
+        something = fields.Any()
+
+    Model({'something': 'any arbitrary type'})

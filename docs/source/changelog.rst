@@ -12,6 +12,7 @@ New features
 ~~~~~~~~~~~~
 
 - Add :class:`validate.Range` validator.
+- Add :class:`fields.Any` as a no validation field
 - Add ``init_kwargs`` parameter in :class:`fields.Object` to support passing initialization arguments.
 
 Improvements
