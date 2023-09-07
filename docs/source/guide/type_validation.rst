@@ -1,6 +1,6 @@
 .. currentmodule:: oblate
 
-.. _guide-fields:
+.. _guide-typing-validation:
 
 Type Validation
 ===============
