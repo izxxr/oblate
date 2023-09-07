@@ -181,6 +181,9 @@ class ErrorContext:
         The field that the error belongs to.
     schema: :class:`Schema`
         The schema that the error was caused from.
+    metadata: Dict[:class:`str`, Any]
+        The extra metadata attached to the error. This dictionary is populated by library and includes
+        extra error information for certain error codes.
     """
     __slots__ = (
         'schema',

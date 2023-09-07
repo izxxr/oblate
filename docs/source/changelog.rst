@@ -16,6 +16,7 @@ New features
 - Add :class:`fields.Any` field as a no validation field.
 - Add :class:`fields.Literal` field to accept pre-defined literal values.
 - Add :class:`fields.Union` for basic union type validation.
+- Add :class:`ErrorContext.metadata` for storing extra error information.
 - Add ``init_kwargs`` parameter in :class:`fields.Object` to support passing initialization arguments.
 
 Improvements
