@@ -61,6 +61,11 @@ class Literal(Field[_T, _T]):
 
     This works in a similar fashion as :class:`typing.Literal`.
 
+    Attributes
+    ----------
+    ERR_INVALID_VALUE:
+        Error raised when the given value is not from the provided literal value.
+
     Parameters
     ----------
     *values:
@@ -96,6 +101,11 @@ class Union(Field[_T, _T]):
 
     This is similar to the :class:`typing.Union` type. Note that this field
     only performs simple :func:`isinstance` check on the given value.
+
+    Attributes
+    ----------
+    ERR_INVALID_VALUE:
+        Error raised when the given value is not from the provided types.
 
     Parameters
     ----------

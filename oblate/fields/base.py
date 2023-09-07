@@ -212,12 +212,20 @@ class Field(Generic[RawValueT, FinalValueT]):
 
         return errors
 
-    def _call_format_error(self, error_code: str, schema: Schema, value: Any = MISSING) -> FieldError:
+    def _call_format_error(
+            self,
+            error_code: str,
+            schema: Schema,
+            value: Any = MISSING,
+            metadata: Dict[str, Any] = MISSING,
+        ) -> FieldError:
+
         ctx = ErrorContext(
             error_code=error_code,
             value=value,
             field=self,
             schema=schema,
+            metadata=metadata,
         )
 
         error = self.format_error(error_code, ctx)

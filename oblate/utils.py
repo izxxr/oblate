@@ -22,8 +22,29 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Union,
+    Sequence,
+    List,
+    Tuple,
+    Dict,
+    TypedDict,
+    Required,
+    NotRequired,
+    Literal,
+    Type,
+    is_typeddict,
+    get_type_hints,
+    get_origin,
+    get_args,
+    overload,
+)
 from contextvars import ContextVar
+
+import types
+import collections.abc
 
 if TYPE_CHECKING:
     from oblate.contexts import _BaseValueContext
@@ -34,6 +55,9 @@ __all__ = (
     'MISSING',
     'current_context',
     'current_field_key',
+    'validate_value',
+    'validate_struct',
+    'validate_typed_dict',
 )
 
 class MissingType:
@@ -57,3 +81,145 @@ MISSING: Any = MissingType()
 current_context: ContextVar[_BaseValueContext] = ContextVar('_current_context')
 current_field_key: ContextVar[str] = ContextVar('current_field_key')
 current_schema: ContextVar[Schema] = ContextVar('current_schema')
+
+
+@overload
+def validate_struct(value: Any, tp: Any, stack_errors: Literal[False] = False) -> Tuple[bool, str]:
+    ...
+
+@overload
+def validate_struct(value: Any, tp: Any, stack_errors: Literal[True] = True) -> Tuple[bool, List[str]]:
+    ...
+
+def validate_struct(value: Any, tp: Any, stack_errors: bool = False) -> Tuple[bool, Union[List[str], str]]:
+    origin = get_origin(tp)
+    args = get_args(tp)
+    errors: List[str] = []
+
+    if origin is dict:
+        if not isinstance(value, dict):
+            return False, (['Must be a valid dictionary'] if stack_errors else 'Must be a dictionary')
+        ktp = args[0]
+        vtp = args[1]
+        validated = True
+        msg = ''
+        for idx, (k, v) in enumerate(value.items()):  # type: ignore
+            validated, fail_msg = validate_value(k, ktp)
+            if not validated:
+                msg = f'Dict key at index {idx}: {fail_msg}'
+            else:
+                validated, fail_msg = validate_value(v, vtp)
+                if not validated:
+                    msg = f'Dict value for key {k!r}: {fail_msg}'
+            if not validated and stack_errors:
+                errors.append(msg)
+            if not validated and not stack_errors:
+                break
+        return validated, (errors if stack_errors else msg)
+
+    if origin in (list, set, Sequence):
+        vtp = args[0]
+        if not isinstance(value, collections.abc.Sequence):
+            return False, (['Must be a valid sequence'] if stack_errors else 'Must be a valid sequence')
+        validated = True
+        msg = ''
+        for idx, v in enumerate(value):  # type: ignore
+            validated, fail_msg = validate_value(v, vtp)
+            if not validated:
+                msg = f'List item at index {idx}: {fail_msg}'
+                if stack_errors:
+                    errors.append(msg)
+                else:
+                    break
+        return validated, (errors if stack_errors else msg)
+
+    if origin is tuple:
+        if not isinstance(value, tuple):
+            return False, (['Must be a tuple'] if stack_errors else 'Must be a tuple')
+        validated = False
+        msg = ''
+        for idx, tp in enumerate(args):
+            try:
+                v = value[idx]  # type: ignore
+            except IndexError:
+                validated = False
+                msg = f'Tuple length must be {len(args)} (current length: {len(value)})'  # type: ignore
+                break
+            else:
+                validated, fail_msg = validate_value(v, tp)
+                if not validated:
+                    msg = f'Tuple item at index {idx}: {fail_msg}'
+                    if stack_errors:
+                        errors.append(msg)
+                    else:
+                        break
+        return validated, (errors if stack_errors else msg)
+
+    return True, ([] if stack_errors else '')
+
+def validate_value(value: Any, tp: Any) -> Tuple[bool, Union[str, List[str]]]:
+    origin = get_origin(tp)
+    args = get_args(tp)
+
+    if tp is Any:
+        return True, ''
+
+    if origin is None:
+        if is_typeddict(tp):
+            try:
+                errors = validate_typed_dict(tp, value)
+            except ValueError as e:
+                return False, str(e)
+            else:
+                if errors:
+                    return False, errors[0]
+
+        return isinstance(value, tp), f'Must be of type {tp.__name__}'
+
+    if origin in (Required, NotRequired):
+        origin = get_origin(args[0])
+
+    if origin in (list, set, dict, tuple, Sequence):
+        return validate_struct(value, tp)
+
+    if origin in (Union, types.UnionType):
+        for tp in args:
+            validated, _ = validate_value(value, tp)
+            if validated:
+                return True, ''
+        return False, f'Must be one of types ({", ".join(tp.__name__ for tp in args)})'
+
+    if origin is Literal:
+        if value not in args:
+           return False, f'Value must be one of: {", ".join(v for v in args)}'
+        return True, ''
+
+    return True, ''
+
+def validate_typed_dict(cls: Type[TypedDict], data: Dict[Any, Any]) -> List[str]:
+    if not is_typeddict(cls):
+        raise TypeError('cls must be TypedDict')
+    if not isinstance(data, dict):
+        raise ValueError(f'Must be a {cls.__name__} dictionary')
+
+    typehints = get_type_hints(cls, include_extras=True)
+    errors: List[str] = []
+
+    for key, value in data.items():
+        try:
+            tp = typehints.pop(key)
+        except KeyError:
+            errors.append(f'Invalid key {key!r}')
+        else:
+            validated, msg = validate_value(value, tp)
+            if not validated:
+                errors.append(f'Validation failed for {key!r}: {msg}')
+
+    if not cls.__total__:
+        return errors
+
+    for key, value in typehints.items():
+        if get_origin(value) is not NotRequired:
+            errors.append(f'Key {key!r} is required')
+
+    return errors

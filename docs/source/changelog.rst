@@ -12,6 +12,7 @@ New features
 ~~~~~~~~~~~~
 
 - Add :class:`validate.Range` validator.
+- Add :class:`fields.Dict` and :class:`fields.TypedDict` for handling dictionaries
 - Add :class:`fields.Any` field as a no validation field.
 - Add :class:`fields.Literal` field to accept pre-defined literal values.
 - Add :class:`fields.Union` for basic union type validation.

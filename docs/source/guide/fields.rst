@@ -451,3 +451,76 @@ Example::
 
     This field only performs simple :func:`isinstance` check without any special
     validation of its own.
+
+.. _guide-fields-data-structures:
+
+Data Structures Fields
+----------------------
+
+Oblate also provides fields that accept various data structures. These fields also provide
+basic type validation to validate the data associated with the structure.
+
+.. note::
+
+    For information on how type validation works along with the limitations, please see the
+    :ref:`guide-type-validation` page.
+
+.. _guide-fields-data-structures-dict:
+
+Dict
+~~~~
+
+:class:`fields.Dict` field accepts dictionaries. This field can either take an arbitrary dictionary
+with no data validation or can also perform type validation on dictionary.
+
+Example::
+
+    class Model(oblate.Schema):
+        data = fields.Dict()
+
+    Model({'data': {'test': 'value'}})  # accepts any dictionary
+
+It also supports :ref:`type validation <guide-type-validation>`::
+
+    from typing import Any
+
+    class Model(oblate.Schema):
+        data = fields.Dict(str, Any)
+
+    Model({'data': {'test': 'value'}})  # OK
+    Model({'data': {'test': 1}})  # OK
+    Model({'data': {1: 'value'}})  # Error: Dict key at index 1: must be of type str
+
+TypedDict
+~~~~~~~~~
+
+:class:`fields.TypedDict` field accepts dictionaries which are validated using the :class:`typing.TypedDict`.
+
+Example::
+
+    from typing import TypedDict, Required, NotRequired, Union
+
+    class ModelData(TypedDict):
+        id: Union[int, str]
+        name: str
+        rating: NotRequired[int]
+
+    class Model(oblate.Schema):
+        data = fields.TypedDict(ModelData)
+
+    Model({'data': {'id': '123', 'name': 'John'}})  # OK
+    Model({'data': {'id': 123, 'name': 'John', 'rating': 3}})  # OK
+
+Errors are also handled properly in TypedDict errors::
+
+    Model({'data': {'id': 3.14}})
+
+Outputs::
+
+    oblate.exceptions.ValidationError:
+    │
+    │ 1 validation error in schema 'Model'
+    │
+    └── In field data:
+        ├── Validation failed for 'id': Must be one of types (int, str)
+        └── Key 'name' is required

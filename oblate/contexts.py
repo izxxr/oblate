@@ -185,6 +185,7 @@ class ErrorContext:
     __slots__ = (
         'schema',
         'error_code',
+        'metadata',
         '_value',
         '_field',
     )
@@ -196,10 +197,12 @@ class ErrorContext:
             schema: Schema,
             field: Field[Any, Any],
             value: Any = MISSING,
+            metadata: Dict[str, Any] = MISSING,
         ):
 
         self.error_code = error_code
         self.schema = schema
+        self.metadata = metadata if metadata is not MISSING else {}
         self._field = field
         self._value = value
 
