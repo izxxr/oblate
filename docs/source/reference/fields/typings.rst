@@ -12,3 +12,6 @@ Typings
 
 .. autoclass:: oblate.fields.Union
     :members:
+
+.. autoclass:: oblate.fields.TypeExpr
+    :members:

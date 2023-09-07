@@ -25,6 +25,7 @@ from __future__ import annotations
 from oblate import fields
 
 import oblate
+import typing as t
 import pytest
 
 def test_field_any():
@@ -62,3 +63,13 @@ def test_field_union():
 
     with pytest.raises(oblate.ValidationError, match="2 is not compatible with types: str, bool"):
         _Schema({'value': 2})
+
+def test_field_type_expr():
+    class _Schema(oblate.Schema):
+        data = fields.TypeExpr(t.Tuple[t.Union[str, float], int])
+
+    assert _Schema({'data': ('test', 3)}).data == ('test', 3)
+    assert _Schema({'data': ('test', 3)}).dump()['data'] == ('test', 3)
+
+    with pytest.raises(oblate.ValidationError, match='Tuple item at index 0'):
+        _Schema({'data': (3, 3)})

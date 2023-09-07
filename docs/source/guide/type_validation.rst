@@ -1,6 +1,6 @@
 .. currentmodule:: oblate
 
-.. _guide-typing-validation:
+.. _guide-type-validation:
 
 Type Validation
 ===============
@@ -14,16 +14,16 @@ Type validation example
 Type validation is provided by various fields. The most common examples are data structure fields such as
 :class:`fields.TypedDict` or :class:`fields.Dict` etc.
 
-Lets take :class:`fields.Dict` as an example::
+Lets take :class:`fields.TypeExpr` as an example::
 
     from typing import Tuple, Union
 
     class Model(oblate.Schema):
-        data = fields.Dict(int, Union[str, Tuple[int, str]])
+        data = fields.TypeExr(Tuple[Union[str, float], int])
 
-    Model({'data': {1: 'test'}})  # OK
-    Model({'data': {2: (1, 'test')}})  # OK
-    Model({'data': {1: 2}})  # Validation error
+    Model({'data': ('3', 0)})  # OK
+    Model({'data': (3.14, 3)})  # OK
+    Model({'data': (3.14, 3)})  # Validation error
 
 Error raised in case validation fails::
 
@@ -32,20 +32,8 @@ Error raised in case validation fails::
     │ 1 validation error in schema 'Model'
     │
     └── In field data:
-        └── Dict value for key 1: Must be one of types (str, Tuple)
+        └── Tuple item at index 0: Must be one of types (str, float)
 
-The tuple is validated too::
-
-    Model({'data': {1: ('test', 2)}})
-
-Results in::
-
-    oblate.exceptions.ValidationError:
-    │
-    │ 1 validation error in schema 'Model'
-    │
-    └── In field data:
-        └── Dict value for key 1: Tuple item at index 0: Must be of type int
 
 Supported types and limitations
 -------------------------------

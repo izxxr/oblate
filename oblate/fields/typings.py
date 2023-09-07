@@ -23,6 +23,8 @@
 from __future__ import annotations
 
 from oblate.fields.base import Field
+from oblate.exceptions import FieldError
+from oblate import utils
 
 # typing imported as t to avoid name conflict with classes
 # defined in this module
@@ -30,12 +32,12 @@ import typing as t
 
 if t.TYPE_CHECKING:  # pragma: no cover
     from oblate.contexts import LoadContext, DumpContext, ErrorContext
-    from oblate.exceptions import FieldError
 
 __all__ = (
     'Any',
     'Literal',
     'Union',
+    'TypeExpr',
 )
 
 _T = t.TypeVar('_T')
@@ -133,6 +135,45 @@ class Union(Field[_T, _T]):
                 return value
 
         raise self._call_format_error(self.ERR_INVALID_VALUE, context.schema, value)
+
+    def value_dump(self, value: _T, context: DumpContext) -> _T:
+        return value
+
+
+class TypeExpr(Field[_T, _T]):
+    """A field that accepts value compatible with given type expression.
+
+    For the list of supported types and limitations of this field, please see
+    the :ref:`guide-type-validation` section.
+
+    Parameters
+    ----------
+    tp:
+        The type expression that should be used to validate the type of
+        given value.
+    """
+    __slots__ = (
+        '_tp',
+    )
+
+    ERR_TYPE_VALIDATION_FAILED = 'type_expr.type_validation_failed'
+
+    def __init__(self, tp: t.Type[_T], **kwargs: t.Any):
+        self._tp = tp
+        super().__init__(**kwargs)
+
+    def format_error(self, error_code: t.Any, context: ErrorContext) -> t.Union[FieldError, str]:
+        if error_code == self.ERR_TYPE_VALIDATION_FAILED:
+            return FieldError(context.metadata['type_validation_fail_errors'])
+
+        return super().format_error(error_code, context)  # pragma: no cover
+
+    def value_load(self, value: t.Any, context: LoadContext) -> _T:
+        validated, errors = utils.validate_value(value, self._tp)
+        if not validated:
+            metadata = {'type_validation_fail_errors': errors}
+            raise self._call_format_error(self.ERR_TYPE_VALIDATION_FAILED, context.schema, value, metadata)
+        return value
 
     def value_dump(self, value: _T, context: DumpContext) -> _T:
         return value

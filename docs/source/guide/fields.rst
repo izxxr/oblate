@@ -452,6 +452,17 @@ Example::
     This field only performs simple :func:`isinstance` check without any special
     validation of its own.
 
+.. _guide-fields-typings-field-type-expr:
+
+Type Expression
+~~~~~~~~~~~~~~~
+
+:class:`fields.TypeExpr` takes raw type expression and validates and deserializes the given value
+using this expression.
+
+For more information on the supported types and how this field works, see the :ref:`guide-type-validation`
+page in the guide.
+
 .. _guide-fields-data-structures:
 
 Data Structures Fields
