@@ -14,6 +14,7 @@ New features
 - Add :class:`validate.Range` validator.
 - Add :class:`fields.Any` field as a no validation field.
 - Add :class:`fields.Literal` field to accept pre-defined literal values.
+- Add :class:`fields.Union` for basic union type validation.
 - Add ``init_kwargs`` parameter in :class:`fields.Object` to support passing initialization arguments.
 
 Improvements

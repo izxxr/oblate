@@ -35,6 +35,7 @@ if t.TYPE_CHECKING:  # pragma: no cover
 __all__ = (
     'Any',
     'Literal',
+    'Union',
 )
 
 _T = t.TypeVar('_T')
@@ -87,4 +88,41 @@ class Literal(Field[_T, _T]):
         return value
 
     def value_dump(self, value: _T, context: DumpContext) -> t.Any:
+        return value
+
+
+class Union(Field[_T, _T]):
+    """A field that accepts values of any of the given data types.
+
+    This is similar to the :class:`typing.Union` type. Note that this field
+    only performs simple :func:`isinstance` check on the given value.
+
+    Parameters
+    ----------
+    *types: :class:`type`
+        The list of types to accept.
+    """
+    __slots__ = ('_types', '_msg')
+
+    ERR_INVALID_VALUE = 'union.invalid_value'
+
+    def __init__(self, *types: t.Type[_T], **kwargs: t.Any):
+        self._types = types
+        self._msg = '{value!r} is not compatible with types: ' + ", ".join(tp.__name__ for tp in self._types)
+        super().__init__(**kwargs)
+
+    def format_error(self, error_code: t.Any, context: ErrorContext) -> t.Union[FieldError, str]:
+        if error_code == self.ERR_INVALID_VALUE:
+            return self._msg.format(value=context.get_value())
+
+        return super().format_error(error_code, context)  # pragma: no cover
+
+    def value_load(self, value: t.Any, context: LoadContext) -> _T:
+        for tp in self._types:
+            if isinstance(value, tp):
+                return value
+
+        raise self._call_format_error(self.ERR_INVALID_VALUE, context.schema, value)
+
+    def value_dump(self, value: _T, context: DumpContext) -> _T:
         return value

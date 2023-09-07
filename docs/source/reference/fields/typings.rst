@@ -9,3 +9,6 @@ Typings
 
 .. autoclass:: oblate.fields.Literal
     :members:
+
+.. autoclass:: oblate.fields.Union
+    :members:

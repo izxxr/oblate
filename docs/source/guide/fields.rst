@@ -421,3 +421,25 @@ Example::
     User({'role': 'manager'})  # OK
     User({'role': 'employee'})  # OK
     User({'role': 'unknown'})  # ValidationError raised
+
+.. _guide-fields-union-field:
+
+Union field
+-----------
+
+The :class:`fields.Union` field accepts value of predefined types. This is similar to how
+:class:`typing.Union` works.
+
+Example::
+
+    class User(oblate.Schema):
+        phone_number = fields.Union(str, int)
+
+    User({'phone_number': '+16362326961'})  # OK
+    User({'phone_number': 6362326961})  # OK
+    User({'phone_number': False})  # ValidationError
+
+.. note::
+
+    This field only performs simple :func:`isinstance` check without any special
+    validation of its own.

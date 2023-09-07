@@ -51,3 +51,14 @@ def test_field_literal():
 
     with pytest.raises(oblate.ValidationError, match="Value must be one of: 'test', 1, 3.14"):
         _Schema({'value': 'invalid'})
+
+def test_field_union():
+    class _Schema(oblate.Schema):
+        value = fields.Union(str, bool)
+
+    assert _Schema({'value': 'test'}).value == 'test'
+    assert _Schema({'value': False}).value == False
+    assert _Schema({'value': 'raw'}).dump()['value'] == 'raw'
+
+    with pytest.raises(oblate.ValidationError, match="2 is not compatible with types: str, bool"):
+        _Schema({'value': 2})
