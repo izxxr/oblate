@@ -26,7 +26,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Union,
-    Sequence,
     List,
     Tuple,
     Dict,
@@ -98,7 +97,7 @@ def validate_struct(value: Any, tp: Any, stack_errors: bool = False) -> Tuple[bo
 
     if origin is dict:
         if not isinstance(value, dict):
-            return False, (['Must be a valid dictionary'] if stack_errors else 'Must be a dictionary')
+            return False, (['Must be a valid dictionary'] if stack_errors else 'Must be a valid dictionary')
         ktp = args[0]
         vtp = args[1]
         validated = True
@@ -117,25 +116,25 @@ def validate_struct(value: Any, tp: Any, stack_errors: bool = False) -> Tuple[bo
                 break
         return validated, (errors if stack_errors else msg)
 
-    if origin in (list, set, Sequence):
+    if origin in (list, set, collections.abc.Sequence):
         vtp = args[0]
-        if not isinstance(value, collections.abc.Sequence):
-            return False, (['Must be a valid sequence'] if stack_errors else 'Must be a valid sequence')
+        if not isinstance(value, origin):
+            return False, ([f'Must be a valid {origin.__name__.lower()}'] if stack_errors else f'Must be a valid {origin.__name__.lower()}')
         validated = True
         msg = ''
         for idx, v in enumerate(value):  # type: ignore
             validated, fail_msg = validate_value(v, vtp)
             if not validated:
-                msg = f'List item at index {idx}: {fail_msg}'
+                msg = f'Sequence item at index {idx}: {fail_msg}'
                 if stack_errors:
-                    errors.append(msg)
+                    errors.append(msg)  # pragma: no cover
                 else:
                     break
         return validated, (errors if stack_errors else msg)
 
     if origin is tuple:
         if not isinstance(value, tuple):
-            return False, (['Must be a tuple'] if stack_errors else 'Must be a tuple')
+            return False, ([f'Must be a {len(args)}-tuple'] if stack_errors else f'Must be a {len(args)}-tuple')
         validated = False
         msg = ''
         for idx, tp in enumerate(args):
@@ -150,12 +149,12 @@ def validate_struct(value: Any, tp: Any, stack_errors: bool = False) -> Tuple[bo
                 if not validated:
                     msg = f'Tuple item at index {idx}: {fail_msg}'
                     if stack_errors:
-                        errors.append(msg)
+                        errors.append(msg)  # pragma: no cover
                     else:
                         break
         return validated, (errors if stack_errors else msg)
 
-    return True, ([] if stack_errors else '')
+    return True, ([] if stack_errors else '')  # pragma: no cover
 
 def validate_value(value: Any, tp: Any) -> Tuple[bool, Union[str, List[str]]]:
     origin = get_origin(tp)
@@ -168,18 +167,19 @@ def validate_value(value: Any, tp: Any) -> Tuple[bool, Union[str, List[str]]]:
         if is_typeddict(tp):
             try:
                 errors = validate_typed_dict(tp, value)
-            except ValueError as e:
+            except ValueError as e:  # pragma: no cover
                 return False, str(e)
             else:
                 if errors:
                     return False, errors[0]
+                return True, ''
 
         return isinstance(value, tp), f'Must be of type {tp.__name__}'
 
     if origin in (Required, NotRequired):
         origin = get_origin(args[0])
 
-    if origin in (list, set, dict, tuple, Sequence):
+    if origin in (list, set, dict, tuple, collections.abc.Sequence):
         return validate_struct(value, tp)
 
     if origin in (Union, types.UnionType):
@@ -191,16 +191,16 @@ def validate_value(value: Any, tp: Any) -> Tuple[bool, Union[str, List[str]]]:
 
     if origin is Literal:
         if value not in args:
-           return False, f'Value must be one of: {", ".join(v for v in args)}'
+           return False, f'Value must be one of: {", ".join(repr(v) for v in args)}'
         return True, ''
 
     return True, ''
 
 def validate_typed_dict(cls: Type[TypedDict], data: Dict[Any, Any]) -> List[str]:
     if not is_typeddict(cls):
-        raise TypeError('cls must be TypedDict')
+        raise TypeError('cls must be TypedDict')  # pragma: no cover
     if not isinstance(data, dict):
-        raise ValueError(f'Must be a {cls.__name__} dictionary')
+        raise ValueError(f'Must be a {cls.__name__} dictionary')  # pragma: no cover
 
     typehints = get_type_hints(cls, include_extras=True)
     errors: List[str] = []

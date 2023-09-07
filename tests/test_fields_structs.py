@@ -73,3 +73,14 @@ def test_field_typed_dict():
     with pytest.raises(oblate.ValidationError, match="Invalid key 'invalid'"):
         _Schema({'data': {'invalid': 2}})
 
+    # TODO: Add more tests for optional, total and NotRequired stuff
+
+    class DataOptional(t.TypedDict, total=False):
+        integer: int
+        string: str
+        maybe: t.NotRequired[str]
+
+    class _SchemaOptional(oblate.Schema):
+        data = fields.TypedDict(DataOptional)
+
+    assert _SchemaOptional({'data': {}}).data == {}

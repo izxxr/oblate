@@ -20,4 +20,110 @@
 # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # # SOFTWARE.
 
-# TODO: Add tests for type validation
+from __future__ import annotations
+
+import oblate
+import pytest
+import typing as t
+
+if t.TYPE_CHECKING:
+    class _Schema(oblate.Schema):
+        t: oblate.fields.TypeExpr[t.Any]
+
+def _make_schema_from_expr(expr: t.Any) -> t.Type[_Schema]:
+    class _Schema(oblate.Schema):
+        t = oblate.fields.TypeExpr(expr)
+
+    return _Schema
+
+def test_union():
+    schema = _make_schema_from_expr(t.Union[str, int])
+    assert schema(dict(t='text')).t == 'text'
+    assert schema(dict(t=1)).t == 1
+
+    with pytest.raises(oblate.ValidationError, match=r'Must be one of types \(str, int\)'):
+        schema(dict(t=3.14))
+
+def test_literal():
+    schema = _make_schema_from_expr(t.Literal['owner', 'admin', 'member'])
+    assert schema(dict(t='owner')).t == 'owner'
+    assert schema(dict(t='admin')).t == 'admin'
+    assert schema(dict(t='member')).t == 'member'
+
+    with pytest.raises(oblate.ValidationError, match=r"Value must be one of: 'owner', 'admin', 'member'"):
+        schema(dict(t='test'))
+
+def test_any():
+    schema = _make_schema_from_expr(t.Any)
+    assert schema(dict(t='text')).t == 'text'
+    assert schema(dict(t=1)).t == 1
+    assert schema(dict(t=3.14)).t == 3.14
+
+def test_sequence():
+    schema = _make_schema_from_expr(t.Sequence[str])
+    assert schema(dict(t=['t', 't2', 't3'])).t == ['t', 't2', 't3']
+    assert schema(dict(t=('t', 't2', 't3'))).t == ('t', 't2', 't3')
+
+    with pytest.raises(oblate.ValidationError, match=r"Sequence item at index 2: Must be of type str"):
+        schema(dict(t=['t', 't2', 3]))
+
+def test_list():
+    schema = _make_schema_from_expr(t.List[str])
+    assert schema(dict(t=['t', 't2', 't3'])).t == ['t', 't2', 't3']
+
+    with pytest.raises(oblate.ValidationError, match=r"Sequence item at index 2: Must be of type str"):
+        schema(dict(t=['t', 't2', 3]))
+
+    with pytest.raises(oblate.ValidationError, match=r"Must be a valid list"):
+        schema(dict(t=('t', 't2', 't')))
+
+def test_set():
+    schema = _make_schema_from_expr(t.Set[str])
+    assert schema(dict(t={'t', 't2', 't3'})).t == {'t', 't2', 't3'}
+
+    with pytest.raises(oblate.ValidationError, match=r"Sequence item at index .*: Must be of type str"):
+        schema(dict(t={'t', 't2', 3}))
+
+    with pytest.raises(oblate.ValidationError, match=r"Must be a valid set"):
+        schema(dict(t=('t', 't2', 't')))
+
+def test_tuple():
+    schema = _make_schema_from_expr(t.Tuple[str, int, float])
+    assert schema(dict(t=('t', 2, 3.14))).t == ('t', 2, 3.14)
+
+    with pytest.raises(oblate.ValidationError, match=r"Tuple item at index .*: Must be of type float"):
+        schema(dict(t=('t', 2, 2)))
+
+    with pytest.raises(oblate.ValidationError, match=r"Tuple length must be 3 \(current length: 2\)"):
+        schema(dict(t=('t', 2)))
+
+    with pytest.raises(oblate.ValidationError, match=r"Must be a 3-tuple"):
+        schema(dict(t={'t', 't2', 't'}))
+
+def test_dict():
+    schema = _make_schema_from_expr(t.Dict[str, int])
+    assert schema(dict(t={'t': 1})).t == {'t': 1}
+
+    with pytest.raises(oblate.ValidationError, match=r"Dict value for key 't': Must be of type int"):
+        schema(dict(t={'t': '1'}))
+
+    with pytest.raises(oblate.ValidationError, match=r"Dict key at index 0: Must be of type str"):
+        schema(dict(t={1: '1'}))
+
+    with pytest.raises(oblate.ValidationError, match=r"Must be a valid dictionary"):
+        schema(dict(t={'t', 't2', 't'}))
+
+def test_unknown():
+    schema = _make_schema_from_expr(t.Type[int])
+    assert schema(dict(t={'t': 1})).t == {'t': 1}
+
+def test_typed_dict():
+    # mostly covered in test_fields_struct.test_typed_dict
+    class Data(t.TypedDict):
+        test: str
+
+    schema = _make_schema_from_expr(Data)
+    assert schema({'t': {'test': '2'}}).t == {'test': '2'}
+
+    with pytest.raises(oblate.ValidationError):
+        schema({'t': {'test': 2}})
