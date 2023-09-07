@@ -1,5 +1,5 @@
 .. currentmodule:: oblate
-.. _api-fields-typings:
+.. _api-fields-structs:
 
 Data Structures
 ===============
