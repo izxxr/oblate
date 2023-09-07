@@ -388,10 +388,18 @@ For example, in order to ignore :ref:`unknown fields <guide-schema-passing-unkno
             'actor': actor,
         }
 
-.. _guide-fields-no-validation-field:
+.. _guide-fields-typings-fields:
 
-No validation field
--------------------
+Typing fields
+-------------
+
+Some fields are inspired by some types provided by the ``typing`` module from standard library
+and work in a similar fashion.
+
+.. _guide-fields-typings-fields-any:
+
+Any
+~~~
 
 The :class:`fields.Any` is a field that performs no validation on the given value and returns
 it as-is. This is similar to ``typing.Any``.
@@ -404,10 +412,10 @@ Example::
     Model({'something': 'any arbitrary type'})
 
 
-.. _guide-fields-literal-field:
+.. _guide-fields-typings-fields-literal:
 
-Literal field
--------------
+Literal
+~~~~~~~
 
 The :class:`fields.Literal` acts in a similar fashion to :class:`typing.Literal`. The field
 only accepts the values provided during initialization as literals.
@@ -422,10 +430,10 @@ Example::
     User({'role': 'employee'})  # OK
     User({'role': 'unknown'})  # ValidationError raised
 
-.. _guide-fields-union-field:
+.. _guide-fields-typings-fields-union:
 
-Union field
------------
+Union
+~~~~~
 
 The :class:`fields.Union` field accepts value of predefined types. This is similar to how
 :class:`typing.Union` works.
