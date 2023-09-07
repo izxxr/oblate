@@ -14,3 +14,4 @@ used data types as well as various useful built-in validators.
     primitive
     nesting
     typings
+    structs
