@@ -30,8 +30,6 @@ from typing import (
     Tuple,
     Dict,
     TypedDict,
-    Required,
-    NotRequired,
     Literal,
     Type,
     is_typeddict,
@@ -40,6 +38,7 @@ from typing import (
     get_args,
     overload,
 )
+from typing_extensions import Required, NotRequired
 from contextvars import ContextVar
 
 import types
