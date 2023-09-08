@@ -27,6 +27,7 @@ from typing import (
     Any,
     Union,
     List,
+    Set,
     Tuple,
     Literal,
     Type,
@@ -41,6 +42,7 @@ from typing_extensions import Required, NotRequired
 from contextvars import ContextVar
 
 import types
+import warnings
 import collections.abc
 
 if TYPE_CHECKING:
@@ -82,8 +84,27 @@ current_schema: ContextVar[Schema] = ContextVar('current_schema')
 
 class TypeValidator(Generic[_T]):
     """A class that provides and handles type validation."""
+    _warning_unsupported_type = "Validation of {type} type is not supported. No type validation will " \
+                                "be performed for this type by Oblate."
+
+    _warnings_issued: Set[Any] = set()
+
     def __init__(self, type_expr: Type[_T]) -> None:
         self._type_expr = type_expr
+
+    @classmethod
+    def _warn_unsupported(cls, tp: Any) -> None:
+        from oblate.configs import config  # circular import
+
+        if tp in cls._warnings_issued or not config.warn_unsupported_types:
+            return  # pragma: no cover
+
+        cls._warnings_issued.add(tp)
+        warnings.warn(
+            cls._warning_unsupported_type.format(type=getattr(tp, '__name__', tp)),
+            UserWarning,
+            stacklevel=2,
+        )
 
     @classmethod
     def _handle_type_any(cls, value: Any, tp: Any) -> Tuple[bool, List[str]]:
@@ -253,7 +274,9 @@ class TypeValidator(Generic[_T]):
         if origin is tuple:
             return cls._handle_origin_tuple(value, tp)
 
-        # unsupported struct
+        if origin is not None:  # pragma: no cover
+            cls._warn_unsupported(origin)
+
         return True, []  # pragma: no cover
 
     @classmethod
@@ -269,7 +292,9 @@ class TypeValidator(Generic[_T]):
         if origin is Literal:
             return cls._handle_origin_literal(value, tp)
 
-        # Unsupported origin/type
+        if origin is not None:
+            cls._warn_unsupported(origin)
+
         return True, []
 
     @classmethod

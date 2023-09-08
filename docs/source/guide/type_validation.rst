@@ -54,4 +54,7 @@ Currently, only following types are supported:
 - :class:`typing.NotRequired` (with typed dicts only)
 
 Type expressions involving only these types will be validated fully. If any type expression involves
-an unsupported type, it would be silently ignored.
+an unsupported type, it will not be validated. A warning will be issued by the library for usage of
+an unsupported type.
+
+To suppress unsupported type warning, set :attr:`GlobalConfig.warn_unsupported_type` warning to False.

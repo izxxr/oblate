@@ -20,6 +20,7 @@ New features
 - Add :class:`fields.Literal` field to accept pre-defined literal values.
 - Add :class:`fields.Union` for basic union type validation.
 - Add :class:`ErrorContext.metadata` for storing extra error information.
+- Add :attr:`GlobalConfig.warn_unsupported_types` to control behaviour on using unsupported types.
 - Add ``init_kwargs`` parameter in :class:`fields.Object` to support passing initialization arguments.
 
 Improvements

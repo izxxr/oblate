@@ -120,6 +120,24 @@ class GlobalConfig:
             raise TypeError('validation_error_cls must be a subclass of ValidationError')
         return value
 
+    @cfg_option
+    def warn_unsupported_types(self) -> bool:
+        """Whether to warn about usage of unsupported types in type validation.
+
+        This dictates whether to issue a warning if a type is used in a type
+        expression in fields involving type validation that cannot be validated
+        by Oblate.
+
+        :type: :class:`bool`
+        """
+        return True
+
+    @warn_unsupported_types.setter
+    def _set_warn_unsupported_types(self, value: bool):
+        if not isinstance(value, bool):  # pragma: no cover
+            raise TypeError('warn_unsupported_types must be a boolean')
+        return value  # pragma: no cover
+
 
 config = GlobalConfig()
 """The global configuration of Oblate."""
