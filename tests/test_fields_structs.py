@@ -84,3 +84,35 @@ def test_field_typed_dict():
         data = fields.TypedDict(DataOptional)
 
     assert _SchemaOptional({'data': {}}).data == {}
+
+def test_field_list():
+    class _Schema(oblate.Schema):
+        untyped = fields.List()
+        typed = fields.List(t.Union[str, int])
+
+    sch = _Schema({'untyped': [1, 2, '3', 4.0], 'typed': [1, 2, '3']})
+    assert sch.untyped == [1, 2, '3', 4.0]
+    assert sch.typed == [1, 2, '3']
+    assert sch.dump() == {'untyped': [1, 2, '3', 4.0], 'typed': [1, 2, '3']}
+
+    with pytest.raises(oblate.ValidationError, match="Value must be a list"):
+        _Schema({'untyped': 1})
+
+    with pytest.raises(oblate.ValidationError, match=r"Sequence item at index 1: Must be one of types \(str, int\)"):
+        _Schema({'untyped': [1, 2, 3], 'typed': [1, 3.14, '2']})
+
+def test_field_set():
+    class _Schema(oblate.Schema):
+        untyped = fields.Set()
+        typed = fields.Set(t.Union[str, int])
+
+    sch = _Schema({'untyped': {1, 2, '3', 4.0}, 'typed': {1, 2, '3'}})
+    assert sch.untyped == {1, 2, '3', 4.0}
+    assert sch.typed == {1, 2, '3'}
+    assert sch.dump() == {'untyped': {1, 2, '3', 4.0}, 'typed': {1, 2, '3'}}
+
+    with pytest.raises(oblate.ValidationError, match="Value must be a set"):
+        _Schema({'untyped': [1]})
+
+    with pytest.raises(oblate.ValidationError, match=r"Set includes an invalid item: Must be one of types \(str, int\)"):
+        _Schema({'untyped': {1, 2, 3}, 'typed': {1, '2', 3.14}})

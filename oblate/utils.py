@@ -102,16 +102,18 @@ def validate_struct(value: Any, tp: Any, stack_errors: bool = False) -> Tuple[bo
         validated = True
         msg = ''
         for idx, (k, v) in enumerate(value.items()):  # type: ignore
-            validated, fail_msg = validate_value(k, ktp)
-            if not validated:
+            item_validated, fail_msg = validate_value(k, ktp)
+            if not item_validated:
+                validated = False
                 msg = f'Dict key at index {idx}: {fail_msg}'
             else:
-                validated, fail_msg = validate_value(v, vtp)
-                if not validated:
+                item_validated, fail_msg = validate_value(v, vtp)
+                if not item_validated:
+                    validated = False
                     msg = f'Dict value for key {k!r}: {fail_msg}'
-            if not validated and stack_errors:
+            if not item_validated and stack_errors:
                 errors.append(msg)
-            if not validated and not stack_errors:
+            if not item_validated and not stack_errors:
                 break
         return validated, (errors if stack_errors else msg)
 
@@ -121,20 +123,32 @@ def validate_struct(value: Any, tp: Any, stack_errors: bool = False) -> Tuple[bo
             return False, ([f'Must be a valid {origin.__name__.lower()}'] if stack_errors else f'Must be a valid {origin.__name__.lower()}')
         validated = True
         msg = ''
-        for idx, v in enumerate(value):  # type: ignore
-            validated, fail_msg = validate_value(v, vtp)
-            if not validated:
-                msg = f'Sequence item at index {idx}: {fail_msg}'
-                if stack_errors:
-                    errors.append(msg)  # pragma: no cover
-                else:
-                    break
+        if origin is not set:
+            for idx, v in enumerate(value):  # type: ignore
+                item_validated, fail_msg = validate_value(v, vtp)
+                if not item_validated:
+                    validated = False
+                    msg = f'Sequence item at index {idx}: {fail_msg}'
+                    if stack_errors:
+                        errors.append(msg)  # pragma: no cover
+                    else:
+                        break
+        else:
+            for v in value:  # type: ignore
+                item_validated, fail_msg = validate_value(v, vtp)
+                if not item_validated:
+                    validated = False
+                    msg = f'Set includes an invalid item: {fail_msg}'
+                    if stack_errors:
+                        errors.append(msg)  # pragma: no cover
+                    else:
+                        break
         return validated, (errors if stack_errors else msg)
 
     if origin is tuple:
         if not isinstance(value, tuple):
             return False, ([f'Must be a {len(args)}-tuple'] if stack_errors else f'Must be a {len(args)}-tuple')
-        validated = False
+        validated = True
         msg = ''
         for idx, tp in enumerate(args):
             try:
@@ -144,8 +158,9 @@ def validate_struct(value: Any, tp: Any, stack_errors: bool = False) -> Tuple[bo
                 msg = f'Tuple length must be {len(args)} (current length: {len(value)})'  # type: ignore
                 break
             else:
-                validated, fail_msg = validate_value(v, tp)
-                if not validated:
+                item_validated, fail_msg = validate_value(v, tp)
+                if not item_validated:
+                    validated = False
                     msg = f'Tuple item at index {idx}: {fail_msg}'
                     if stack_errors:
                         errors.append(msg)  # pragma: no cover

@@ -502,6 +502,8 @@ It also supports :ref:`type validation <guide-type-validation>`::
     Model({'data': {'test': 1}})  # OK
     Model({'data': {1: 'value'}})  # Error: Dict key at index 1: must be of type str
 
+.. _guide-fields-data-structures-typed-dict:
+
 TypedDict
 ~~~~~~~~~
 
@@ -535,3 +537,30 @@ Outputs::
     └── In field data:
         ├── Validation failed for 'id': Must be one of types (int, str)
         └── Key 'name' is required
+
+.. _guide-fields-data-structures-sequences:
+
+Sequences
+~~~~~~~~~
+
+Currently following sequence structures are available as fields:
+
+- :class:`fields.List`
+- :class:`fields.Set`
+
+All of these classes support type validation. If initialized without argument, these fields
+perform no type validation on elements of sequence otherwise each element's type is validated
+according to given type expression.
+
+Example::
+
+    class Model(oblate.Schema):
+        untyped_list = fields.List()
+        typed_list = fields.List(str)
+        typed_list_union = fields.List(typing.Union[str, int])
+
+Here,
+
+- ``untyped_list`` accepts any arbitrary list without any type validation on elements.
+- ``typed_list`` accepts list of string elements only.
+- ``typed_list_union`` accepts list with elements either being string or integer.

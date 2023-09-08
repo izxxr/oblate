@@ -9,3 +9,9 @@ Data Structures
 
 .. autoclass:: oblate.fields.TypedDict
     :members:
+
+.. autoclass:: oblate.fields.List
+    :members:
+
+.. autoclass:: oblate.fields.Set
+    :members:

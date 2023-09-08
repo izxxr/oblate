@@ -81,7 +81,7 @@ def test_set():
     schema = _make_schema_from_expr(t.Set[str])
     assert schema(dict(t={'t', 't2', 't3'})).t == {'t', 't2', 't3'}
 
-    with pytest.raises(oblate.ValidationError, match=r"Sequence item at index .*: Must be of type str"):
+    with pytest.raises(oblate.ValidationError, match=r"Set includes an invalid item: Must be of type str"):
         schema(dict(t={'t', 't2', 3}))
 
     with pytest.raises(oblate.ValidationError, match=r"Must be a valid set"):
@@ -91,8 +91,8 @@ def test_tuple():
     schema = _make_schema_from_expr(t.Tuple[str, int, float])
     assert schema(dict(t=('t', 2, 3.14))).t == ('t', 2, 3.14)
 
-    with pytest.raises(oblate.ValidationError, match=r"Tuple item at index .*: Must be of type float"):
-        schema(dict(t=('t', 2, 2)))
+    with pytest.raises(oblate.ValidationError, match=r"Tuple item at index 1: Must be of type int"):
+        schema(dict(t=('t', 2.12, 2.3)))
 
     with pytest.raises(oblate.ValidationError, match=r"Tuple length must be 3 \(current length: 2\)"):
         schema(dict(t=('t', 2)))
