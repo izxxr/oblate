@@ -28,15 +28,14 @@ from typing import (
     Union,
     List,
     Tuple,
-    Dict,
-    TypedDict,
     Literal,
     Type,
+    TypeVar,
+    Generic,
     is_typeddict,
     get_type_hints,
     get_origin,
     get_args,
-    overload,
 )
 from typing_extensions import Required, NotRequired
 from contextvars import ContextVar
@@ -53,10 +52,10 @@ __all__ = (
     'MISSING',
     'current_context',
     'current_field_key',
-    'validate_value',
-    'validate_struct',
-    'validate_typed_dict',
+    'TypeValidator',
 )
+
+_T = TypeVar('_T')
 
 class MissingType:
     """Type for representing unaltered/default/missing values.
@@ -81,159 +80,212 @@ current_field_key: ContextVar[str] = ContextVar('current_field_key')
 current_schema: ContextVar[Schema] = ContextVar('current_schema')
 
 
-@overload
-def validate_struct(value: Any, tp: Any, stack_errors: Literal[False] = False) -> Tuple[bool, str]:
-    ...
+class TypeValidator(Generic[_T]):
+    """A class that provides and handles type validation."""
+    def __init__(self, type_expr: Type[_T]) -> None:
+        self._type_expr = type_expr
 
-@overload
-def validate_struct(value: Any, tp: Any, stack_errors: Literal[True] = True) -> Tuple[bool, List[str]]:
-    ...
+    @classmethod
+    def _handle_type_any(cls, value: Any, tp: Any) -> Tuple[bool, List[str]]:
+        return True, []
 
-def validate_struct(value: Any, tp: Any, stack_errors: bool = False) -> Tuple[bool, Union[List[str], str]]:
-    origin = get_origin(tp)
-    args = get_args(tp)
-    errors: List[str] = []
-
-    if origin is dict:
+    @classmethod
+    def _handle_type_typed_dict(cls, value: Any, tp: Any) -> Tuple[bool, List[str]]:
         if not isinstance(value, dict):
-            return False, (['Must be a valid dictionary'] if stack_errors else 'Must be a valid dictionary')
+            return False, [f'Must be a {tp.__name__} dictionary']  # pragma: no cover
+
+        typehints = get_type_hints(tp, include_extras=True)
+        errors: List[str] = []
+
+        for key, value in value.items():  # type: ignore
+            try:
+                attr_tp = typehints.pop(key)  # type: ignore
+            except KeyError:
+                errors.append(f'Invalid key {key!r}')
+            else:
+                validated, msg = cls._process_value(value, attr_tp)
+                if not validated:
+                    errors.append(f'Validation failed for {key!r}: {msg[0]}')
+
+        for key, value in typehints.items():
+            origin = get_origin(value)
+            if (origin is None and not tp.__total__) or (origin is NotRequired):
+                # either no marker and total=False -> field is not required
+                # or NotRequired marker and total=True/False -> field is not required
+                continue
+
+            errors.append(f'Key {key!r} is required')
+
+        return not errors, errors
+
+    @classmethod
+    def _handle_origin_required(cls, value: Any, tp: Any) -> Tuple[bool, List[str]]:
+        args = get_args(tp)
+        origin = get_origin(args[0])
+        return cls._handle_origin(value, tp, origin)
+
+    _handle_origin_not_required = _handle_origin_required
+
+    @classmethod
+    def _handle_origin_literal(cls, value: Any, tp: Any) -> Tuple[bool, List[str]]:
+        args = get_args(tp)
+        if value not in args:
+            return False, [f'Value must be one of: {", ".join(repr(v) for v in args)}']
+        return True, []
+
+    @classmethod
+    def _handle_origin_union(cls, value: Any, tp: Any) -> Tuple[bool, List[str]]:
+        args = get_args(tp)
+        for tp in args:
+            validated, _ = cls._process_value(value, tp)
+            if validated:
+                return True, []
+        return False, [f'Must be one of types ({", ".join(tp.__name__ for tp in args)})']
+
+    @classmethod
+    def _handle_origin_dict(cls, value: Any, tp: Any) -> Tuple[bool, List[str]]:
+        if not isinstance(value, dict):
+            return False, ['Must be a valid dictionary']
+
+        args = get_args(tp)
+        errors: List[str] = []
+        validated = True
         ktp = args[0]
         vtp = args[1]
-        validated = True
-        msg = ''
+
         for idx, (k, v) in enumerate(value.items()):  # type: ignore
-            item_validated, fail_msg = validate_value(k, ktp)
+            item_validated, fail_msg = cls._process_value(k, ktp)
             if not item_validated:
                 validated = False
-                msg = f'Dict key at index {idx}: {fail_msg}'
+                errors.append(f'Dict key at index {idx}: {fail_msg[0]}')
             else:
-                item_validated, fail_msg = validate_value(v, vtp)
+                item_validated, fail_msg = cls._process_value(v, vtp)
                 if not item_validated:
                     validated = False
-                    msg = f'Dict value for key {k!r}: {fail_msg}'
-            if not item_validated and stack_errors:
-                errors.append(msg)
-            if not item_validated and not stack_errors:
-                break
-        return validated, (errors if stack_errors else msg)
+                    errors.append(f'Dict value for key {k!r}: {fail_msg[0]}')
 
-    if origin in (list, set, collections.abc.Sequence):
+        return validated, errors
+
+    @classmethod
+    def _handle_origin_list(cls, value: Any, tp: Any) -> Tuple[bool, List[str]]:
+        if not isinstance(value, list):
+            return False, [f'Must be a valid list']
+
+        args = get_args(tp)
+        errors: List[str] = []
+        validated = True
         vtp = args[0]
-        if not isinstance(value, origin):
-            return False, ([f'Must be a valid {origin.__name__.lower()}'] if stack_errors else f'Must be a valid {origin.__name__.lower()}')
-        validated = True
-        msg = ''
-        if origin is not set:
-            for idx, v in enumerate(value):  # type: ignore
-                item_validated, fail_msg = validate_value(v, vtp)
-                if not item_validated:
-                    validated = False
-                    msg = f'Sequence item at index {idx}: {fail_msg}'
-                    if stack_errors:
-                        errors.append(msg)  # pragma: no cover
-                    else:
-                        break
-        else:
-            for v in value:  # type: ignore
-                item_validated, fail_msg = validate_value(v, vtp)
-                if not item_validated:
-                    validated = False
-                    msg = f'Set includes an invalid item: {fail_msg}'
-                    if stack_errors:
-                        errors.append(msg)  # pragma: no cover
-                    else:
-                        break
-        return validated, (errors if stack_errors else msg)
 
-    if origin is tuple:
-        if not isinstance(value, tuple):
-            return False, ([f'Must be a {len(args)}-tuple'] if stack_errors else f'Must be a {len(args)}-tuple')
+        for idx, v in enumerate(value):  # type: ignore
+            item_validated, fail_msg = cls._process_value(v, vtp)
+            if not item_validated:
+                validated = False
+                errors.append(f'Sequence item at index {idx}: {fail_msg[0]}')
+
+        return validated, errors
+
+    @classmethod
+    def _handle_origin_set(cls, value: Any, tp: Any) -> Tuple[bool, List[str]]:
+        if not isinstance(value, set):
+            return False, [f'Must be a valid set']
+
+        args = get_args(tp)
+        errors: List[str] = []
         validated = True
-        msg = ''
+        vtp = args[0]
+
+        for v in value:  # type: ignore
+            item_validated, fail_msg = cls._process_value(v, vtp)
+            if not item_validated:
+                validated = False
+                errors.append(f'Set includes an invalid item: {fail_msg[0]}')
+
+        return validated, errors
+
+    @classmethod
+    def _handle_origin_tuple(cls, value: Any, tp: Any) -> Tuple[bool, List[str]]:
+        args = get_args(tp)
+        if not isinstance(value, tuple):
+            return False, [f'Must be a valid {len(args)}-tuple']
+
+        errors: List[str] = []
+        validated = True
+
         for idx, tp in enumerate(args):
             try:
                 v = value[idx]  # type: ignore
             except IndexError:
                 validated = False
-                msg = f'Tuple length must be {len(args)} (current length: {len(value)})'  # type: ignore
+                errors.append(f'Tuple length must be {len(args)} (current length: {len(value)})')  # type: ignore
                 break
             else:
-                item_validated, fail_msg = validate_value(v, tp)
+                item_validated, fail_msg = cls._process_value(v, tp)
                 if not item_validated:
                     validated = False
-                    msg = f'Tuple item at index {idx}: {fail_msg}'
-                    if stack_errors:
-                        errors.append(msg)  # pragma: no cover
-                    else:
-                        break
-        return validated, (errors if stack_errors else msg)
+                    errors.append(f'Tuple item at index {idx}: {fail_msg[0]}')  # pragma: no cover
 
-    return True, ([] if stack_errors else '')  # pragma: no cover
+        return validated, errors
 
-def validate_value(value: Any, tp: Any) -> Tuple[bool, Union[str, List[str]]]:
-    origin = get_origin(tp)
-    args = get_args(tp)
+    @classmethod
+    def _handle_origin_sequence(cls, value: Any, tp: Any) -> Tuple[bool, List[str]]:
+        value_tp = type(value)
+        if value_tp is list:
+            return cls._handle_origin_list(value, tp)
+        if value_tp is set:
+            return cls._handle_origin_set(value, tp)
+        if value_tp is tuple:
+            return cls._handle_origin_tuple(value, tp)
 
-    if tp is Any:
-        return True, ''
+        return cls._handle_origin_list(value, tp)  # pragma: no cover
 
-    if origin is None:
-        if is_typeddict(tp):
-            try:
-                errors = validate_typed_dict(tp, value)
-            except ValueError as e:  # pragma: no cover
-                return False, str(e)
-            else:
-                if errors:
-                    return False, errors[0]
-                return True, ''
+    @classmethod
+    def _process_struct(cls, value: Any, tp: Any) -> Tuple[bool, List[str]]:
+        origin = get_origin(tp)
 
-        return isinstance(value, tp), f'Must be of type {tp.__name__}'
+        if origin is collections.abc.Sequence:
+            return cls._handle_origin_sequence(value, tp)
+        if origin is dict:
+            return cls._handle_origin_dict(value, tp)
+        if origin is list:
+            return cls._handle_origin_list(value, tp)
+        if origin is set:
+            return cls._handle_origin_set(value, tp)
+        if origin is tuple:
+            return cls._handle_origin_tuple(value, tp)
 
-    if origin in (Required, NotRequired):
-        origin = get_origin(args[0])
+        # unsupported struct
+        return True, []  # pragma: no cover
 
-    if origin in (list, set, dict, tuple, collections.abc.Sequence):
-        return validate_struct(value, tp)
+    @classmethod
+    def _handle_origin(cls, value: Any, tp: Any, origin: Any) -> Tuple[bool, List[str]]:
+        if origin is Required:
+            return cls._handle_origin_required(value, tp)
+        if origin is NotRequired:
+            return cls._handle_origin_not_required(value, tp)
+        if origin in (list, set, dict, tuple, collections.abc.Sequence):
+            return cls._process_struct(value, tp)
+        if origin in (Union, types.UnionType):
+            return cls._handle_origin_union(value, tp)
+        if origin is Literal:
+            return cls._handle_origin_literal(value, tp)
 
-    if origin in (Union, types.UnionType):
-        for tp in args:
-            validated, _ = validate_value(value, tp)
-            if validated:
-                return True, ''
-        return False, f'Must be one of types ({", ".join(tp.__name__ for tp in args)})'
+        # Unsupported origin/type
+        return True, []
 
-    if origin is Literal:
-        if value not in args:
-           return False, f'Value must be one of: {", ".join(repr(v) for v in args)}'
-        return True, ''
+    @classmethod
+    def _process_value(cls, value: Any, tp: Any) -> Tuple[bool, List[str]]:
+        if tp is Any:
+            return cls._handle_type_any(value, tp)
 
-    return True, ''
+        origin = get_origin(tp)
 
-def validate_typed_dict(cls: Type[TypedDict], data: Dict[Any, Any]) -> List[str]:
-    if not is_typeddict(cls):
-        raise TypeError('cls must be TypedDict')  # pragma: no cover
-    if not isinstance(data, dict):
-        raise ValueError(f'Must be a {cls.__name__} dictionary')  # pragma: no cover
+        if origin is None:
+            if is_typeddict(tp):
+                return cls._handle_type_typed_dict(value, tp)
+            return isinstance(value, tp), [f'Must be of type {tp.__name__}']
 
-    typehints = get_type_hints(cls, include_extras=True)
-    errors: List[str] = []
+        return cls._handle_origin(value, tp, origin)
 
-    for key, value in data.items():
-        try:
-            tp = typehints.pop(key)
-        except KeyError:
-            errors.append(f'Invalid key {key!r}')
-        else:
-            validated, msg = validate_value(value, tp)
-            if not validated:
-                errors.append(f'Validation failed for {key!r}: {msg}')
-
-    if not cls.__total__:
-        return errors
-
-    for key, value in typehints.items():
-        if get_origin(value) is not NotRequired:
-            errors.append(f'Key {key!r} is required')
-
-    return errors
+    def validate(self, value: Any) -> Tuple[bool, List[str]]:
+        validated, errors = self._process_value(value, self._type_expr)
+        return validated, errors

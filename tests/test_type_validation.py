@@ -63,6 +63,7 @@ def test_sequence():
     schema = _make_schema_from_expr(t.Sequence[str])
     assert schema(dict(t=['t', 't2', 't3'])).t == ['t', 't2', 't3']
     assert schema(dict(t=('t', 't2', 't3'))).t == ('t', 't2', 't3')
+    assert schema(dict(t={'t', 't2', 't3'})).t
 
     with pytest.raises(oblate.ValidationError, match=r"Sequence item at index 2: Must be of type str"):
         schema(dict(t=['t', 't2', 3]))
@@ -97,7 +98,7 @@ def test_tuple():
     with pytest.raises(oblate.ValidationError, match=r"Tuple length must be 3 \(current length: 2\)"):
         schema(dict(t=('t', 2)))
 
-    with pytest.raises(oblate.ValidationError, match=r"Must be a 3-tuple"):
+    with pytest.raises(oblate.ValidationError, match=r"Must be a valid 3-tuple"):
         schema(dict(t={'t', 't2', 't'}))
 
 def test_dict():

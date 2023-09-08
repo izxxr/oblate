@@ -159,7 +159,7 @@ class TypeExpr(Field[_T, _T]):
     ERR_TYPE_VALIDATION_FAILED = 'type_expr.type_validation_failed'
 
     def __init__(self, tp: t.Type[_T], **kwargs: t.Any):
-        self._tp = tp
+        self._tp = utils.TypeValidator(tp)
         super().__init__(**kwargs)
 
     def format_error(self, error_code: t.Any, context: ErrorContext) -> t.Union[FieldError, str]:
@@ -169,7 +169,7 @@ class TypeExpr(Field[_T, _T]):
         return super().format_error(error_code, context)  # pragma: no cover
 
     def value_load(self, value: t.Any, context: LoadContext) -> _T:
-        validated, errors = utils.validate_value(value, self._tp)
+        validated, errors = self._tp.validate(value)
         if not validated:
             metadata = {'type_validation_fail_errors': errors}
             raise self._call_format_error(self.ERR_TYPE_VALIDATION_FAILED, context.schema, value, metadata)

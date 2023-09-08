@@ -109,7 +109,7 @@ class Dict(_BaseStructField[DictT[KT, VT], DictT[KT, VT]]):
         if key_tp is not MISSING:
             if value_tp is MISSING:
                 raise TypeError('Dict(T) is not valid, must provide a second argument for type of value')  # pragma: no cover
-            self._tp = DictT[key_tp, value_tp]  # type: ignore
+            self._tp = utils.TypeValidator(DictT[key_tp, value_tp])
         else:
             self._tp = None
 
@@ -118,8 +118,8 @@ class Dict(_BaseStructField[DictT[KT, VT], DictT[KT, VT]]):
     def value_load(self, value: Any, context: LoadContext) -> DictT[KT, VT]:
         if not isinstance(value, dict):
             raise self._call_format_error(self.ERR_INVALID_DATATYPE, context.schema, value)
-        if self._tp is not None:  # type: ignore
-            validated, errors = utils.validate_struct(value, self._tp, stack_errors=True)  # type: ignore
+        if self._tp is not None:
+            validated, errors = self._tp.validate(value)
             if not validated:
                 metadata = {'type_validation_fail_errors': errors}
                 raise self._call_format_error(self.ERR_TYPE_VALIDATION_FAILED, context.schema, value, metadata=metadata)
@@ -153,15 +153,15 @@ class TypedDict(_BaseStructField[TD, TD]):
     _friendly_struct_name = 'dictionary'
 
     def __init__(self, typed_dict: Type[TD], /, **kwargs: Any):
-        self._typed_dict = typed_dict
+        self._validator = utils.TypeValidator(typed_dict)
         super().__init__(**kwargs)
 
     def value_load(self, value: Any, context: LoadContext) -> TD:
         if not isinstance(value, dict):
             raise self._call_format_error(self.ERR_INVALID_DATATYPE, context.schema, value)
 
-        errors = utils.validate_typed_dict(self._typed_dict, value)  # type: ignore
-        if errors:
+        validated, errors = self._validator.validate(value)
+        if not validated:
             metadata = {'type_validation_fail_errors': errors}
             raise self._call_format_error(self.ERR_TYPE_VALIDATION_FAILED, context.schema, value, metadata=metadata)
 
@@ -184,14 +184,14 @@ class List(_BaseStructField[ListT[KT], ListT[KT]]):
     _friendly_struct_name = 'list'
 
     def __init__(self, tp: Type[KT] = MISSING, /, **kwargs: Any):
-        self._tp = None if tp is MISSING else ListT[tp]
+        self._tp = None if tp is MISSING else utils.TypeValidator(ListT[tp])
         super().__init__(**kwargs)
 
     def value_load(self, value: Any, context: LoadContext) -> ListT[KT]:
         if not isinstance(value, list):
             raise self._call_format_error(self.ERR_INVALID_DATATYPE, context.schema, value)
-        if self._tp is not None:  # type: ignore
-            validated, errors = utils.validate_struct(value, self._tp, stack_errors=True)  # type: ignore
+        if self._tp is not None:
+            validated, errors = self._tp.validate(value)
             if not validated:
                 metadata = {'type_validation_fail_errors': errors}
                 raise self._call_format_error(self.ERR_TYPE_VALIDATION_FAILED, context.schema, value, metadata=metadata)
@@ -214,14 +214,14 @@ class Set(_BaseStructField[SetT[KT], SetT[KT]]):
     _friendly_struct_name = 'set'
 
     def __init__(self, tp: Type[KT] = MISSING, /, **kwargs: Any):
-        self._tp = None if tp is MISSING else SetT[tp]
+        self._tp = None if tp is MISSING else utils.TypeValidator(SetT[tp])
         super().__init__(**kwargs)
 
     def value_load(self, value: Any, context: LoadContext) -> SetT[KT]:
         if not isinstance(value, set):
             raise self._call_format_error(self.ERR_INVALID_DATATYPE, context.schema, value)
-        if self._tp is not None:  # type: ignore
-            validated, errors = utils.validate_struct(value, self._tp, stack_errors=True)  # type: ignore
+        if self._tp is not None:
+            validated, errors = self._tp.validate(value)
             if not validated:
                 metadata = {'type_validation_fail_errors': errors}
                 raise self._call_format_error(self.ERR_TYPE_VALIDATION_FAILED, context.schema, value, metadata=metadata)
