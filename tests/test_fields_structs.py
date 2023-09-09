@@ -42,7 +42,7 @@ def test_field_dict():
     assert _SchemaTyped({'data': {'test': 1}}).dump()['data'] == {'test': 1}
 
 
-    with pytest.raises(oblate.ValidationError, match='Dict key at index 0: Must be of type str'):
+    with pytest.raises(oblate.ValidationError, match='Dictionary key at index 0: Must be of type str'):
         _SchemaTyped({'data': {1: 1}})
 
     with pytest.raises(oblate.ValidationError, match='Value must be a dictionary'):

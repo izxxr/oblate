@@ -111,10 +111,10 @@ def test_dict():
     schema = _make_schema_from_expr(t.Dict[str, int])
     assert schema(dict(t={'t': 1})).t == {'t': 1}
 
-    with pytest.raises(oblate.ValidationError, match=r"Dict value for key 't': Must be of type int"):
+    with pytest.raises(oblate.ValidationError, match=r"Dictionary value for key 't': Must be of type int"):
         schema(dict(t={'t': '1'}))
 
-    with pytest.raises(oblate.ValidationError, match=r"Dict key at index 0: Must be of type str"):
+    with pytest.raises(oblate.ValidationError, match=r"Dictionary key at index 0: Must be of type str"):
         schema(dict(t={1: '1'}))
 
     with pytest.raises(oblate.ValidationError, match=r"Must be a valid dictionary"):

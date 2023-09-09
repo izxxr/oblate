@@ -164,9 +164,9 @@ class TypeValidator(Generic[_T]):
         return False, [f'Must be one of types ({", ".join(tp.__name__ for tp in args)})']
 
     @classmethod
-    def _handle_origin_dict(cls, value: Any, tp: Any) -> Tuple[bool, List[str]]:
-        if not isinstance(value, dict):
-            return False, ['Must be a valid dictionary']
+    def __process_mapping(cls, value: Any, tp: Any, name: str, origin: Any) -> Tuple[bool, List[str]]:
+        if not isinstance(value, origin):
+            return False, [f'Must be a valid {name.lower()}']
 
         args = get_args(tp)
         errors: List[str] = []
@@ -178,14 +178,22 @@ class TypeValidator(Generic[_T]):
             item_validated, fail_msg = cls._process_value(k, ktp)
             if not item_validated:
                 validated = False
-                errors.append(f'Dict key at index {idx}: {fail_msg[0]}')
+                errors.append(f'{name} key at index {idx}: {fail_msg[0]}')
             else:
                 item_validated, fail_msg = cls._process_value(v, vtp)
                 if not item_validated:
                     validated = False
-                    errors.append(f'Dict value for key {k!r}: {fail_msg[0]}')
+                    errors.append(f'{name} value for key {k!r}: {fail_msg[0]}')
 
         return validated, errors
+
+    @classmethod
+    def _handle_origin_dict(cls, value: Any, tp: Any) -> Tuple[bool, List[str]]:
+        return cls.__process_mapping(value, tp, 'Dictionary', dict)
+
+    @classmethod
+    def _handle_origin_mapping(cls, value: Any, tp: Any) -> Tuple[bool, List[str]]:
+        return cls.__process_mapping(value, tp, 'Mapping', collections.abc.Mapping)  # pragma: no cover
 
     @classmethod
     def _handle_origin_list(cls, value: Any, tp: Any) -> Tuple[bool, List[str]]:

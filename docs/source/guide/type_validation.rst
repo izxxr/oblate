@@ -49,6 +49,7 @@ Currently, only following types are supported:
 - :class:`typing.Set`
 - :class:`typing.Tuple`
 - :class:`typing.Dict`
+- :class:`typing.Mapping`
 - :class:`typing.TypedDict`
 - :class:`typing.Required` (with typed dicts only)
 - :class:`typing.NotRequired` (with typed dicts only)
