@@ -98,8 +98,14 @@ def test_tuple():
     with pytest.raises(oblate.ValidationError, match=r"Tuple length must be 3 \(current length: 2\)"):
         schema(dict(t=('t', 2)))
 
-    with pytest.raises(oblate.ValidationError, match=r"Must be a valid 3-tuple"):
+    with pytest.raises(oblate.ValidationError, match=r"Must be a valid tuple"):
         schema(dict(t={'t', 't2', 't'}))
+
+    schema_var_length = _make_schema_from_expr(t.Tuple[int, ...])
+    assert schema_var_length(dict(t=(1, 2, 3, 4, 5))).t == (1, 2, 3, 4, 5)
+
+    with pytest.raises(oblate.ValidationError, match=r"Tuple item at index 3: Must be of type int"):
+        schema_var_length(dict(t=(1, 2, 3, '4', 5)))
 
 def test_dict():
     schema = _make_schema_from_expr(t.Dict[str, int])

@@ -225,25 +225,34 @@ class TypeValidator(Generic[_T]):
 
     @classmethod
     def _handle_origin_tuple(cls, value: Any, tp: Any) -> Tuple[bool, List[str]]:
-        args = get_args(tp)
         if not isinstance(value, tuple):
-            return False, [f'Must be a valid {len(args)}-tuple']
+            return False, [f'Must be a valid tuple']
 
+        args = get_args(tp)
         errors: List[str] = []
         validated = True
 
-        for idx, tp in enumerate(args):
-            try:
-                v = value[idx]  # type: ignore
-            except IndexError:
-                validated = False
-                errors.append(f'Tuple length must be {len(args)} (current length: {len(value)})')  # type: ignore
-                break
-            else:
-                item_validated, fail_msg = cls._process_value(v, tp)
+        if len(args) == 2 and args[1] is Ellipsis:
+            # Tuple[T, ...] -> tuple of any length of type T
+            vtp = args[0]
+            for idx, v in enumerate(value):  # type: ignore
+                item_validated, fail_msg = cls._process_value(v, vtp)
                 if not item_validated:
                     validated = False
-                    errors.append(f'Tuple item at index {idx}: {fail_msg[0]}')  # pragma: no cover
+                    errors.append(f'Tuple item at index {idx}: {fail_msg[0]}')
+        else:
+            for idx, tp in enumerate(args):
+                try:
+                    v = value[idx]  # type: ignore
+                except IndexError:
+                    validated = False
+                    errors.append(f'Tuple length must be {len(args)} (current length: {len(value)})')  # type: ignore
+                    break
+                else:
+                    item_validated, fail_msg = cls._process_value(v, tp)
+                    if not item_validated:
+                        validated = False
+                        errors.append(f'Tuple item at index {idx}: {fail_msg[0]}')  # pragma: no cover
 
         return validated, errors
 
