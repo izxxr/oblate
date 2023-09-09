@@ -79,7 +79,10 @@ class Literal(Field[_T, _T]):
 
     def __init__(self, *values: _T, **kwargs: t.Any) -> None:
         self._values = values
-        self._msg = f'Value must be one of: {", ".join(repr(value) for value in self._values)}'
+        if len(values) == 1:
+            self._msg = f'Value must be {values[0]!r}'
+        else:
+            self._msg = f'Value must be one of: {", ".join(repr(value) for value in self._values)}'
         super().__init__(**kwargs)
 
     def format_error(self, error_code: t.Any, context: ErrorContext) -> t.Union[FieldError, str]:

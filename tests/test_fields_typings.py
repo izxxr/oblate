@@ -53,6 +53,12 @@ def test_field_literal():
     with pytest.raises(oblate.ValidationError, match="Value must be one of: 'test', 1, 3.14"):
         _Schema({'value': 'invalid'})
 
+    class _SchemaEq(oblate.Schema):
+        value = fields.Literal(2)
+
+    with pytest.raises(oblate.ValidationError, match="Value must be 2"):
+        _SchemaEq({'value': 'invalid'})
+
 def test_field_union():
     class _Schema(oblate.Schema):
         value = fields.Union(str, bool)
