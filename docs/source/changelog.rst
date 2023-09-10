@@ -14,7 +14,7 @@ New features
 - Add :class:`fields.List` for accepting :class:`list` structure.
 - Add :class:`fields.Set` for accepting :class:`set` structures.
 - Add :class:`fields.Dict` and :class:`fields.TypedDict` for handling dictionaries.
-- Add :class:`fields.TypeExr` for validating types using simple type expressions.
+- Add :class:`fields.TypeExpr` for validating types using simple type expressions.
 - Add :class:`fields.Any` field as a no validation field.
 - Add :class:`fields.Literal` field to accept pre-defined literal values.
 - Add :class:`fields.Union` for basic union type validation.
