@@ -39,6 +39,7 @@ __all__ = (
     'field',
     'Range',
     'Length',
+    'Exclude',
 )
 
 SchemaT = TypeVar('SchemaT', bound='Schema')
@@ -252,3 +253,22 @@ class Length(Validator[collections.abc.Sized]):
             _assert_value_error(length <= max, self._msg)
         else:
             _assert_value_error(length >= min and length <= max, self._msg)
+
+
+class Exclude(Validator[Any]):
+    """A validator that specifies the values that cannot be passed to a field.
+
+    Parameters
+    ----------
+    *values:
+        The values to exclude.
+    """
+    def __init__(self, *values: Any) -> None:
+        self._values = values
+        if len(values) == 1:
+            self._msg = f'Value cannot be {values[0]!r}'
+        else:
+            self._msg = f'Value cannot be one from: {", ".join(repr(v) for v in values)}'
+
+    def validate(self, value: Any, context: LoadContext) -> Any:
+        _assert_value_error(value not in self._values, self._msg)

@@ -185,3 +185,17 @@ def test_validator_length():
 
     with pytest.raises(oblate.ValidationError, match='Value length must be exactly 5 characters'):
         _Schema({'exactl': '123456'})
+
+def test_validator_exclude():
+    class _Schema(oblate.Schema):
+        single = fields.String(validators=[validate.Exclude('ex1')], default='New Folder')
+        multiple = fields.String(validators=[validate.Exclude('ex1', 'ex2', 'ex3')], default=0)
+
+    assert _Schema({'single': 'test'})
+    assert _Schema({'multiple': 'test'})
+
+    with pytest.raises(oblate.ValidationError, match="Value cannot be 'ex1'"):
+        _Schema({'single': 'ex1'})
+
+    with pytest.raises(oblate.ValidationError, match="Value cannot be one from: 'ex1', 'ex2', 'ex3'"):
+        _Schema({'multiple': 'ex2'})

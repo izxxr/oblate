@@ -28,3 +28,6 @@ Prebuilt Validators
 
 .. autoclass:: oblate.validate.Length
     :members:
+
+.. autoclass:: oblate.validate.Exclude
+    :members:
