@@ -67,6 +67,12 @@ Example::
     def validate_id(self, value, ctx):
         assert not value > 100, 'Invalid ID, must be less than 100'
 
+.. warning::
+
+    It is recommended to raise :exc:`ValueError` if you intend to run your script using
+    the Python's ``-O`` or ``-OO`` optimization flags. These flags remove the assertion
+    statements from the code causing the validators to stop working properly.
+
 .. _guide-errors-error-formatting:
 
 Error formatting

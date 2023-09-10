@@ -37,6 +37,12 @@ the following errors:
 The first two errors are automatically wrapped into a :class:`FieldError`. It is important to note
 that raising any other exception would not be accounted as a validation error.
 
+.. warning::
+
+    It is recommended to raise :exc:`ValueError` if you intend to run your script using
+    the Python's ``-O`` or ``-OO`` optimization flags. These flags remove the assertion
+    statements from the code causing the validators to stop working properly.
+
 The other, less concise way of adding a validator is by using the :meth:`fields.Field.add_validator`
 function. This function takes a callback having three parameters: the schema instance, the value
 being valdiated and the :class:`LoadContext` instance.

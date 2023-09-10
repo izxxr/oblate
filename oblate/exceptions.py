@@ -50,6 +50,12 @@ class FieldError(OblateException):
     or :exc:`AssertionError` in your validators code which would automatically be wrapped
     as a field error.
 
+    .. warning::
+
+        It is recommended to raise :exc:`ValueError` if you intend to run your script using
+        the Python's ``-O`` or ``-OO`` optimization flags. These flags remove the assertion
+        statements from the code causing the validators to stop working properly.
+
     Parameters
     ----------
     message:

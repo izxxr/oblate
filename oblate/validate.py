@@ -139,6 +139,11 @@ def field(
     return __wrapper
 
 
+def _assert_value_error(condition: bool, msg: str = ''):
+    if not condition:
+        raise ValueError(msg)
+
+
 class Range(Validator[int]):
     """Validates the range of a :class:`~fields.Integer` field.
 
@@ -181,7 +186,7 @@ class Range(Validator[int]):
         return f'{self.__class__.__name__}({self._range.start}, {self._range.stop - 1})'  # pragma: no cover
 
     def validate(self, value: int, context: LoadContext) -> Any:
-        assert value in self._range, self._msg
+        _assert_value_error(value in self._range, self._msg)
 
     @classmethod
     def from_standard(cls, obj: range, /) -> Self:
@@ -242,8 +247,8 @@ class Length(Validator[collections.abc.Sized]):
         min, max = self._min, self._max
 
         if max is MISSING:
-            assert length >= min, self._msg
+            _assert_value_error(length >= min, self._msg)
         elif min is MISSING:
-            assert length <= max, self._msg
+            _assert_value_error(length <= max, self._msg)
         else:
-            assert length >= min and length <= max, self._msg
+            _assert_value_error(length >= min and length <= max, self._msg)
