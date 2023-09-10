@@ -148,3 +148,40 @@ def test_validators_range():
 
     with pytest.raises(oblate.ValidationError, match='Value must be equal to 2'):
         UserExact({'id': 5})
+
+def test_validator_length():
+    class _Schema(oblate.Schema):
+        minl = fields.String(validators=[validate.Length(min=5)], default=0)
+        maxl = fields.String(validators=[validate.Length(max=5)], default=0)
+        rangel = fields.String(validators=[validate.Length(min=5, max=10)], default=0)
+        exactl = fields.String(validators=[validate.Length(exact=5)], default=0)
+
+    assert _Schema({'minl': '123456'})
+    assert _Schema({'minl': '12345'})
+
+    with pytest.raises(oblate.ValidationError, match='Value length must be greater than 5 characters'):
+        _Schema({'minl': '1234'})
+
+    assert _Schema({'maxl': '123'})
+    assert _Schema({'maxl': '12345'})
+
+    with pytest.raises(oblate.ValidationError, match='Value length must be less than 5 characters'):
+        _Schema({'maxl': '123456'})
+
+    assert _Schema({'rangel': '12345'})
+    assert _Schema({'rangel': '1234567'})
+    assert _Schema({'rangel': '1234567890'})
+
+    with pytest.raises(oblate.ValidationError, match='Value length must be between 5 to 10 characters'):
+        _Schema({'rangel': '12345678900'})
+
+    with pytest.raises(oblate.ValidationError, match='Value length must be between 5 to 10 characters'):
+        _Schema({'rangel': '1234'})
+
+    assert _Schema({'exactl': '12345'})
+
+    with pytest.raises(oblate.ValidationError, match='Value length must be exactly 5 characters'):
+        _Schema({'exactl': '1234'})
+
+    with pytest.raises(oblate.ValidationError, match='Value length must be exactly 5 characters'):
+        _Schema({'exactl': '123456'})

@@ -25,3 +25,6 @@ Prebuilt Validators
 
 .. autoclass:: oblate.validate.Range
     :members:
+
+.. autoclass:: oblate.validate.Length
+    :members:

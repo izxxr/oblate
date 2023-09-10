@@ -26,6 +26,8 @@ from typing import TYPE_CHECKING, Union, TypeVar, Callable, Generic, Any, Litera
 from typing_extensions import Self
 from oblate.utils import MISSING
 
+import collections.abc
+
 if TYPE_CHECKING:
     from oblate.fields.base import Field
     from oblate.schema import Schema
@@ -36,6 +38,7 @@ __all__ = (
     'Validator',
     'field',
     'Range',
+    'Length',
 )
 
 SchemaT = TypeVar('SchemaT', bound='Schema')
@@ -189,3 +192,58 @@ class Range(Validator[int]):
         (i.e upper bound not inclusive).
         """
         return cls(obj.start, obj.stop - 1)
+
+
+class Length(Validator[collections.abc.Sized]):
+    """Validates the length of a sized structure.
+
+    This validator could be applied on any structure compatible with the
+    :class:`collections.abc.Sized` protocol.
+
+    Initialization examples:
+
+    - ``Length(min=10)``: minimum length 10 characters
+    - ``Length(max=10)``: maximum length 10 characters
+    - ``Length(min=10, max=20)``: length between 10 to 20 characters
+    - ``Length(exact=10)``: length exactly 10 characters
+
+    Parameters
+    ----------
+    min: :class:`int`
+        The minimum length.
+    max: :class:`int`
+        The maximum length.
+    exact: :class:`int`
+        The exact length. Cannot be mixed with other two parameters.
+    """
+    def __init__(self, *, min: int = MISSING, max: int = MISSING, exact: int = MISSING) -> None:
+        if exact is not MISSING:
+            if min is not MISSING or max is not MISSING:
+                raise TypeError('exact cannot be mixed with min or max')  # pragma: no cover
+            min = max = exact
+
+        if min is MISSING and max is MISSING:
+            raise TypeError('One of min, max or both parameters must be provided')  # pragma: no cover
+
+        self._min = min
+        self._max = max
+
+        if min == max:
+            self._msg = f'Value length must be exactly {min} characters'
+        elif min is MISSING and max is not MISSING:
+            self._msg = f'Value length must be less than {max} characters'
+        elif min is not MISSING and max is MISSING:
+            self._msg = f'Value length must be greater than {min} characters'
+        else:
+            self._msg = f'Value length must be between {min} to {max} characters'
+
+    def validate(self, value: collections.abc.Sized, context: LoadContext) -> Any:
+        length = len(value)
+        min, max = self._min, self._max
+
+        if max is MISSING:
+            assert length >= min, self._msg
+        elif min is MISSING:
+            assert length <= max, self._msg
+        else:
+            assert length >= min and length <= max, self._msg

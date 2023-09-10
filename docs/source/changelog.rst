@@ -11,7 +11,6 @@ v1.1.0
 New features
 ~~~~~~~~~~~~
 
-- Add :class:`validate.Range` validator.
 - Add :class:`fields.List` for accepting :class:`list` structure.
 - Add :class:`fields.Set` for accepting :class:`set` structures.
 - Add :class:`fields.Dict` and :class:`fields.TypedDict` for handling dictionaries.
@@ -19,6 +18,8 @@ New features
 - Add :class:`fields.Any` field as a no validation field.
 - Add :class:`fields.Literal` field to accept pre-defined literal values.
 - Add :class:`fields.Union` for basic union type validation.
+- Add :class:`validate.Range` validator for validating integer ranges.
+- Add :class:`validate.Length` validator for validating length of sized types.
 - Add :class:`ErrorContext.metadata` for storing extra error information.
 - Add :attr:`GlobalConfig.warn_unsupported_types` to control behaviour on using unsupported types.
 - Add ``init_kwargs`` parameter in :class:`fields.Object` to support passing initialization arguments.
