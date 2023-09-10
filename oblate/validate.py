@@ -25,6 +25,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Union, TypeVar, Callable, Generic, Any, Literal, overload
 from typing_extensions import Self
 from oblate.utils import MISSING
+from oblate.exceptions import FieldError
 
 import collections.abc
 
@@ -40,6 +41,7 @@ __all__ = (
     'Range',
     'Length',
     'Exclude',
+    'Or',
 )
 
 SchemaT = TypeVar('SchemaT', bound='Schema')
@@ -272,3 +274,33 @@ class Exclude(Validator[Any]):
 
     def validate(self, value: Any, context: LoadContext) -> Any:
         _assert_value_error(value not in self._values, self._msg)
+
+
+class Or(Validator[Any]):
+    """A validator that passes if any one of the given validators pass.
+
+    The validators being passed can either be :class:`validate.Validator`
+    subclasses or function based validators. In both cases, if any of the
+    validator pass, this validator passes.
+
+    Parameters
+    ----------
+    *validators:
+        The validators to run.
+    """
+    def __init__(self, *validators: Union[Validator[Any], ValidatorCallbackT[Any, Any]]) -> None:
+        self._validators = validators
+
+    def validate(self, value: Any, context: LoadContext) -> Any:
+        passed = False
+        for validator in self._validators:
+            try:
+                validator(context.schema, value, context)
+            except (AssertionError, ValueError, FieldError):
+                continue
+            else:
+                passed = True
+                break
+
+        if not passed:
+            raise ValueError('All validations failed for the given value')

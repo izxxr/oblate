@@ -199,3 +199,23 @@ def test_validator_exclude():
 
     with pytest.raises(oblate.ValidationError, match="Value cannot be one from: 'ex1', 'ex2', 'ex3'"):
         _Schema({'multiple': 'ex2'})
+
+def test_validator_or():
+    def validator_func(s: oblate.Schema, v: str, c: oblate.LoadContext):
+        assert v.startswith('s_')
+
+    validators = [
+        validate.Length(min=5),
+        validator_func,
+    ]
+
+    class _Schema(oblate.Schema):
+        val_or = fields.String(validators=[validate.Or(*validators)])
+
+    assert _Schema({'val_or': '123456'})
+    assert _Schema({'val_or': '12345'})
+    assert _Schema({'val_or': 's_1'})
+    assert _Schema({'val_or': 's_2'})
+
+    with pytest.raises(oblate.ValidationError, match="All validations failed for the given value"):
+        _Schema({'val_or': 'test'})

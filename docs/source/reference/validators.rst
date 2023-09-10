@@ -31,3 +31,6 @@ Prebuilt Validators
 
 .. autoclass:: oblate.validate.Exclude
     :members:
+
+.. autoclass:: oblate.validate.Or
+    :members:
