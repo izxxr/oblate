@@ -20,6 +20,7 @@ New features
 - Add :class:`fields.Union` for basic union type validation.
 - Add :class:`validate.Range` validator for validating integer ranges.
 - Add :class:`validate.Length` validator for validating length of sized types.
+- Add :class:`validate.Regex` validator for validating values using regular expression.
 - Add :class:`validate.Exclude` validator for disallowing/excluding specific values.
 - Add :class:`validate.Or` validator for OR'ing the result of multiple validators.
 - Add :class:`ErrorContext.metadata` for storing extra error information.

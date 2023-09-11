@@ -28,6 +28,7 @@ from oblate.utils import MISSING
 from oblate.exceptions import FieldError
 
 import collections.abc
+import re
 
 if TYPE_CHECKING:
     from oblate.fields.base import Field
@@ -255,6 +256,60 @@ class Length(Validator[collections.abc.Sized]):
             _assert_value_error(length <= max, self._msg)
         else:
             _assert_value_error(length >= min and length <= max, self._msg)
+
+
+class Regex(Validator[str]):
+    """Validates a value using the given regular expression.
+
+    By default, this uses :meth:`re.Pattern.match` to match the pattern
+    in given value. Use ``full_match`` or ``search`` parameters to change
+    this behaviour.
+
+    Parameters
+    ----------
+    pattern: Union[:class:`str`, :class:`re.Pattern`]
+        The pattern to validate from.
+    flags: :class:`int`
+        The ``re`` flags to pass to pattern. Only applicable when ``pattern``
+        is a string.
+    fail_message: :class:`str`
+        The error message if the given value doesn't match the pattern. This
+        can be formatted by using following values:
+
+        - ``{value}``: The value being validated
+        - ``{pattern}``: The pattern used for validation
+    full_match: :class:`bool`
+        If true, uses :meth:`re.Pattern.fullmatch` on the string. This checks
+        that string is exact as the pattern. Defaults to False.
+    search: :class:`bool`
+        If true, uses :meth:`re.Pattern.search` on the string. This simply checks
+        if the pattern is in the string at any location. Defaults to False.
+    """
+    def __init__(
+        self,
+        pattern: Union[str, re.Pattern[str]],
+        flags: int = 0,
+        fail_message: str = 'Value failed pattern validation',
+        full_match: bool = False,
+        search: bool = False,
+    ) -> None:
+
+        if full_match and search:
+            raise TypeError('full_match and search parameters cannot be mixed')  # pragma: no cover
+
+        self._pattern = re.compile(pattern, flags) if isinstance(pattern, str) else pattern
+        self._fail_message = fail_message
+
+        if full_match:
+            self._match = self._pattern.fullmatch
+        elif search:
+            self._match = self._pattern.search
+        else:
+            self._match = self._pattern.match
+
+    def validate(self, value: str, context: LoadContext) -> Any:
+        if self._match(value) is None:
+            raise ValueError(self._fail_message.format(value=value, pattern=self._pattern))
 
 
 class Exclude(Validator[Any]):

@@ -219,3 +219,31 @@ def test_validator_or():
 
     with pytest.raises(oblate.ValidationError, match="All validations failed for the given value"):
         _Schema({'val_or': 'test'})
+
+def test_validator_regex():
+    PATTERN = r'([A-Za-z0-9]+[.-_])*[A-Za-z0-9]+@[A-Za-z0-9-]+(\.[A-Z|a-z]{2,})+'
+
+    class _Schema(oblate.Schema):
+        email_match = fields.String(validators=[validate.Regex(PATTERN)], default='')
+        email_fullmatch = fields.String(validators=[validate.Regex(PATTERN, full_match=True)], default='')
+        email_search = fields.String(validators=[validate.Regex(PATTERN, search=True)], default='')
+
+    assert _Schema({'email_match': 'test@oblate.org'})
+    assert _Schema({'email_match': 'test@oblate.org test'})
+
+    with pytest.raises(oblate.ValidationError, match="Value failed pattern validation"):
+        _Schema({'email_match': 'test test@oblate.org'})
+
+    assert _Schema({'email_fullmatch': 'test@oblate.org'})
+
+    with pytest.raises(oblate.ValidationError, match="Value failed pattern validation"):
+        _Schema({'email_fullmatch': 'test@oblate.org test'})
+
+    with pytest.raises(oblate.ValidationError, match="Value failed pattern validation"):
+        _Schema({'email_fullmatch': 'test test@oblate.org'})
+
+    assert _Schema({'email_search': 'test@oblate.org test'})
+    assert _Schema({'email_search': 'test test@oblate.org'})
+
+    with pytest.raises(oblate.ValidationError, match="Value failed pattern validation"):
+        _Schema({'email_match': 'test'})
