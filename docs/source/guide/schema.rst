@@ -264,8 +264,8 @@ Example::
     class Point(oblate.Schema):
         __slots__ = ('coordinate_tuple',)
 
-        x: float
-        y: float
+        x = fields.Float()
+        y = fields.Float()
 
         def __schema_post_init__(self):
             self.coordinate_tuple = (self.x, self.y)
