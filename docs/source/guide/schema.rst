@@ -240,3 +240,43 @@ In both of these cases, the ``ignore_extra`` parameter takes priority over the v
 configuration in the schema config.
 
 See :ref:`guide-config-schema-config` for information on manipulating schema configuration.
+
+Hooks
+-----
+
+Hooks are methods provided by :class:`Schema` that are called by library that can be used to perform
+some operation on some event.
+
+All hook methods are named like ``__schema_<hook_name>__``. They don't do anything by default and
+are meant to be overriden by subclasses.
+
+Some of useful hooks are discussed in this guide and the rest are documented in API reference.
+
+Operations after initialization
+-------------------------------
+
+``__schema_post_init__`` acts as a post initialization hook which is called when a schema is done
+initializing (deserializing the passed data). This hook should generally be used instead of
+standard ``__init__`` method.
+
+Example::
+
+    class Point(oblate.Schema):
+        __slots__ = ('coordinate_tuple',)
+
+        x: float
+        y: float
+
+        def __schema_post_init__(self):
+            self.coordinate_tuple = (self.x, self.y)
+
+``__slots__`` is added as all schemas are slotted by default. See :ref:`guide-schema-slotted-schemas`
+for more information on this.
+
+.. tip:: ``__schema_post_init__`` vs ``__init__``
+
+    It is recommended to use ``__schema_post_init__`` instead of the standard ``__init__``
+    function because:
+
+    - It doesn't require any super class call unlike ``__init__``.
+    - All fields can be accessed as it is called *after* raw data is successfully processed.

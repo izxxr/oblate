@@ -197,6 +197,7 @@ class Schema(metaclass=_SchemaMeta):
             raise config.validation_error_cls(errors)
 
         self._context._initialized = True
+        self.__schema_post_init__()
 
     def _process_field_value(
             self,
@@ -257,6 +258,15 @@ class Schema(metaclass=_SchemaMeta):
             current_context.reset(token)
 
         return errors
+
+    def __schema_post_init__(self):
+        """The post initialization hook.
+
+        This method is called when the schema is done initializing.
+
+        This method is meant to be overriden by subclasses and does
+        nothing by default.
+        """
 
     @property
     def context(self) -> SchemaContext:

@@ -23,6 +23,7 @@ New features
 - Add :class:`validate.Regex` validator for validating values using regular expression.
 - Add :class:`validate.Exclude` validator for disallowing/excluding specific values.
 - Add :class:`validate.Or` validator for OR'ing the result of multiple validators.
+- Add :meth:`Schema.__schema_post_init__` method as a post initialization hook.
 - Add :class:`ErrorContext.metadata` for storing extra error information.
 - Add :attr:`GlobalConfig.warn_unsupported_types` to control behaviour on using unsupported types.
 - Add ``init_kwargs`` parameter in :class:`fields.Object` to support passing initialization arguments.
