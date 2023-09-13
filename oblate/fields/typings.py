@@ -121,27 +121,29 @@ class Union(Field[_T, _T]):
     *types: :class:`type`
         The list of types to accept.
     """
-    __slots__ = ('_types', '_msg')
+    __slots__ = ('_tp',)
 
     ERR_INVALID_VALUE = 'union.invalid_value'
 
     def __init__(self, *types: t.Type[_T], **kwargs: t.Any):
-        self._types = types
-        self._msg = '{value!r} is not compatible with types: ' + ", ".join(tp.__name__ for tp in self._types)
+        if len(types) < 2:
+            raise TypeError('fields.Union() accepts at least two arguments')  # pragma: no cover
+
+        self._tp = utils.TypeValidator(t.Union[*types])  # type: ignore
         super().__init__(**kwargs)
 
     def _get_default_error_message(self, error_code: t.Any, context: ErrorContext) -> t.Union[FieldError, str]:
         if error_code == self.ERR_INVALID_VALUE:
-            return self._msg.format(value=context.get_value())
+            return FieldError(context.metadata['type_validation_fail_errors'])
 
         return super()._get_default_error_message(error_code, context)  # pragma: no cover
 
     def value_load(self, value: t.Any, context: LoadContext) -> _T:
-        for tp in self._types:
-            if isinstance(value, tp):
-                return value
-
-        raise self._call_format_error(self.ERR_INVALID_VALUE, context.schema, value)
+        validated, errors = self._tp.validate(value)  # type: ignore
+        if not validated:
+            metadata = {'type_validation_fail_errors': errors}
+            raise self._call_format_error(self.ERR_INVALID_VALUE, context.schema, value, metadata)
+        return value
 
     def value_dump(self, value: _T, context: DumpContext) -> _T:
         return value

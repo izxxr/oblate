@@ -41,7 +41,7 @@ def test_union():
     assert schema(dict(t='text')).t == 'text'
     assert schema(dict(t=1)).t == 1
 
-    with pytest.raises(oblate.ValidationError, match=r'Must be one of types \(str, int\)'):
+    with pytest.raises(oblate.ValidationError, match=r'Type of 3.14 \(float\) is not compatible with types \(str, int\)'):
         schema(dict(t=3.14))
 
 def test_literal():

@@ -108,7 +108,7 @@ def test_field_list():
     with pytest.raises(oblate.ValidationError, match="Value must be a list"):
         _Schema({'untyped': 1})
 
-    with pytest.raises(oblate.ValidationError, match=r"Sequence item at index 1: Must be one of types \(str, int\)"):
+    with pytest.raises(oblate.ValidationError, match=r"Sequence item at index 1: Type of 3.14 \(float\) is not compatible with types \(str, int\)"):
         _Schema({'untyped': [1, 2, 3], 'typed': [1, 3.14, '2']})
 
 def test_field_set():
@@ -124,5 +124,6 @@ def test_field_set():
     with pytest.raises(oblate.ValidationError, match="Value must be a set"):
         _Schema({'untyped': [1]})
 
-    with pytest.raises(oblate.ValidationError, match=r"Set includes an invalid item: Must be one of types \(str, int\)"):
+    with pytest.raises(oblate.ValidationError,
+                       match=r"Set includes an invalid item: Type of 3.14 \(float\) is not compatible with types \(str, int\)"):
         _Schema({'untyped': {1, 2, 3}, 'typed': {1, '2', 3.14}})

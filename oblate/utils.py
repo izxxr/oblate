@@ -161,7 +161,7 @@ class TypeValidator(Generic[_T]):
             validated, _ = cls._process_value(value, tp)
             if validated:
                 return True, []
-        return False, [f'Must be one of types ({", ".join(tp.__name__ for tp in args)})']
+        return False, [f'Type of {value!r} ({type(value).__name__}) is not compatible with types ({", ".join(tp.__name__ for tp in args)})']
 
     @classmethod
     def __process_mapping(cls, value: Any, tp: Any, name: str, origin: Any) -> Tuple[bool, List[str]]:

@@ -67,7 +67,7 @@ def test_field_union():
     assert _Schema({'value': False}).value == False
     assert _Schema({'value': 'raw'}).dump()['value'] == 'raw'
 
-    with pytest.raises(oblate.ValidationError, match="2 is not compatible with types: str, bool"):
+    with pytest.raises(oblate.ValidationError, match=r"Type of 2 \(int\) is not compatible with types \(str, bool\)"):
         _Schema({'value': 2})
 
 def test_field_type_expr():
