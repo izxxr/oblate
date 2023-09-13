@@ -96,11 +96,11 @@ class Object(Field[Union[Mapping[str, Any], SchemaT], SchemaT]):
         self.init_kwargs: Mapping[str, Any] = init_kwargs if init_kwargs is not MISSING else {}
         super().__init__(**kwargs)
 
-    def format_error(self, error_code: Any, context: ErrorContext) -> Union[FieldError, str]:
+    def _get_default_error_message(self, error_code: str, context: ErrorContext) -> Union[FieldError, str]:
         if error_code == self.ERR_INVALID_DATATYPE:
             return f'Value must be a {self.schema_cls.__name__} object'
 
-        return super().format_error(error_code, context)  # pragma: no cover
+        return super()._get_default_error_message(error_code, context)  # pragma: no cover
 
     def value_load(self, value: Union[Mapping[str, Any], SchemaT], context: LoadContext) -> SchemaT:
         if isinstance(value, self.schema_cls):

@@ -85,11 +85,11 @@ class Literal(Field[_T, _T]):
             self._msg = f'Value must be one of: {", ".join(repr(value) for value in self._values)}'
         super().__init__(**kwargs)
 
-    def format_error(self, error_code: t.Any, context: ErrorContext) -> t.Union[FieldError, str]:
+    def _get_default_error_message(self, error_code: t.Any, context: ErrorContext) -> t.Union[FieldError, str]:
         if error_code == self.ERR_INVALID_VALUE:
             return self._msg
 
-        return super().format_error(error_code, context)  # pragma: no cover
+        return super()._get_default_error_message(error_code, context)  # pragma: no cover
 
     def value_load(self, value: t.Any, context: LoadContext) -> _T:
         if value not in self._values:
@@ -126,11 +126,11 @@ class Union(Field[_T, _T]):
         self._msg = '{value!r} is not compatible with types: ' + ", ".join(tp.__name__ for tp in self._types)
         super().__init__(**kwargs)
 
-    def format_error(self, error_code: t.Any, context: ErrorContext) -> t.Union[FieldError, str]:
+    def _get_default_error_message(self, error_code: t.Any, context: ErrorContext) -> t.Union[FieldError, str]:
         if error_code == self.ERR_INVALID_VALUE:
             return self._msg.format(value=context.get_value())
 
-        return super().format_error(error_code, context)  # pragma: no cover
+        return super()._get_default_error_message(error_code, context)  # pragma: no cover
 
     def value_load(self, value: t.Any, context: LoadContext) -> _T:
         for tp in self._types:
@@ -165,11 +165,11 @@ class TypeExpr(Field[_T, _T]):
         self._tp = utils.TypeValidator(tp)
         super().__init__(**kwargs)
 
-    def format_error(self, error_code: t.Any, context: ErrorContext) -> t.Union[FieldError, str]:
+    def _get_default_error_message(self, error_code: t.Any, context: ErrorContext) -> t.Union[FieldError, str]:
         if error_code == self.ERR_TYPE_VALIDATION_FAILED:
             return FieldError(context.metadata['type_validation_fail_errors'])
 
-        return super().format_error(error_code, context)  # pragma: no cover
+        return super()._get_default_error_message(error_code, context)  # pragma: no cover
 
     def value_load(self, value: t.Any, context: LoadContext) -> _T:
         validated, errors = self._tp.validate(value)

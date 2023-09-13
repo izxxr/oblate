@@ -22,7 +22,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Union
+from typing import Any, Union, Optional
 from oblate import fields
 
 import pytest
@@ -94,13 +94,11 @@ def test_error_raw():
 
 def test_field_format_error():
     class Int(fields.Integer):
-        def format_error(self, error_code: Any, context: oblate.ErrorContext) -> Union[oblate.FieldError, str]:
+        def format_error(self, error_code: Any, context: oblate.ErrorContext) -> Optional[Union[oblate.FieldError, str]]:
             if error_code == self.ERR_INVALID_DATATYPE:
                 return oblate.FieldError('Invalid datatype, must be string')
             if error_code == self.ERR_COERCION_FAILED:
                 return f'Coercion to integer failed for {context.get_value()}'
-
-            return super().format_error(error_code, context)
 
     class _TestSchema(oblate.Schema):
         integer = Int()
@@ -113,3 +111,6 @@ def test_field_format_error():
 
     with pytest.raises(oblate.ValidationError, match='Coercion to integer failed for invalid'):
         _TestSchemaNoStrict({'integer': 'invalid'})
+
+    with pytest.raises(oblate.ValidationError, match='This field is required'):
+        _TestSchema({})

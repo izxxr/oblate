@@ -229,11 +229,9 @@ holding the contextual information about the error. The method should return a :
 Example::
 
     class Integer(fields.Integer):
-        def format_error(self, error_code, ctx) -> None:
+        def format_error(self, error_code, ctx):
             if error_code == self.ERR_INVALID_DATATYPE:
                 return f'{ctx.get_value()!r} is not an integer'
-
-            super().format_error(error_code, ctx)
 
     class User(oblate.Schema):
         id = Integer()
@@ -250,8 +248,3 @@ Output::
 :meth:`ErrorContext.get_value` returns the value that caused the error. In case of certain
 error codes, the error doesn't have a causative value. In this case, a :exc:`ValueError` is
 raised. Currently, the only error that doesn't have a value is :attr:`~fields.Field.ERR_FIELD_REQUIRED`.
-
-.. warning::
-
-    It is important and required to return ``super().format_error()`` at the end so other errors can
-    be handled properly.

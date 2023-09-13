@@ -65,13 +65,13 @@ class _BaseStructField(Field[KT, VT]):
         self.ERR_TYPE_VALIDATION_FAILED = f'{self._struct_name}.type_validation_failed'  # type: ignore
         super().__init__(*args, **kwargs)
 
-    def format_error(self, error_code: Any, context: ErrorContext) -> Union[FieldError, str]:
+    def _get_default_error_message(self, error_code: Any, context: ErrorContext) -> Union[FieldError, str]:
         if error_code == self.ERR_INVALID_DATATYPE:
             return f'Value must be a {self._friendly_struct_name}'
         if error_code == self.ERR_TYPE_VALIDATION_FAILED:
             return FieldError(context.metadata['type_validation_fail_errors'])
 
-        return super().format_error(error_code, context)  # pragma: no cover
+        return super()._get_default_error_message(error_code, context)  # pragma: no cover
 
 
 class Dict(_BaseStructField[DictT[KT, VT], DictT[KT, VT]]):

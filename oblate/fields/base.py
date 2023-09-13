@@ -212,6 +212,16 @@ class Field(Generic[RawValueT, FinalValueT]):
 
         return errors
 
+    def _get_default_error_message(self, error_code: str, context: ErrorContext, /) -> Union[FieldError, str]:
+        if error_code == self.ERR_VALIDATION_FAILED:
+            return 'Validation failed for this field.'
+        if error_code == self.ERR_NONE_DISALLOWED:
+            return 'This field must not be None.'
+        if error_code == self.ERR_FIELD_REQUIRED:
+            return 'This field is required.'
+
+        return 'An unknown error occurred while validating this field.'  # pragma: no cover
+
     def _call_format_error(
             self,
             error_code: str,
@@ -229,6 +239,12 @@ class Field(Generic[RawValueT, FinalValueT]):
         )
 
         error = self.format_error(error_code, ctx)
+
+        if error is None:
+            # if format_error returns None, error code is not covered
+            # by the overriden implementation so fallback to default errors
+            error = self._get_default_error_message(error_code, ctx)
+
         if isinstance(error, str):
             return FieldError(error)
         if isinstance(error, FieldError):
@@ -371,26 +387,16 @@ class Field(Generic[RawValueT, FinalValueT]):
         for validator in validators:
             yield validator
 
-    def format_error(self, error_code: Any, context: ErrorContext, /) -> Union[FieldError, str]:
+    def format_error(self, error_code: Any, context: ErrorContext, /) -> Optional[Union[FieldError, str]]:
         """Formats the error.
 
         This method can be overriden to add custom error messages for default
         errors. It should return a :class:`FieldError` or :class:`str`.
 
-        .. note::
+        .. versionchanged:: 1.1
 
-            You must call ``super().format_error()`` if you intend to override
-            this method. This is to ensure that default error messages are returned
-            properly for error codes that are not covered by your method implementation.
-
-            Example::
-
-                def format_error(self, error_code, context):
-                    if error_code == self.FIELD_REQUIRED:
-                        return 'This field must be provided
-
-                    # call this at the end
-                    return super().format_error(error_code, context)
+            This method no longer requires super call. Default error messages
+            are now automatically resolved.
 
         Parameters
         ----------
@@ -401,17 +407,10 @@ class Field(Generic[RawValueT, FinalValueT]):
 
         Returns
         -------
-        Union[:class:`FieldError`, :class:`str`]
+        Optional[Union[:class:`FieldError`, :class:`str`]]
             The formatted error.
         """
-        if error_code == self.ERR_VALIDATION_FAILED:
-            return 'Validation failed for this field.'
-        if error_code == self.ERR_NONE_DISALLOWED:
-            return 'This field must not be None.'
-        if error_code == self.ERR_FIELD_REQUIRED:
-            return 'This field is required.'
-
-        return 'An unknown error occurred while validating this field'  # pragma: no cover
+        return self._get_default_error_message(error_code, context)
 
     def value_load(self, value: Any, context: LoadContext, /) -> FinalValueT:
         """Deserializes a raw value.

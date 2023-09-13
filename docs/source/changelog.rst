@@ -33,6 +33,7 @@ Improvements
 ~~~~~~~~~~~~
 
 - :class:`fields.Object` field now supports passing :class:`Schema` instances directly instead of raw data.
+- :meth:`fields.Field.format_error` no longer requires super call and default error messages are resolved automatically.
 
 v1.0.0
 ------

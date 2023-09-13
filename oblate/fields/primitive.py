@@ -74,11 +74,11 @@ class String(Field[str, str]):
         else:
             return value
 
-    def format_error(self, error_code: Any, context: ErrorContext) -> Union[FieldError, str]:
+    def _get_default_error_message(self, error_code: Any, context: ErrorContext) -> Union[FieldError, str]:
         if error_code == self.ERR_INVALID_DATATYPE:
             return 'Value must be a string'
 
-        return super().format_error(error_code, context)
+        return super()._get_default_error_message(error_code, context)
 
     def value_load(self, value: str, context: LoadContext) -> str:
         return self._process_value(context.value, context)
@@ -129,13 +129,13 @@ class Integer(Field[int, int]):
         else:
             return value
 
-    def format_error(self, error_code: Any, context: ErrorContext) -> Union[FieldError, str]:
+    def _get_default_error_message(self, error_code: Any, context: ErrorContext) -> Union[FieldError, str]:
         if error_code == self.ERR_INVALID_DATATYPE:
             return 'Value must be an integer'
         if error_code == self.ERR_COERCION_FAILED:
             return f'Failed to coerce {context._value!r} to integer'
 
-        return super().format_error(error_code, context)
+        return super()._get_default_error_message(error_code, context)
 
     def value_load(self, value: int, context: LoadContext) -> int:
         return self._process_value(context.value, context)
@@ -224,13 +224,13 @@ class Boolean(Field[bool, bool]):
         else:
             return value
 
-    def format_error(self, error_code: Any, context: ErrorContext) -> Union[FieldError, str]:
+    def _get_default_error_message(self, error_code: Any, context: ErrorContext) -> Union[FieldError, str]:
         if error_code == self.ERR_INVALID_DATATYPE:
             return 'Value must be a boolean'
         if error_code == self.ERR_COERCION_FAILED:
             return f'Failed to coerce {context._value!r} to boolean'
 
-        return super().format_error(error_code, context)  # pragma: no cover
+        return super()._get_default_error_message(error_code, context)  # pragma: no cover
 
     def value_load(self, value: bool, context: LoadContext) -> bool:
         return self._process_value(context.value, context)
@@ -281,13 +281,13 @@ class Float(Field[float, float]):
         else:
             return value
 
-    def format_error(self, error_code: Any, context: ErrorContext) -> Union[FieldError, str]:
+    def _get_default_error_message(self, error_code: Any, context: ErrorContext) -> Union[FieldError, str]:
         if error_code == self.ERR_INVALID_DATATYPE:
             return 'Value must be a floating point number'
         if error_code == self.ERR_COERCION_FAILED:
             return f'Failed to coerce {context._value!r} to float'
 
-        return super().format_error(error_code, context)  # pragma: no cover
+        return super()._get_default_error_message(error_code, context)  # pragma: no cover
 
     def value_load(self, value: float, context: LoadContext) -> float:
         return self._process_value(context.value, context)
