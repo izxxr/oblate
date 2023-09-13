@@ -106,11 +106,11 @@ class Field(Generic[RawValueT, FinalValueT]):
         useful when you want to attach your own extra metadata to the field. Library does
         not perform any manipulation on the data.
     load_key: :class:`str`
-        The key that points to value of this field in raw data. Defaults to the name
+        The key that points to value of this field in raw data. Defaults to the :attr:`name`
         of field.
     dump_key: :class:`str`
         The key that points to value of this field in serialized data returned by
-        :meth:`Schema.dump`. Defaults to the name of field.
+        :meth:`Schema.dump`. Defaults to the :attr:`name` of field.
     data_key: :class:`str`
         A shorthand parameter to control the value of both ``load_key`` and ``dump_key``
         parameters.
@@ -247,6 +247,20 @@ class Field(Generic[RawValueT, FinalValueT]):
     @property
     def default(self) -> Any:
         return self._default if self._default is not MISSING else None
+
+    @property
+    def schema(self) -> Type[Schema]:
+        """The schema that the field belongs to."""
+        if self._schema is MISSING:  # pragma: no cover
+            raise RuntimeError('Field has no schema set')
+        return self._schema  # pragma: no cover
+
+    @property
+    def name(self) -> str:
+        """The name of attribute that the field is assigned to."""
+        if self._name is MISSING:  # pragma: no cover
+            raise RuntimeError('Field has no name set')
+        return self._name  # pragma: no cover
 
     def has_default(self) -> bool:
         """Indicates whether the field has a default value."""

@@ -26,6 +26,7 @@ New features
 - Add :meth:`Schema.__schema_post_init__` method as a post initialization hook.
 - Add :class:`ErrorContext.metadata` for storing extra error information.
 - Add :attr:`GlobalConfig.warn_unsupported_types` to control behaviour on using unsupported types.
+- Add :attr:`Field.name` and :attr:`Field.schema` properties.
 - Add ``init_kwargs`` parameter in :class:`fields.Object` to support passing initialization arguments.
 
 Improvements
