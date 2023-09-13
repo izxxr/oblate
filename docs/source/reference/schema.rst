@@ -5,3 +5,4 @@ Schema
 
 .. autoclass:: Schema
     :members:
+    :special-members:
