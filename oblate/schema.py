@@ -131,8 +131,8 @@ class Schema(metaclass=_SchemaMeta):
         for name, member in members.items():
             if isinstance(member, Field):
                 member._bind(name, cls)
-                cls.__fields__[name] = member
-                cls.__load_fields__[member.load_key] = member
+                cls.__fields__[name] = member  # type: ignore
+                cls.__load_fields__[member.load_key] = member  # type: ignore
             elif callable(member) and hasattr(member, '__validator_field__'):
                 field = member.__validator_field__
                 if isinstance(field, str):
@@ -146,7 +146,7 @@ class Schema(metaclass=_SchemaMeta):
                 field.add_validator(member)
 
         if cls.__config__.add_repr and '__repr__' not in members:
-            cls.__repr__ = _schema_repr
+            cls.__repr__ = _schema_repr  # type: ignore
 
     def _prepare_from_data(self, data: Mapping[str, Any], *, ignore_extra: bool = MISSING) -> None:
         if ignore_extra is MISSING:
@@ -197,6 +197,7 @@ class Schema(metaclass=_SchemaMeta):
             raise config.validation_error_cls(errors)
 
         self._context._initialized = True
+        self.__schema_post_init__()
 
     def _process_field_value(
             self,
@@ -257,6 +258,16 @@ class Schema(metaclass=_SchemaMeta):
             current_context.reset(token)
 
         return errors
+
+    def __schema_post_init__(self):
+        """The post initialization hook.
+
+        This method is called when the schema is done initializing. This
+        method is meant to be overriden by subclasses and does nothing
+        by default.
+
+        .. versionadded:: 1.1
+        """
 
     @property
     def context(self) -> SchemaContext:

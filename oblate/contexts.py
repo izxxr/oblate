@@ -181,10 +181,16 @@ class ErrorContext:
         The field that the error belongs to.
     schema: :class:`Schema`
         The schema that the error was caused from.
+    metadata: Dict[:class:`str`, Any]
+        The extra metadata attached to the error. This dictionary is populated by library and includes
+        extra error information for certain error codes.
+
+        .. versionadded:: 1.1
     """
     __slots__ = (
         'schema',
         'error_code',
+        'metadata',
         '_value',
         '_field',
     )
@@ -196,10 +202,12 @@ class ErrorContext:
             schema: Schema,
             field: Field[Any, Any],
             value: Any = MISSING,
+            metadata: Dict[str, Any] = MISSING,
         ):
 
         self.error_code = error_code
         self.schema = schema
+        self.metadata = metadata if metadata is not MISSING else {}
         self._field = field
         self._value = value
 

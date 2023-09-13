@@ -56,3 +56,21 @@ def test_field_object():
 
     with pytest.raises(oblate.ValidationError, match='User object'):
         Game(game_data)
+
+    user = User({'id': 1, 'name': 'John'})
+    game = Game({'id': 1, 'author': user})
+
+    assert game.author == user
+
+def test_field_object_init_kwargs():
+    class User(oblate.Schema):
+        id = fields.Integer()
+
+    class Game(oblate.Schema):
+        id = fields.Integer()
+        author = fields.Object(User, init_kwargs=dict(ignore_extra=True))
+
+    game_data = {'id': 1, 'author': {'id': 1, 'invalid': 'field'}}
+    game = Game(game_data)
+
+    assert game.id == 1

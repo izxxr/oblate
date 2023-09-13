@@ -5,6 +5,36 @@ Changelog
 
 This page has changelogs for all releases of Oblate.
 
+v1.1.0
+------
+
+New features
+~~~~~~~~~~~~
+
+- Add :class:`fields.List` for accepting :class:`list` structure.
+- Add :class:`fields.Set` for accepting :class:`set` structures.
+- Add :class:`fields.Dict` and :class:`fields.TypedDict` for handling dictionaries.
+- Add :class:`fields.TypeExpr` for validating types using simple type expressions.
+- Add :class:`fields.Any` field as a no validation field.
+- Add :class:`fields.Literal` field to accept pre-defined literal values.
+- Add :class:`fields.Union` for basic union type validation.
+- Add :class:`validate.Range` validator for validating integer ranges.
+- Add :class:`validate.Length` validator for validating length of sized types.
+- Add :class:`validate.Regex` validator for validating values using regular expression.
+- Add :class:`validate.Exclude` validator for disallowing/excluding specific values.
+- Add :class:`validate.Or` validator for OR'ing the result of multiple validators.
+- Add :meth:`Schema.__schema_post_init__` method as a post initialization hook.
+- Add :class:`ErrorContext.metadata` for storing extra error information.
+- Add :attr:`GlobalConfig.warn_unsupported_types` to control behaviour on using unsupported types.
+- Add :attr:`Field.name` and :attr:`Field.schema` properties.
+- Add ``init_kwargs`` parameter in :class:`fields.Object` to support passing initialization arguments.
+
+Improvements
+~~~~~~~~~~~~
+
+- :class:`fields.Object` field now supports passing :class:`Schema` instances directly instead of raw data.
+- :meth:`fields.Field.format_error` no longer requires super call and default error messages are resolved automatically.
+
 v1.0.0
 ------
 

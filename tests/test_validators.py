@@ -104,3 +104,146 @@ def test_validators_methods():
     User.id.add_validator(User.validate_raw_id)
     User.id.clear_validators()
     assert list(User.id.walk_validators()) == []
+
+
+def test_validators_range():
+    msg = 'Value must be in range {lb} to {ub} inclusive'
+
+    class User(oblate.Schema):
+        id = fields.Integer(validators=[validate.Range(1000, 9999)])
+
+    assert User({'id': 1020}).id == 1020
+    assert User({'id': 1000}).id == 1000
+    assert User({'id': 9999}).id == 9999
+
+    with pytest.raises(oblate.ValidationError, match=msg.format(lb='1000', ub='9999')):
+        User({'id': 900})
+    with pytest.raises(oblate.ValidationError, match=msg.format(lb='1000', ub='9999')):
+        User({'id': 10000})
+
+    class UserNoUB(oblate.Schema):
+        id = fields.Integer(validators=[validate.Range(10)])
+
+    assert UserNoUB({'id': 10}).id == 10
+    assert UserNoUB({'id': 0}).id == 0
+
+    with pytest.raises(oblate.ValidationError, match=msg.format(lb='0', ub='10')):
+        UserNoUB({'id': -2})
+    with pytest.raises(oblate.ValidationError, match=msg.format(lb='0', ub='10')):
+        UserNoUB({'id': 11})
+
+    class UserStd(oblate.Schema):
+        id = fields.Integer(validators=[validate.Range.from_standard(range(5))])  # 0, 1, 2, 3, 4
+
+    assert UserStd({'id': 2}).id == 2
+    assert UserStd({'id': 4}).id == 4
+
+    with pytest.raises(oblate.ValidationError, match=msg.format(lb='0', ub='4')):
+        UserStd({'id': 5})
+
+    class UserExact(oblate.Schema):
+        id = fields.Integer(validators=[validate.Range(2, 2)])
+
+    assert UserExact({'id': 2}).id == 2
+
+    with pytest.raises(oblate.ValidationError, match='Value must be equal to 2'):
+        UserExact({'id': 5})
+
+def test_validator_length():
+    class _Schema(oblate.Schema):
+        minl = fields.String(validators=[validate.Length(min=5)], default=0)
+        maxl = fields.String(validators=[validate.Length(max=5)], default=0)
+        rangel = fields.String(validators=[validate.Length(min=5, max=10)], default=0)
+        exactl = fields.String(validators=[validate.Length(exact=5)], default=0)
+
+    assert _Schema({'minl': '123456'})
+    assert _Schema({'minl': '12345'})
+
+    with pytest.raises(oblate.ValidationError, match='Value length must be greater than 5 characters'):
+        _Schema({'minl': '1234'})
+
+    assert _Schema({'maxl': '123'})
+    assert _Schema({'maxl': '12345'})
+
+    with pytest.raises(oblate.ValidationError, match='Value length must be less than 5 characters'):
+        _Schema({'maxl': '123456'})
+
+    assert _Schema({'rangel': '12345'})
+    assert _Schema({'rangel': '1234567'})
+    assert _Schema({'rangel': '1234567890'})
+
+    with pytest.raises(oblate.ValidationError, match='Value length must be between 5 to 10 characters'):
+        _Schema({'rangel': '12345678900'})
+
+    with pytest.raises(oblate.ValidationError, match='Value length must be between 5 to 10 characters'):
+        _Schema({'rangel': '1234'})
+
+    assert _Schema({'exactl': '12345'})
+
+    with pytest.raises(oblate.ValidationError, match='Value length must be exactly 5 characters'):
+        _Schema({'exactl': '1234'})
+
+    with pytest.raises(oblate.ValidationError, match='Value length must be exactly 5 characters'):
+        _Schema({'exactl': '123456'})
+
+def test_validator_exclude():
+    class _Schema(oblate.Schema):
+        single = fields.String(validators=[validate.Exclude('ex1')], default='New Folder')
+        multiple = fields.String(validators=[validate.Exclude('ex1', 'ex2', 'ex3')], default=0)
+
+    assert _Schema({'single': 'test'})
+    assert _Schema({'multiple': 'test'})
+
+    with pytest.raises(oblate.ValidationError, match="Value cannot be 'ex1'"):
+        _Schema({'single': 'ex1'})
+
+    with pytest.raises(oblate.ValidationError, match="Value cannot be one from: 'ex1', 'ex2', 'ex3'"):
+        _Schema({'multiple': 'ex2'})
+
+def test_validator_or():
+    def validator_func(s: oblate.Schema, v: str, c: oblate.LoadContext):
+        assert v.startswith('s_')
+
+    validators = [
+        validate.Length(min=5),
+        validator_func,
+    ]
+
+    class _Schema(oblate.Schema):
+        val_or = fields.String(validators=[validate.Or(*validators)])
+
+    assert _Schema({'val_or': '123456'})
+    assert _Schema({'val_or': '12345'})
+    assert _Schema({'val_or': 's_1'})
+    assert _Schema({'val_or': 's_2'})
+
+    with pytest.raises(oblate.ValidationError, match="All validations failed for the given value"):
+        _Schema({'val_or': 'test'})
+
+def test_validator_regex():
+    PATTERN = r'([A-Za-z0-9]+[.-_])*[A-Za-z0-9]+@[A-Za-z0-9-]+(\.[A-Z|a-z]{2,})+'
+
+    class _Schema(oblate.Schema):
+        email_match = fields.String(validators=[validate.Regex(PATTERN)], default='')
+        email_fullmatch = fields.String(validators=[validate.Regex(PATTERN, full_match=True)], default='')
+        email_search = fields.String(validators=[validate.Regex(PATTERN, search=True)], default='')
+
+    assert _Schema({'email_match': 'test@oblate.org'})
+    assert _Schema({'email_match': 'test@oblate.org test'})
+
+    with pytest.raises(oblate.ValidationError, match="Value failed pattern validation"):
+        _Schema({'email_match': 'test test@oblate.org'})
+
+    assert _Schema({'email_fullmatch': 'test@oblate.org'})
+
+    with pytest.raises(oblate.ValidationError, match="Value failed pattern validation"):
+        _Schema({'email_fullmatch': 'test@oblate.org test'})
+
+    with pytest.raises(oblate.ValidationError, match="Value failed pattern validation"):
+        _Schema({'email_fullmatch': 'test test@oblate.org'})
+
+    assert _Schema({'email_search': 'test@oblate.org test'})
+    assert _Schema({'email_search': 'test test@oblate.org'})
+
+    with pytest.raises(oblate.ValidationError, match="Value failed pattern validation"):
+        _Schema({'email_match': 'test'})

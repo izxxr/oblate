@@ -322,6 +322,10 @@ Example::
     film = Film(data)
     print(film.actor.name)  # John
 
+The ``actor`` key in ``data`` can also take a ``Actor`` instance instead of raw data. If raw
+data is given, it is automatically converted to ``Actor`` instance. Similarly, if an instance
+is given, it is returned as-is.
+
 If an error occurs in a nested schema, the causative nested fields are indicated using indentation.
 
 Example invalid data::
@@ -347,3 +351,216 @@ Raised error::
     │
     └── In field rating:
         └── This field is required.
+
+You can also pass ``init_kwargs`` parameter to :class:`~fields.Object` to include any keyword
+parameters that should be passed to schema while initializing it.
+
+For example, in order to ignore :ref:`unknown fields <guide-schema-passing-unknown-fields>`::
+
+    class Film(oblate.Schema):
+        name = fields.String()
+        rating = fields.Integer()
+        actor = fields.Object(Actor, init_kwargs=dict(ignore_extra=True))
+
+    data = {
+        'name': 'A nice film',
+        'rating': 10,
+        'actor': {
+            'name': 'John',
+            'film_count': 13,
+            'invalid_field': 'test',
+        }
+    }
+    film = Film(data)  # No error, invalid fields ignored silently
+
+.. note::
+
+    ``init_kwargs`` are only used when the raw data is passed to object field. In a case,
+    where the schema instance is passed directly to object field, ``init_kwargs`` is not
+    used as schema is already initialized.
+
+    For example, ``init_kwargs`` would not be used in this case::
+
+        actor = Actor({'name': 'John', 'film_count': 13})
+        data = {
+            'name': 'A nice film',
+            'rating': 10,
+            'actor': actor,
+        }
+
+.. _guide-fields-typings-fields:
+
+Typing fields
+-------------
+
+Some fields are inspired by some types provided by the ``typing`` module from standard library
+and work in a similar fashion.
+
+.. _guide-fields-typings-fields-any:
+
+Any
+~~~
+
+The :class:`fields.Any` is a field that performs no validation on the given value and returns
+it as-is. This is similar to ``typing.Any``.
+
+Example::
+
+    class Model(oblate.Schema):
+        something = fields.Any()
+
+    Model({'something': 'any arbitrary type'})
+
+
+.. _guide-fields-typings-fields-literal:
+
+Literal
+~~~~~~~
+
+The :class:`fields.Literal` acts in a similar fashion to :class:`typing.Literal`. The field
+only accepts the values provided during initialization as literals.
+
+Example::
+
+    class User(oblate.Schema):
+        role = fields.Literal('owner', 'manager', 'employee')
+
+    User({'role': 'owner'})  # OK
+    User({'role': 'manager'})  # OK
+    User({'role': 'employee'})  # OK
+    User({'role': 'unknown'})  # ValidationError raised
+
+.. _guide-fields-typings-fields-union:
+
+Union
+~~~~~
+
+The :class:`fields.Union` field accepts value of predefined types. This is similar to how
+:class:`typing.Union` works.
+
+Example::
+
+    class User(oblate.Schema):
+        phone_number = fields.Union(str, int)
+
+    User({'phone_number': '+16362326961'})  # OK
+    User({'phone_number': 6362326961})  # OK
+    User({'phone_number': False})  # ValidationError
+
+.. note::
+
+    This field only performs simple :func:`isinstance` check without any special
+    validation of its own.
+
+.. _guide-fields-typings-field-type-expr:
+
+Type Expression
+~~~~~~~~~~~~~~~
+
+:class:`fields.TypeExpr` takes raw type expression and validates and deserializes the given value
+using this expression.
+
+For more information on the supported types and how this field works, see the :ref:`guide-type-validation`
+page in the guide.
+
+.. _guide-fields-data-structures:
+
+Data Structures Fields
+----------------------
+
+Oblate also provides fields that accept various data structures. These fields also provide
+basic type validation to validate the data associated with the structure.
+
+.. note::
+
+    For information on how type validation works along with the limitations, please see the
+    :ref:`guide-type-validation` page.
+
+.. _guide-fields-data-structures-dict:
+
+Dict
+~~~~
+
+:class:`fields.Dict` field accepts dictionaries. This field can either take an arbitrary dictionary
+with no data validation or can also perform type validation on dictionary.
+
+Example::
+
+    class Model(oblate.Schema):
+        data = fields.Dict()
+
+    Model({'data': {'test': 'value'}})  # accepts any dictionary
+
+It also supports :ref:`type validation <guide-type-validation>`::
+
+    from typing import Any
+
+    class Model(oblate.Schema):
+        data = fields.Dict(str, Any)
+
+    Model({'data': {'test': 'value'}})  # OK
+    Model({'data': {'test': 1}})  # OK
+    Model({'data': {1: 'value'}})  # Error: Dict key at index 1: must be of type str
+
+.. _guide-fields-data-structures-typed-dict:
+
+TypedDict
+~~~~~~~~~
+
+:class:`fields.TypedDict` field accepts dictionaries which are validated using the :class:`typing.TypedDict`.
+
+Example::
+
+    from typing import TypedDict, Required, NotRequired, Union
+
+    class ModelData(TypedDict):
+        id: Union[int, str]
+        name: str
+        rating: NotRequired[int]
+
+    class Model(oblate.Schema):
+        data = fields.TypedDict(ModelData)
+
+    Model({'data': {'id': '123', 'name': 'John'}})  # OK
+    Model({'data': {'id': 123, 'name': 'John', 'rating': 3}})  # OK
+
+Errors are also handled properly in TypedDict errors::
+
+    Model({'data': {'id': 3.14}})
+
+Outputs::
+
+    oblate.exceptions.ValidationError:
+    │
+    │ 1 validation error in schema 'Model'
+    │
+    └── In field data:
+        ├── Validation failed for 'id': Must be one of types (int, str)
+        └── Key 'name' is required
+
+.. _guide-fields-data-structures-sequences:
+
+Sequences
+~~~~~~~~~
+
+Currently following sequence structures are available as fields:
+
+- :class:`fields.List`
+- :class:`fields.Set`
+
+All of these classes support type validation. If initialized without argument, these fields
+perform no type validation on elements of sequence otherwise each element's type is validated
+according to given type expression.
+
+Example::
+
+    class Model(oblate.Schema):
+        untyped_list = fields.List()
+        typed_list = fields.List(str)
+        typed_list_union = fields.List(typing.Union[str, int])
+
+Here,
+
+- ``untyped_list`` accepts any arbitrary list without any type validation on elements.
+- ``typed_list`` accepts list of string elements only.
+- ``typed_list_union`` accepts list with elements either being string or integer.

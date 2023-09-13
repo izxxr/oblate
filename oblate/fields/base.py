@@ -106,11 +106,11 @@ class Field(Generic[RawValueT, FinalValueT]):
         useful when you want to attach your own extra metadata to the field. Library does
         not perform any manipulation on the data.
     load_key: :class:`str`
-        The key that points to value of this field in raw data. Defaults to the name
+        The key that points to value of this field in raw data. Defaults to the :attr:`name`
         of field.
     dump_key: :class:`str`
         The key that points to value of this field in serialized data returned by
-        :meth:`Schema.dump`. Defaults to the name of field.
+        :meth:`Schema.dump`. Defaults to the :attr:`name` of field.
     data_key: :class:`str`
         A shorthand parameter to control the value of both ``load_key`` and ``dump_key``
         parameters.
@@ -212,15 +212,39 @@ class Field(Generic[RawValueT, FinalValueT]):
 
         return errors
 
-    def _call_format_error(self, error_code: str, schema: Schema, value: Any = MISSING) -> FieldError:
+    def _get_default_error_message(self, error_code: str, context: ErrorContext, /) -> Union[FieldError, str]:
+        if error_code == self.ERR_VALIDATION_FAILED:
+            return 'Validation failed for this field.'
+        if error_code == self.ERR_NONE_DISALLOWED:
+            return 'This field must not be None.'
+        if error_code == self.ERR_FIELD_REQUIRED:
+            return 'This field is required.'
+
+        return 'An unknown error occurred while validating this field.'  # pragma: no cover
+
+    def _call_format_error(
+            self,
+            error_code: str,
+            schema: Schema,
+            value: Any = MISSING,
+            metadata: Dict[str, Any] = MISSING,
+        ) -> FieldError:
+
         ctx = ErrorContext(
             error_code=error_code,
             value=value,
             field=self,
             schema=schema,
+            metadata=metadata,
         )
 
         error = self.format_error(error_code, ctx)
+
+        if error is None:
+            # if format_error returns None, error code is not covered
+            # by the overriden implementation so fallback to default errors
+            error = self._get_default_error_message(error_code, ctx)
+
         if isinstance(error, str):
             return FieldError(error)
         if isinstance(error, FieldError):
@@ -239,6 +263,30 @@ class Field(Generic[RawValueT, FinalValueT]):
     @property
     def default(self) -> Any:
         return self._default if self._default is not MISSING else None
+
+    @property
+    def schema(self) -> Type[Schema]:
+        """The schema that the field belongs to.
+        
+        .. versionadded:: 1.1
+
+        :type: :class:`Schema`
+        """
+        if self._schema is MISSING:  # pragma: no cover
+            raise RuntimeError('Field has no schema set')
+        return self._schema  # pragma: no cover
+
+    @property
+    def name(self) -> str:
+        """The name of attribute that the field is assigned to.
+        
+        .. versionadded:: 1.1
+
+        :type: :class:`str`
+        """
+        if self._name is MISSING:  # pragma: no cover
+            raise RuntimeError('Field has no name set')
+        return self._name  # pragma: no cover
 
     def has_default(self) -> bool:
         """Indicates whether the field has a default value."""
@@ -349,26 +397,16 @@ class Field(Generic[RawValueT, FinalValueT]):
         for validator in validators:
             yield validator
 
-    def format_error(self, error_code: Any, context: ErrorContext, /) -> Union[FieldError, str]:
+    def format_error(self, error_code: Any, context: ErrorContext, /) -> Optional[Union[FieldError, str]]:
         """Formats the error.
 
         This method can be overriden to add custom error messages for default
-        errors. It should return a :class:`FieldError` or :class`str`.
+        errors. It should return a :class:`FieldError` or :class:`str`.
 
-        .. note::
+        .. versionchanged:: 1.1
 
-            You must call ``super().format_error()`` if you intend to override
-            this method. This is to ensure that default error messages are returned
-            properly for error codes that are not covered by your method implementation.
-
-            Example::
-
-                def format_error(self, error_code, context):
-                    if error_code == self.FIELD_REQUIRED:
-                        return 'This field must be provided
-
-                    # call this at the end
-                    return super().format_error(error_code, context)
+            This method no longer requires super call. Default error messages
+            are now automatically resolved.
 
         Parameters
         ----------
@@ -379,17 +417,10 @@ class Field(Generic[RawValueT, FinalValueT]):
 
         Returns
         -------
-        Union[:class:`FieldError`, :class:`str`]
+        Optional[Union[:class:`FieldError`, :class:`str`]]
             The formatted error.
         """
-        if error_code == self.ERR_VALIDATION_FAILED:
-            return 'Validation failed for this field.'
-        if error_code == self.ERR_NONE_DISALLOWED:
-            return 'This field must not be None.'
-        if error_code == self.ERR_FIELD_REQUIRED:
-            return 'This field is required.'
-
-        return 'An unknown error occurred while validating this field'  # pragma: no cover
+        return self._get_default_error_message(error_code, context)
 
     def value_load(self, value: Any, context: LoadContext, /) -> FinalValueT:
         """Deserializes a raw value.

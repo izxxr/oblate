@@ -12,9 +12,9 @@ Focused around simplicity and flexibility, Oblate has the following features:
 
 - Intuitive and modern object oriented interface
 - Built in support for commonly used data structures
-- Easily extendible to suit every use case
-- Robust with no compromise on performance
-- Properly type hinted to maximize the developer experience
+- Easily extendible and customizable to suit every use case
+- Robust with no compromise on performance and speed
+- Typed and plays well with static type checking
 
 .. toctree::
    :maxdepth: 2

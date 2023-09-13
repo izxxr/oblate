@@ -17,7 +17,7 @@ os.environ['SPHINX_BUILD'] = '1'
 project = 'Oblate'
 copyright = '2023, Izhar Ahmad (izxxr)'
 author = 'Izhar Ahmad (izxxr)'
-release = '1.0.0'
+release = '1.1.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -45,3 +45,5 @@ html_theme_options = {
 
 # Autodoc
 autodoc_typehints = 'none'
+autodoc_member_order = 'bysource'
+autodoc_inherit_docstrings = False

@@ -50,10 +50,17 @@ class FieldError(OblateException):
     or :exc:`AssertionError` in your validators code which would automatically be wrapped
     as a field error.
 
+    .. warning::
+
+        It is recommended to raise :exc:`ValueError` if you intend to run your script using
+        the Python's ``-O`` or ``-OO`` optimization flags. These flags remove the assertion
+        statements from the code causing the validators to stop working properly.
+
     Parameters
     ----------
     message:
-        The error message.
+        The error message. If this is a sequence, each element of sequence is accounted
+        as a separate error.
     state:
         The state to attach to this error. This parameter allows users to attach
         extra state that can be accessed later. Library will not be performing any
@@ -67,13 +74,6 @@ class FieldError(OblateException):
     schema: :class:`Schema`
         The schema that the error originates from.
     """
-    __slots__ = (
-        'message',
-        'state',
-        'context',
-        '_key',
-    )
-
     def __init__(self, message: Any, /, state: Any = None) -> None:
         self.message = message
         self.state = state
@@ -95,6 +95,15 @@ class FieldError(OblateException):
             return field._call_format_error(field.ERR_VALIDATION_FAILED, schema, value)
         else:
             return cls(message)
+
+    def _copy_with(self, message: Any) -> FieldError:
+        copy = self.__class__.__new__(self.__class__)
+        copy.message = message
+        copy.state = self.state
+        copy.context = self.context
+        copy.schema = self.schema
+        copy._key = self._key
+        return copy
 
     @property
     def field(self) -> Optional[Field[Any, Any]]:
@@ -131,9 +140,19 @@ class ValidationError(OblateException):
         The schema this error originates from.
     """
     def __init__(self, errors: List[FieldError]) -> None:
-        self.errors = errors
+        self.errors = errors.copy()
         self.schema = current_schema.get()
+        self._flatten_errors(errors)
         super().__init__(self._make_message())
+
+    def _flatten_errors(self, errors: List[FieldError]) -> None:
+        for error in errors:
+            if not isinstance(error.message, (list, tuple, set)):
+                continue
+
+            self.errors.remove(error)
+            for message in error.message:  # type: ignore
+                self.errors.append(error._copy_with(message))
 
     def _make_message(self, field_errors: Optional[Dict[str, List[FieldError]]] = None, level: int = 0) -> str:
         if field_errors is None:

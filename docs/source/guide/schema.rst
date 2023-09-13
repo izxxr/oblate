@@ -13,11 +13,15 @@ Introduction
 It is recommended that you see the :ref:`tutorial-quickstart` section in the :ref:`tutorial` section
 for a basic overview of how schemas work in Oblate.
 
+.. _guide-schema-schema-context:
+
 Schema Context
 --------------
 
 :attr:`Schema.context` is an instance of :class:`SchemaContext` class which holds useful information
 about the schema and its state. See :ref:`guide-contexts` for more information about contextual objects.
+
+.. _guide-schema-inheriting-schema:
 
 Inheriting Schemas
 ------------------
@@ -53,6 +57,8 @@ Example::
         def validate_id(self, value, ctx):
             ...
 
+.. _guide-schema-updating-schema:
+
 Updating schema
 ---------------
 
@@ -81,11 +87,13 @@ updating multiple fields or with raw data::
 
 If any of the field in the data fails validation, the schema is rolled back to previous state.
 
+.. _guide-schema-serializing-schema:
+
 Serializing schema
 ------------------
 
-Similar to deserialization, a schema can also be deserialized. This is done using the :meth:`Schema.dump`
-method.
+Similar to deserialization, a schema can also be serialized to raw data. This is done using the
+:meth:`Schema.dump` method.
 
 Example::
 
@@ -103,12 +111,14 @@ exclusive, only one can be used at a time)::
 
 Output::
 
-    {'username': 'John'}
+    {'id': 1}
 
 .. note::
 
-    The serialized data is not always the same as the data used to initialize
+    The serialized data is not always the same as the data used to initialize (deserialize)
     the schema.
+
+.. _guide-schema-schema-state:
 
 Schema State
 ------------
@@ -122,6 +132,8 @@ value can be accessed and manipulated by validators or user side code.::
 
     schema = UserSchema(data, state={'key': 'value'})
     print(schema.context.state)  # {'key': 'value'}
+
+.. _guide-schema-slotted-schemas:
 
 Slotted Schemas
 ---------------
@@ -152,6 +164,8 @@ Alternatively, :attr:`SchemaConfig.slotted` can be set to ``False`` which would 
 
 See :ref:`guide-config-schema-config` for information on manipulating schema configuration.
 
+.. _guide-schema-representation-of-schema:
+
 Representation of schema
 ------------------------
 
@@ -181,6 +195,8 @@ If you don't want Oblate to add a ``__repr__`` to schema, set :attr:`SchemaConfi
 would be used.
 
 See :ref:`guide-config-schema-config` for information on manipulating schema configuration.
+
+.. _guide-schema-passing-unknown-fields:
 
 Passing unknown fields
 ----------------------
@@ -224,3 +240,43 @@ In both of these cases, the ``ignore_extra`` parameter takes priority over the v
 configuration in the schema config.
 
 See :ref:`guide-config-schema-config` for information on manipulating schema configuration.
+
+Hooks
+-----
+
+Hooks are methods provided by :class:`Schema` that are called by library that can be used to perform
+some operation on some event.
+
+All hook methods are named like ``__schema_<hook_name>__``. They don't do anything by default and
+are meant to be overriden by subclasses.
+
+Some of useful hooks are discussed in this guide and the rest are documented in API reference.
+
+Operations after initialization
+-------------------------------
+
+``__schema_post_init__`` acts as a post initialization hook which is called when a schema is done
+initializing (deserializing the passed data). This hook should generally be used instead of
+standard ``__init__`` method.
+
+Example::
+
+    class Point(oblate.Schema):
+        __slots__ = ('coordinate_tuple',)
+
+        x = fields.Float()
+        y = fields.Float()
+
+        def __schema_post_init__(self):
+            self.coordinate_tuple = (self.x, self.y)
+
+``__slots__`` is added as all schemas are slotted by default. See :ref:`guide-schema-slotted-schemas`
+for more information on this.
+
+.. tip:: ``__schema_post_init__`` vs ``__init__``
+
+    It is recommended to use ``__schema_post_init__`` instead of the standard ``__init__``
+    function because:
+
+    - It doesn't require any super class call unlike ``__init__``.
+    - All fields can be accessed as it is called *after* raw data is successfully processed.
