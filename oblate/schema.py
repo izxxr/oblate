@@ -146,7 +146,7 @@ class Schema(metaclass=_SchemaMeta):
                 field.add_validator(member)
 
         if cls.__config__.add_repr and '__repr__' not in members:
-            cls.__repr__ = _schema_repr
+            cls.__repr__ = _schema_repr  # type: ignore
 
     def _prepare_from_data(self, data: Mapping[str, Any], *, ignore_extra: bool = MISSING) -> None:
         if ignore_extra is MISSING:
