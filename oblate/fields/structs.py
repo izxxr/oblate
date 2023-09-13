@@ -174,6 +174,15 @@ class TypedDict(_BaseStructField[TD, TD]):
 class List(_BaseStructField[ListT[KT], ListT[KT]]):
     """A field that accepts a :class:`list`.
 
+    Attributes
+    ----------
+    ERR_INVALID_DATATYPE:
+        Error raised when the given value is not a dictionary.
+    ERR_TYPE_VALIDATION_FAILED:
+        Error raised when the type validation fails. In this error's context,
+        :attr:`ErrorContext.metadata` has a key ``type_validation_fail_errors``
+        which is a list of error messages.
+
     Parameters
     ----------
     tp:
@@ -203,6 +212,15 @@ class List(_BaseStructField[ListT[KT], ListT[KT]]):
 
 class Set(_BaseStructField[SetT[KT], SetT[KT]]):
     """A field that accepts a :class:`set`.
+
+    Attributes
+    ----------
+    ERR_INVALID_DATATYPE:
+        Error raised when the given value is not a dictionary.
+    ERR_TYPE_VALIDATION_FAILED:
+        Error raised when the type validation fails. In this error's context,
+        :attr:`ErrorContext.metadata` has a key ``type_validation_fail_errors``
+        which is a list of error messages.
 
     Parameters
     ----------
