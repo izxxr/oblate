@@ -157,6 +157,8 @@ class Range(Validator[int]):
     - ``Range(5)`` must be between 0-5 inclusive (equivalent to ``Range(0, 5)``)
     - ``Range(2, 10)`` must be between 2-10 inclusive
 
+    .. versionadded:: 1.1
+
     Parameters
     ----------
     lb: :class:`int`
@@ -216,6 +218,8 @@ class Length(Validator[collections.abc.Sized]):
     - ``Length(min=10, max=20)``: length between 10 to 20 characters
     - ``Length(exact=10)``: length exactly 10 characters
 
+    .. versionadded:: 1.1
+
     Parameters
     ----------
     min: :class:`int`
@@ -264,6 +268,8 @@ class Regex(Validator[str]):
     By default, this uses :meth:`re.Pattern.match` to match the pattern
     in given value. Use ``full_match`` or ``search`` parameters to change
     this behaviour.
+
+    .. versionadded:: 1.1
 
     Parameters
     ----------
@@ -315,6 +321,8 @@ class Regex(Validator[str]):
 class Exclude(Validator[Any]):
     """A validator that specifies the values that cannot be passed to a field.
 
+    .. versionadded:: 1.1
+
     Parameters
     ----------
     *values:
@@ -337,6 +345,8 @@ class Or(Validator[Any]):
     The validators being passed can either be :class:`validate.Validator`
     subclasses or function based validators. In both cases, if any of the
     validator pass, this validator passes.
+
+    .. versionadded:: 1.1
 
     Parameters
     ----------

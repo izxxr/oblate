@@ -262,10 +262,11 @@ class Schema(metaclass=_SchemaMeta):
     def __schema_post_init__(self):
         """The post initialization hook.
 
-        This method is called when the schema is done initializing.
+        This method is called when the schema is done initializing. This
+        method is meant to be overriden by subclasses and does nothing
+        by default.
 
-        This method is meant to be overriden by subclasses and does
-        nothing by default.
+        .. versionadded:: 1.1
         """
 
     @property

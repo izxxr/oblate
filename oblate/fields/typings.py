@@ -63,6 +63,8 @@ class Literal(Field[_T, _T]):
 
     This works in a similar fashion as :class:`typing.Literal`.
 
+    .. versionadded:: 1.1
+
     Attributes
     ----------
     ERR_INVALID_VALUE:
@@ -107,6 +109,8 @@ class Union(Field[_T, _T]):
     This is similar to the :class:`typing.Union` type. Note that this field
     only performs simple :func:`isinstance` check on the given value.
 
+    .. versionadded:: 1.1
+
     Attributes
     ----------
     ERR_INVALID_VALUE:
@@ -148,6 +152,8 @@ class TypeExpr(Field[_T, _T]):
 
     For the list of supported types and limitations of this field, please see
     the :ref:`guide-type-validation` section.
+
+    .. versionadded:: 1.1
 
     Parameters
     ----------

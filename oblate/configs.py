@@ -128,6 +128,8 @@ class GlobalConfig:
         expression in fields involving type validation that cannot be validated
         by Oblate.
 
+        .. versionadded:: 1.1
+
         :type: :class:`bool`
         """
         return True

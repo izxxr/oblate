@@ -86,6 +86,8 @@ class Dict(_BaseStructField[DictT[KT, VT], DictT[KT, VT]]):
 
     For more information type validation, see the :ref:`guide-type-validation` page.
 
+    .. versionadded:: 1.1
+
     Attributes
     ----------
     ERR_INVALID_DATATYPE:
@@ -135,6 +137,8 @@ class TypedDict(_BaseStructField[TD, TD]):
     This class provides type validation on the values of given :class:`TypedDict`,
     For more information type validation, see the :ref:`guide-type-validation` page.
 
+    .. versionadded:: 1.1
+
     Attributes
     ----------
     ERR_INVALID_DATATYPE:
@@ -174,6 +178,8 @@ class TypedDict(_BaseStructField[TD, TD]):
 class List(_BaseStructField[ListT[KT], ListT[KT]]):
     """A field that accepts a :class:`list`.
 
+    .. versionadded:: 1.1
+
     Attributes
     ----------
     ERR_INVALID_DATATYPE:
@@ -212,6 +218,8 @@ class List(_BaseStructField[ListT[KT], ListT[KT]]):
 
 class Set(_BaseStructField[SetT[KT], SetT[KT]]):
     """A field that accepts a :class:`set`.
+
+    .. versionadded:: 1.1
 
     Attributes
     ----------

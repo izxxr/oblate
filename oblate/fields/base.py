@@ -266,14 +266,24 @@ class Field(Generic[RawValueT, FinalValueT]):
 
     @property
     def schema(self) -> Type[Schema]:
-        """The schema that the field belongs to."""
+        """The schema that the field belongs to.
+        
+        .. versionadded:: 1.1
+
+        :type: :class:`Schema`
+        """
         if self._schema is MISSING:  # pragma: no cover
             raise RuntimeError('Field has no schema set')
         return self._schema  # pragma: no cover
 
     @property
     def name(self) -> str:
-        """The name of attribute that the field is assigned to."""
+        """The name of attribute that the field is assigned to.
+        
+        .. versionadded:: 1.1
+
+        :type: :class:`str`
+        """
         if self._name is MISSING:  # pragma: no cover
             raise RuntimeError('Field has no name set')
         return self._name  # pragma: no cover

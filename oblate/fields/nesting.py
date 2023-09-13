@@ -65,6 +65,10 @@ class Object(Field[Union[Mapping[str, Any], SchemaT], SchemaT]):
         book = Book(data)
         print(book.author.name, 'has rating of', book.author.rating)  # John has rating of 10
 
+    .. versionchanged:: 1.1
+
+        Passing :class:`Schema` instances directly is now supported other than raw data.        
+
     Attributes
     ----------
     ERR_INVALID_DATATYPE:
@@ -80,6 +84,8 @@ class Object(Field[Union[Mapping[str, Any], SchemaT], SchemaT]):
 
         This parameter is only taken into account when raw data is being deserialized to
         ``schema_cls``. If a ``schema_cls`` instance is passed, this parameter is ignored.
+
+        .. versionadded:: 1.1
     """
     ERR_INVALID_DATATYPE = 'object.invalid_datatype'
 

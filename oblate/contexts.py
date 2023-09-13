@@ -184,6 +184,8 @@ class ErrorContext:
     metadata: Dict[:class:`str`, Any]
         The extra metadata attached to the error. This dictionary is populated by library and includes
         extra error information for certain error codes.
+
+        .. versionadded:: 1.1
     """
     __slots__ = (
         'schema',
