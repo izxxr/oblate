@@ -25,6 +25,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Set, Dict
 from oblate.utils import MISSING
 
+import copy
+
 if TYPE_CHECKING:
     from oblate.schema import Schema
     from oblate.fields.base import Field
@@ -75,6 +77,10 @@ class SchemaContext:
         """Indicates whether the schema has initialized successfully."""
         return self._initialized
 
+    def _copy(self, schema: Schema) -> SchemaContext:
+        context = self.__class__(schema=schema, state=copy.copy(self.state))
+        context._initialized = True
+        return context
 
 class _BaseValueContext:
     __slots__ = (

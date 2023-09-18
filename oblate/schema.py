@@ -22,13 +22,26 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, Any, Mapping, List, Optional, Sequence, Tuple, Type
+from typing import (
+    TYPE_CHECKING,
+    Dict,
+    Any,
+    Mapping,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    TypeVar,
+)
+from typing_extensions import Self
 from oblate.contexts import SchemaContext, LoadContext, DumpContext
 from oblate.utils import MISSING, current_field_key, current_context, current_schema
 from oblate.exceptions import FieldError
 from oblate.configs import config, SchemaConfig
 
 import inspect
+import copy
 
 if TYPE_CHECKING:
     from oblate.fields.base import Field
@@ -36,6 +49,8 @@ if TYPE_CHECKING:
 __all__ = (
     'Schema',
 )
+
+T = TypeVar('T')
 
 def _schema_repr(self: Schema) -> str:
     attrs = ', '.join((f'{name}={value}' for name, value in self._field_values.items()))  # pragma: no cover
@@ -279,6 +294,19 @@ class Schema(metaclass=_SchemaMeta):
         """
         return self._context
 
+    def copy(self) -> Self:
+        """Copies the current schema.
+
+        Returns
+        -------
+        :class:`Schema`
+            The copied schema instance.
+        """
+        schema = copy.copy(self)
+        schema._field_values = self._field_values.copy()
+        schema._context = self._context._copy(schema=schema)
+        return schema
+
     def get_value_for(self, field_name: str, default: Any = MISSING, /) -> Any:
         """Returns the value for a field.
 
@@ -403,8 +431,6 @@ class Schema(metaclass=_SchemaMeta):
             try:
                 value = self._field_values[name]
             except KeyError:  # pragma: no cover
-                # This should never happen I guess.
-                # XXX: Raise an error here?
                 continue
 
             context = DumpContext(

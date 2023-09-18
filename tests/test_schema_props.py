@@ -143,3 +143,28 @@ def test_update():
     except oblate.ValidationError:
         assert schema.three == '3'
         assert schema.four == '4'
+
+def test_copy():
+    class _TestSchema(oblate.Schema):
+        one = fields.String()
+        two = fields.String()
+        three = fields.String()
+        four = fields.String()
+
+    schema = _TestSchema({'one': '1', 'two': '2', 'three': '3', 'four': '4'})
+    new = schema.copy()
+
+    schema.one = 'new 1'
+
+    assert schema.one == 'new 1'
+    assert new.one == '1'
+
+    new.two = 'new 2'
+
+    assert schema.two == '2'
+    assert new.two == 'new 2'
+
+    schema.context.state = {'test': '1'}
+
+    assert schema.context.state['test'] == '1'
+    assert new.context.state == None

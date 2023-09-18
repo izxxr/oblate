@@ -5,6 +5,14 @@ Changelog
 
 This page has changelogs for all releases of Oblate.
 
+v1.2.0
+------
+
+New features
+~~~~~~~~~~~~
+
+- Add :meth:`Schema.copy` method for copying schema instances.
+
 v1.1.0
 ------
 
