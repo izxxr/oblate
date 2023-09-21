@@ -52,7 +52,7 @@ Here, ``is_employee`` is marked as optional and won't be required while initiali
 No errors will be raised by the above line. However, when accessing the field, a :exc:`ValueError`
 will be raised as no value is available for this field::
 
-    print(user.is_employee)  # ValueError: No value available for this field.
+    print(user.is_employee)  # FieldNotSet: Field 'is_employee' has no value set.
     user.is_employee = True
     print(user.is_employee)  # Prints True
 
