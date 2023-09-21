@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 
 __all__ = (
     'OblateException',
+    'FieldNotSet',
     'FieldError',
     'ValidationError'
 )
@@ -38,6 +39,30 @@ __all__ = (
 
 class OblateException(Exception):
     """Base class for all exceptions provided by Oblate."""
+
+
+class FieldNotSet(AttributeError, OblateException):
+    """An exception raised when a field is accessed that has no value set.
+
+    This is only raised for fields that have :attr:`~oblate.fields.Field.required`
+    set to ``False``. For a more Pythonic handling of this, this exception inherits
+    the :exc:`AttributeError` exception.
+
+    Attributes
+    ----------
+    name: :class:`str`
+        The name that was used to address the field. This could be different from the
+        field's attribute name if the field has a specific load key set.
+    field: :class:`oblate.fields.Field`
+        The field that was accessed but had no value set.
+    schema: :class:`Schema`
+        The schema that accessed the field.
+    """
+    def __init__(self, field: Field[Any, Any], schema: Schema, field_name: str) -> None:
+        self.field_name = field_name
+        self.field = field
+        self.schema = schema
+        super().__init__(f'Field {field._name!r} has no value set', name=field._name, obj=schema)
 
 
 class FieldError(OblateException):

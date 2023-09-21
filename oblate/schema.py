@@ -37,7 +37,7 @@ from typing import (
 from typing_extensions import Self
 from oblate.contexts import SchemaContext, LoadContext, DumpContext
 from oblate.utils import MISSING, current_field_key, current_context, current_schema
-from oblate.exceptions import FieldError
+from oblate.exceptions import FieldError, FieldNotSet
 from oblate.configs import config, SchemaConfig
 
 import inspect
@@ -274,6 +274,15 @@ class Schema(metaclass=_SchemaMeta):
 
         return errors
 
+    def _get_field(self, name: str) -> Field[Any, Any]:
+        try:
+            return self.__fields__[name]
+        except KeyError:
+            try:
+                return self.__load_fields__[name]
+            except KeyError:
+                raise RuntimeError(f'Invalid field name {name!r}') from None
+
     def __schema_post_init__(self):
         """The post initialization hook.
 
@@ -329,20 +338,16 @@ class Schema(metaclass=_SchemaMeta):
         ------
         RuntimeError
             Invalid field name.
-        ValueError
-            Field value not set.
+        FieldNotSet
+            Field value is not set.
         """
-        if field_name not in self.__fields__:
-            if field_name in self.__load_fields__:
-                field_name = self.__load_fields__[field_name]._name
-            else:
-                raise RuntimeError(f'Field name {field_name!r} is invalid.')
+        field = self._get_field(field_name)
         try:
-            return self._field_values[field_name]
+            return self._field_values[field._name]
         except KeyError:
             if default is not MISSING:
                 return default
-            raise ValueError('No value set for this field.') from None
+            raise FieldNotSet(field, self, field_name) from None
 
     def update(self, data: Mapping[str, Any], /, *, ignore_extra: bool = MISSING) -> None:
         """Updates the schema with the given data.

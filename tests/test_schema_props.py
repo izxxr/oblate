@@ -94,7 +94,7 @@ def test_get_value_for():
     assert test.get_value_for('field') == 'test'
     assert test.get_value_for('optional', 'default') == 'default'
 
-    with pytest.raises(ValueError):
+    with pytest.raises(oblate.FieldNotSet):
         test.get_value_for('optional')
 
     with pytest.raises(RuntimeError):

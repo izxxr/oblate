@@ -11,6 +11,7 @@ v1.2.0
 New features
 ~~~~~~~~~~~~
 
+- Add :exc:`FieldNotSet` exception to be raised on accessing fields without values.
 - Add :meth:`Schema.copy` method for copying schema instances.
 
 Improvements

@@ -55,7 +55,7 @@ def test_required_fields():
     assert test.default_optional_field == _TestSchema.default_optional_field.default
     assert test.callable_default_optional_field == 'callable default'
 
-    with pytest.raises(ValueError):
+    with pytest.raises(oblate.FieldNotSet):
         assert test.optional_field
 
     test = _TestSchema({
