@@ -89,11 +89,6 @@ class Object(Field[Union[Mapping[str, Any], SchemaT], SchemaT]):
     """
     ERR_INVALID_DATATYPE = 'object.invalid_datatype'
 
-    __slots__ = (
-        'schema_cls',
-        'init_kwargs',
-    )
-
     def __init__(self, schema_cls: Type[SchemaT], *, init_kwargs: Mapping[str, Any] = MISSING, **kwargs: Any):
         if not issubclass(schema_cls, Schema):
             raise TypeError('schema_cls must be a subclass of Schema')  # pragma: no cover

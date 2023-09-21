@@ -49,8 +49,6 @@ class Any(Field[t.Any, t.Any]):
     This field acts as a "raw field" that performs no validation on the
     given value.
     """
-    __slots__ = ()
-
     def value_load(self, value: Any, context: LoadContext) -> Any:
         return value
 
@@ -75,11 +73,10 @@ class Literal(Field[_T, _T]):
     *values:
         The literal values.
     """
-    __slots__ = ('_tp',)
-
     ERR_INVALID_VALUE = 'literal.invalid_value'
 
     def __init__(self, *values: _T, **kwargs: t.Any) -> None:
+        self.values = values
         self._tp = utils.TypeValidator(t.Literal[*values])  # type: ignore
         super().__init__(**kwargs)
 
@@ -118,14 +115,13 @@ class Union(Field[_T, _T]):
     *types: :class:`type`
         The list of types to accept.
     """
-    __slots__ = ('_tp',)
-
     ERR_INVALID_VALUE = 'union.invalid_value'
 
     def __init__(self, *types: t.Type[_T], **kwargs: t.Any):
         if len(types) < 2:
             raise TypeError('fields.Union() accepts at least two arguments')  # pragma: no cover
 
+        self.types = types
         self._tp = utils.TypeValidator(t.Union[*types])  # type: ignore
         super().__init__(**kwargs)
 
@@ -156,18 +152,15 @@ class TypeExpr(Field[_T, _T]):
 
     Parameters
     ----------
-    tp:
+    expr:
         The type expression that should be used to validate the type of
         given value.
     """
-    __slots__ = (
-        '_tp',
-    )
-
     ERR_TYPE_VALIDATION_FAILED = 'type_expr.type_validation_failed'
 
-    def __init__(self, tp: t.Type[_T], **kwargs: t.Any):
-        self._tp = utils.TypeValidator(tp)
+    def __init__(self, expr: t.Type[_T], **kwargs: t.Any):
+        self.expr = expr
+        self._tp = utils.TypeValidator(expr)
         super().__init__(**kwargs)
 
     def _get_default_error_message(self, error_code: t.Any, context: ErrorContext) -> t.Union[FieldError, str]:

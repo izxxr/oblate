@@ -13,6 +13,11 @@ New features
 
 - Add :meth:`Schema.copy` method for copying schema instances.
 
+Improvements
+~~~~~~~~~~~~
+
+- All fields now have relevant attributes to access values passed to constructor
+
 v1.1.0
 ------
 

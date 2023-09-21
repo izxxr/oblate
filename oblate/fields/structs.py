@@ -108,6 +108,9 @@ class Dict(_BaseStructField[DictT[KT, VT], DictT[KT, VT]]):
     _friendly_struct_name = 'dictionary'
 
     def __init__(self, key_tp: Type[KT] = MISSING, value_tp: Type[VT] = MISSING, /, **kwargs: Any) -> None:
+        self.key_tp = key_tp
+        self.value_tp = value_tp
+
         if key_tp is not MISSING:
             if value_tp is MISSING:
                 raise TypeError('Dict(T) is not valid, must provide a second argument for type of value')  # pragma: no cover
@@ -157,6 +160,7 @@ class TypedDict(_BaseStructField[TD, TD]):
     _friendly_struct_name = 'dictionary'
 
     def __init__(self, typed_dict: Type[TD], /, **kwargs: Any):
+        self.typed_dict = typed_dict
         self._validator = utils.TypeValidator(typed_dict)
         super().__init__(**kwargs)
 
@@ -191,15 +195,16 @@ class List(_BaseStructField[ListT[KT], ListT[KT]]):
 
     Parameters
     ----------
-    tp:
+    type:
         The type of list elements. This parameter corresponds to ``T``
         in ``typing.List[T]``.
     """
     _struct_name = 'list'
     _friendly_struct_name = 'list'
 
-    def __init__(self, tp: Type[KT] = MISSING, /, **kwargs: Any):
-        self._tp = None if tp is MISSING else utils.TypeValidator(ListT[tp])
+    def __init__(self, type: Type[KT] = MISSING, /, **kwargs: Any):
+        self.type = type
+        self._tp = None if type is MISSING else utils.TypeValidator(ListT[type])
         super().__init__(**kwargs)
 
     def value_load(self, value: Any, context: LoadContext) -> ListT[KT]:
@@ -232,15 +237,16 @@ class Set(_BaseStructField[SetT[KT], SetT[KT]]):
 
     Parameters
     ----------
-    tp:
+    type:
         The type of set elements. This parameter corresponds to ``T``
         in ``typing.Set[T]``.
     """
     _struct_name = 'set'
     _friendly_struct_name = 'set'
 
-    def __init__(self, tp: Type[KT] = MISSING, /, **kwargs: Any):
-        self._tp = None if tp is MISSING else utils.TypeValidator(SetT[tp])
+    def __init__(self, type: Type[KT] = MISSING, /, **kwargs: Any):
+        self.type = type
+        self._tp = None if type is MISSING else utils.TypeValidator(SetT[type])
         super().__init__(**kwargs)
 
     def value_load(self, value: Any, context: LoadContext) -> SetT[KT]:
