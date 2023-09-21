@@ -151,6 +151,8 @@ class TypeValidator(Generic[_T]):
     def _handle_origin_literal(cls, value: Any, tp: Any) -> Tuple[bool, List[str]]:
         args = get_args(tp)
         if value not in args:
+            if len(args) == 1:
+                return False, [f'Value must be equal to {args[0]!r}']
             return False, [f'Value must be one of: {", ".join(repr(v) for v in args)}']
         return True, []
 

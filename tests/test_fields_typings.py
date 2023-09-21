@@ -38,7 +38,6 @@ def test_field_any():
     schema = _Schema({'value': 'raw'})
     assert schema.dump()['value'] == 'raw'
 
-
 def test_field_literal():
     class _Schema(oblate.Schema):
         value = fields.Literal('test', 1, 3.14)
@@ -56,7 +55,7 @@ def test_field_literal():
     class _SchemaEq(oblate.Schema):
         value = fields.Literal(2)
 
-    with pytest.raises(oblate.ValidationError, match="Value must be 2"):
+    with pytest.raises(oblate.ValidationError, match="Value must be equal to 2"):
         _SchemaEq({'value': 'invalid'})
 
 def test_field_union():
