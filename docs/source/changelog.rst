@@ -24,8 +24,8 @@ Improvements
 Bug fixes
 ~~~~~~~~~
 
-- Fix :exc:`SyntaxError` in various :class:`~fields.Union` and :class:`fields.Literal` fields
-  in older Python versions than 3.11.
+- Fix :exc:`SyntaxError` in various :class:`~fields.Union` and :class:`~fields.Literal`
+  fields in older Python versions than 3.11.
 
 v1.1.0
 ------
