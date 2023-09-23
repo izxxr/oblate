@@ -21,6 +21,12 @@ Improvements
 - All fields now have relevant attributes to access values passed to constructor.
 - Schema constructor now raises :exc:`TypeError` if non-mapping type is passed as data.
 
+Bug fixes
+~~~~~~~~~
+
+- Fix :exc:`SyntaxError` in various :class:`~fields.Union` and :class:`fields.Literal` fields
+  in older Python versions than 3.11.
+
 v1.1.0
 ------
 

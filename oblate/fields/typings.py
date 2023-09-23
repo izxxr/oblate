@@ -42,6 +42,11 @@ __all__ = (
 
 _T = t.TypeVar('_T')
 
+def _generic_type_with_args(tp: _T, args: t.Sequence[t.Any]) -> _T:
+    # Before Python 3.11, T[*v] notation so this is a very hacky
+    # approach to get the desired generic type with given type
+    # arguments at runtime
+    return tp.__getitem__(tuple(args))  # type: ignore
 
 class Any(Field[t.Any, t.Any]):
     """A field that accepts any arbitrary value.
@@ -77,7 +82,7 @@ class Literal(Field[_T, _T]):
 
     def __init__(self, *values: _T, **kwargs: t.Any) -> None:
         self.values = values
-        self._tp = utils.TypeValidator(t.Literal[*values])  # type: ignore
+        self._tp = utils.TypeValidator(_generic_type_with_args(t.Literal, values))
         super().__init__(**kwargs)
 
     def _get_default_error_message(self, error_code: t.Any, context: ErrorContext) -> t.Union[FieldError, str]:
@@ -122,7 +127,7 @@ class Union(Field[_T, _T]):
             raise TypeError('fields.Union() accepts at least two arguments')  # pragma: no cover
 
         self.types = types
-        self._tp = utils.TypeValidator(t.Union[*types])  # type: ignore
+        self._tp = utils.TypeValidator(_generic_type_with_args(t.Union, types))
         super().__init__(**kwargs)
 
     def _get_default_error_message(self, error_code: t.Any, context: ErrorContext) -> t.Union[FieldError, str]:
