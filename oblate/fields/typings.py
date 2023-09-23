@@ -43,9 +43,9 @@ __all__ = (
 _T = t.TypeVar('_T')
 
 def _generic_type_with_args(tp: _T, args: t.Sequence[t.Any]) -> _T:
-    # Before Python 3.11, T[*v] notation so this is a very hacky
-    # approach to get the desired generic type with given type
-    # arguments at runtime
+    # Before Python 3.11, T[*v] notation isn't supported and raises
+    # syntax error so this is a very hacky approach to get the desired
+    # generic type with given type arguments at runtime.
     return tp.__getitem__(tuple(args))  # type: ignore
 
 class Any(Field[t.Any, t.Any]):
