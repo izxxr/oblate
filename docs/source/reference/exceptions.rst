@@ -15,3 +15,6 @@ Exceptions
 .. autoexception:: ValidationError
     :members:
 
+.. autoexception:: TypeValidationError
+    :members:
+

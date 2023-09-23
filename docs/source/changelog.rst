@@ -14,11 +14,13 @@ New features
 - Add :exc:`FieldNotSet` exception to be raised on accessing fields without values.
 - Add :meth:`Schema.copy` method for copying schema instances.
 - Add :meth:`Schema.preprocess_data` for preprocessing of input data.
+- Add :func:`oblate.validate_types` function for type validation.
 
 Improvements
 ~~~~~~~~~~~~
 
 - All fields now have relevant attributes to access values passed to constructor.
+- Field accessing now raises a special exception.
 - Schema constructor now raises :exc:`TypeError` if non-mapping type is passed as data.
 
 Bug fixes

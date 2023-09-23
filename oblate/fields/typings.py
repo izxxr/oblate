@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from oblate.fields.base import Field
 from oblate.exceptions import FieldError
-from oblate import utils
+from oblate.type_validation import TypeValidator
 
 # typing imported as t to avoid name conflict with classes
 # defined in this module
@@ -82,7 +82,7 @@ class Literal(Field[_T, _T]):
 
     def __init__(self, *values: _T, **kwargs: t.Any) -> None:
         self.values = values
-        self._tp = utils.TypeValidator(_generic_type_with_args(t.Literal, values))
+        self._tp = TypeValidator({'root': _generic_type_with_args(t.Literal, values)})
         super().__init__(**kwargs)
 
     def _get_default_error_message(self, error_code: t.Any, context: ErrorContext) -> t.Union[FieldError, str]:
@@ -92,7 +92,7 @@ class Literal(Field[_T, _T]):
         return super()._get_default_error_message(error_code, context)  # pragma: no cover
 
     def value_load(self, value: t.Any, context: LoadContext) -> _T:
-        validated, errors = self._tp.validate(value)  # type: ignore
+        validated, errors = self._tp.validate('root', value)  # type: ignore
         if not validated:
             metadata = {'type_validation_fail_errors': errors}
             raise self._call_format_error(self.ERR_INVALID_VALUE, context.schema, value, metadata)
@@ -127,7 +127,7 @@ class Union(Field[_T, _T]):
             raise TypeError('fields.Union() accepts at least two arguments')  # pragma: no cover
 
         self.types = types
-        self._tp = utils.TypeValidator(_generic_type_with_args(t.Union, types))
+        self._tp = TypeValidator({'root': _generic_type_with_args(t.Union, types)})
         super().__init__(**kwargs)
 
     def _get_default_error_message(self, error_code: t.Any, context: ErrorContext) -> t.Union[FieldError, str]:
@@ -137,7 +137,7 @@ class Union(Field[_T, _T]):
         return super()._get_default_error_message(error_code, context)  # pragma: no cover
 
     def value_load(self, value: t.Any, context: LoadContext) -> _T:
-        validated, errors = self._tp.validate(value)  # type: ignore
+        validated, errors = self._tp.validate('root', value)  # type: ignore
         if not validated:
             metadata = {'type_validation_fail_errors': errors}
             raise self._call_format_error(self.ERR_INVALID_VALUE, context.schema, value, metadata)
@@ -153,6 +153,10 @@ class TypeExpr(Field[_T, _T]):
     For the list of supported types and limitations of this field, please see
     the :ref:`guide-type-validation` section.
 
+    .. note::
+
+        This uses :func:`oblate.validate_types` under the hood.
+
     .. versionadded:: 1.1
 
     Parameters
@@ -165,7 +169,7 @@ class TypeExpr(Field[_T, _T]):
 
     def __init__(self, expr: t.Type[_T], **kwargs: t.Any):
         self.expr = expr
-        self._tp = utils.TypeValidator(expr)
+        self._tp = TypeValidator({'root': expr})
         super().__init__(**kwargs)
 
     def _get_default_error_message(self, error_code: t.Any, context: ErrorContext) -> t.Union[FieldError, str]:
@@ -175,7 +179,7 @@ class TypeExpr(Field[_T, _T]):
         return super()._get_default_error_message(error_code, context)  # pragma: no cover
 
     def value_load(self, value: t.Any, context: LoadContext) -> _T:
-        validated, errors = self._tp.validate(value)
+        validated, errors = self._tp.validate('root', value)
         if not validated:
             metadata = {'type_validation_fail_errors': errors}
             raise self._call_format_error(self.ERR_TYPE_VALIDATION_FAILED, context.schema, value, metadata)

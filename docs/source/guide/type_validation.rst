@@ -11,29 +11,45 @@ machinery of type validation system.
 Type validation example
 -----------------------
 
-Type validation is provided by various fields. The most common examples are data structure fields such as
-:class:`fields.TypedDict` or :class:`fields.Dict` etc.
+Type validation is provided by various fields. The most common examples are data structure fields
+such as :class:`fields.TypedDict` or :class:`fields.Dict` etc. The :class:`fields.TypeExpr` field
+is used to validate raw type expressions.
 
-Lets take :class:`fields.TypeExpr` as an example::
+Apart from fields, the :func:`oblate.validate_types` function is used to perform type
+validation on a set of given values::
 
-    from typing import Tuple, Union
+    import typing
+    import oblate
 
-    class Model(oblate.Schema):
-        data = fields.TypeExr(Tuple[Union[str, float], int])
+    types = {
+        'name': str,
+        'id': typing.Union[int, str],
+    }
 
-    Model({'data': ('3', 0)})  # OK
-    Model({'data': (3.14, 3)})  # OK
-    Model({'data': (3.14, 3)})  # Validation error
+    oblate.validate_types(types, {'name': 'John', 'id': 2})  # no error
 
-Error raised in case validation fails::
+In case the validation fails, a special exception, :exc:`oblate.TypeValidationError` is
+raised. The :attr:`~oblate.TypeValidationError.errors` attribute is the dictionary including
+the detail of error::
 
-    oblate.exceptions.ValidationError:
-    │
-    │ 1 validation error in schema 'Model'
-    │
-    └── In field data:
-        └── Tuple item at index 0: Must be one of types (str, float)
+    try:
+        oblate.validate_types(types, {'name': 1})
+    except oblate.TypeValidationError as e:
+        print(e.errors)
 
+Error::
+
+    {
+        'name': ['Must be of type str'],
+        'id': ['This key is missing.']
+    }
+
+Few parameters can be passed to this function to modify its behaviour. These are:
+
+- ``ignore_extra``: Whether to ignore any "extra" keys passed to value mapping.
+- ``ignore_missing``: Whether to ignore keys that are missing (such as ``id`` in above example).
+
+All these parameters are, by default, False.
 
 Supported types and limitations
 -------------------------------
