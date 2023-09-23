@@ -44,9 +44,15 @@ class OblateException(Exception):
 class FieldNotSet(AttributeError, OblateException):
     """An exception raised when a field is accessed that has no value set.
 
-    This is only raised for fields that have :attr:`~oblate.fields.Field.required`
-    set to ``False``. For a more Pythonic handling of this, this exception inherits
-    the :exc:`AttributeError` exception.
+    This is raised in following circumstances only:
+
+    - For fields that have :attr:`~oblate.fields.Field.required` set to ``False`` and don't
+      have a value set.
+    - Field accessed in a context when fields are not loaded yet. An example of this is the
+      :meth:`Schema.preprocess_data` method.
+
+    For a more Pythonic handling of this, this exception inherits the :exc:`AttributeError`
+    exception.
 
     Attributes
     ----------

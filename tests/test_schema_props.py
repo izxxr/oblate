@@ -22,7 +22,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Mapping
 from oblate import fields
 
 import oblate
@@ -45,6 +45,9 @@ def test_schema_init():
 
     with pytest.raises(oblate.ValidationError, match='invalid'):
         _TestSchema({'invalid_field': 'test'})
+
+    with pytest.raises(TypeError, match='data must be a mapping'):
+        _TestSchema(None)  # type: ignore
 
 def test_schema_dump():
     class _TestSchema(oblate.Schema):
@@ -168,3 +171,17 @@ def test_copy():
 
     assert schema.context.state['test'] == '1'
     assert new.context.state == None
+
+def test_preprocess_data():
+    class _TestSchema(oblate.Schema):
+        name = fields.String()
+
+        def preprocess_data(self, data: Mapping[str, Any]):
+            data['name'] = data['name'].lower()  # type: ignore
+            return data
+
+    assert _TestSchema({'name': 'John'}).name == 'john'
+
+    _TestSchema.preprocess_data = lambda self, data: 1  # type: ignore
+    with pytest.raises(TypeError, match='_TestSchema.preprocess_data must return a mapping'):
+        _TestSchema({'name': 'John'})

@@ -40,6 +40,7 @@ from oblate.utils import MISSING, current_field_key, current_context, current_sc
 from oblate.exceptions import FieldError, FieldNotSet
 from oblate.configs import config, SchemaConfig
 
+import collections.abc
 import inspect
 import copy
 
@@ -121,6 +122,9 @@ class Schema(metaclass=_SchemaMeta):
             ignore_extra: bool = MISSING,
         ):
 
+        if not isinstance(data, collections.abc.Mapping):
+            raise TypeError(f'data must be a mapping, not {type(data)}')
+
         token = current_schema.set(self)
         try:
             self._field_values: Dict[str, Any] = {}
@@ -164,6 +168,11 @@ class Schema(metaclass=_SchemaMeta):
             cls.__repr__ = _schema_repr  # type: ignore
 
     def _prepare_from_data(self, data: Mapping[str, Any], *, ignore_extra: bool = MISSING) -> None:
+        data = self.preprocess_data(data)
+        if not isinstance(data, collections.abc.Mapping):
+            raise TypeError(f'{self.__class__.__qualname__}.preprocess_data must return a ' \
+                            f'mapping, not {type(data)}')
+
         if ignore_extra is MISSING:
             ignore_extra = self.__config__.ignore_extra
 
@@ -282,6 +291,30 @@ class Schema(metaclass=_SchemaMeta):
                 return self.__load_fields__[name]
             except KeyError:
                 raise RuntimeError(f'Invalid field name {name!r}') from None
+
+    def preprocess_data(self, data: Mapping[str, Any], /) -> Mapping[str, Any]:
+        """Preprocesses the input data.
+
+        This method is called before the raw data is serialized. The
+        processed data must be returned. By default, this method returns
+        the data as-is.
+
+        .. warning::
+
+            The ``data`` parameter to schema constructor is passed directly
+            to this method without any validation so the data may be invalid.
+
+        Parameters
+        ----------
+        data: Mapping[:class:`str`, Any]
+            The input data.
+
+        Returns
+        -------
+        Mapping[:class:`str`, Any]
+            The processed data.
+        """
+        return data
 
     def __schema_post_init__(self):
         """The post initialization hook.

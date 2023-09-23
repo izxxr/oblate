@@ -13,11 +13,13 @@ New features
 
 - Add :exc:`FieldNotSet` exception to be raised on accessing fields without values.
 - Add :meth:`Schema.copy` method for copying schema instances.
+- Add :meth:`Schema.preprocess_data` for preprocessing of input data.
 
 Improvements
 ~~~~~~~~~~~~
 
-- All fields now have relevant attributes to access values passed to constructor
+- All fields now have relevant attributes to access values passed to constructor.
+- Schema constructor now raises :exc:`TypeError` if non-mapping type is passed as data.
 
 v1.1.0
 ------
