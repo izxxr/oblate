@@ -86,7 +86,7 @@ def test_field_typed_dict():
 
     class DataOptionalReq(t.TypedDict, total=False):
         integer: int
-        string: t.Required[str]
+        string: te.Required[str]
 
     class _SchemaOptionalReq(oblate.Schema):
         data = fields.TypedDict(DataOptionalReq)

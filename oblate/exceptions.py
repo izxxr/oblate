@@ -68,7 +68,7 @@ class FieldNotSet(AttributeError, OblateException):
         self.field_name = field_name
         self.field = field
         self.schema = schema
-        super().__init__(f'Field {field._name!r} has no value set', name=field._name, obj=schema)
+        super().__init__(f'Field {field._name!r} has no value set', field._name, schema)
 
 
 class FieldError(OblateException):
