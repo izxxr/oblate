@@ -31,11 +31,10 @@ from typing import (
     Literal,
     Dict,
     Mapping,
-    get_type_hints,
     get_origin,
     get_args,
 )
-from typing_extensions import Required, NotRequired, is_typeddict
+from typing_extensions import Required, NotRequired, is_typeddict, get_type_hints
 from oblate.exceptions import OblateException
 
 import types
