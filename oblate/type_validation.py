@@ -40,6 +40,7 @@ from oblate.exceptions import OblateException
 
 import types
 import warnings
+import sys
 import collections.abc
 
 __all__ = (
@@ -47,6 +48,7 @@ __all__ = (
     'TypeValidationError',
 )
 
+PY_310 = sys.version_info >= (3, 10)
 
 class TypeValidationError(OblateException):
     """An error raised when type validation fails.
@@ -147,6 +149,10 @@ class TypeValidator:
 
     def __init__(self, types: Dict[str, Any]) -> None:
         self.types = types
+
+    @classmethod
+    def _is_origin_union(cls, origin: Any) -> bool:
+        return origin is Union or (PY_310 and origin is types.UnionType)
 
     @classmethod
     def _warn_unsupported(cls, tp: Any) -> None:
@@ -356,14 +362,14 @@ class TypeValidator:
 
     @classmethod
     def _handle_origin(cls, value: Any, tp: Any, origin: Any) -> Tuple[bool, List[str]]:
+        if cls._is_origin_union(origin):
+            return cls._handle_origin_union(value, tp)
         if origin is Required:
             return cls._handle_origin_required(value, tp)
         if origin is NotRequired:
             return cls._handle_origin_not_required(value, tp)
         if origin in (list, set, dict, tuple, collections.abc.Sequence):
             return cls._process_struct(value, tp)
-        if origin in (Union, types.UnionType):
-            return cls._handle_origin_union(value, tp)
         if origin is Literal:
             return cls._handle_origin_literal(value, tp)
 
