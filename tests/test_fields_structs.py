@@ -26,6 +26,7 @@ from oblate import fields
 
 import oblate
 import typing as t
+import typing_extensions as te
 import pytest
 
 def test_field_dict():
@@ -52,7 +53,7 @@ def test_field_typed_dict():
     class Data(t.TypedDict):
         integer: int
         string: str
-        maybe: t.NotRequired[str]
+        maybe: te.NotRequired[str]
 
     class _Schema(oblate.Schema):
         data = fields.TypedDict(Data)
@@ -76,7 +77,7 @@ def test_field_typed_dict():
     class DataOptional(t.TypedDict, total=False):
         integer: int
         string: str
-        maybe: t.NotRequired[str]
+        maybe: te.NotRequired[str]
 
     class _SchemaOptional(oblate.Schema):
         data = fields.TypedDict(DataOptional)
