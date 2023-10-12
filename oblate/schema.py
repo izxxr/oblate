@@ -37,7 +37,7 @@ from typing import (
 from typing_extensions import Self
 from oblate.contexts import SchemaContext, LoadContext, DumpContext
 from oblate.utils import MISSING, current_field_key, current_context, current_schema
-from oblate.exceptions import FieldError, FieldNotSet
+from oblate.exceptions import FieldError, FieldNotSet, SchemaFrozenError
 from oblate.configs import config, SchemaConfig
 
 import collections.abc
@@ -403,6 +403,9 @@ class Schema(metaclass=_SchemaMeta):
         ValidationError
             The validation failed.
         """
+        if self.__config__.frozen:
+            raise SchemaFrozenError(self)
+
         if ignore_extra is MISSING:
             ignore_extra = self.__config__.ignore_extra
 

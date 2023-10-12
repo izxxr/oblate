@@ -132,3 +132,31 @@ def test_schema_config_ignore_extra():
 
     with pytest.raises(RuntimeError):
         schema.get_value_for('test')
+
+
+def test_schema_config_frozen():
+    class _SchemaDefault(oblate.Schema):
+        id = oblate.fields.Integer()
+
+    class _SchemaFrozen(oblate.Schema):
+        id = oblate.fields.Integer()
+
+        class Config(oblate.SchemaConfig):
+            frozen = True
+
+    s = _SchemaDefault({'id': 1})
+    assert s.id == 1
+
+    s.update({'id': 2})
+    assert s.id == 2
+
+    s.id = 3
+    assert s.id == 3
+
+    schema = _SchemaFrozen({'id': 1})
+
+    with pytest.raises(oblate.SchemaFrozenError, match='_SchemaFrozen schema is frozen and cannot be updated'):
+        schema.update({'id': 2})
+
+    with pytest.raises(oblate.SchemaFrozenError, match='_SchemaFrozen schema is frozen and cannot be updated'):
+        schema.id = 3

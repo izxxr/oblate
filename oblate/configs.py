@@ -174,3 +174,10 @@ class SchemaConfig:
     This configuration can be overriden per initialization/update using the
     ``ignore_extra`` parameter in :class:`Schema` initialization.
     """
+
+    frozen = False
+    """Whether the schema is read only.
+
+    When set to True, the schema cannot be updated once initialized. Defaults
+    to False.
+    """

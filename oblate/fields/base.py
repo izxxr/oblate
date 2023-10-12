@@ -41,7 +41,7 @@ from typing_extensions import Self
 from oblate.schema import Schema
 from oblate.validate import Validator, ValidatorCallbackT, InputT
 from oblate.utils import MISSING, current_field_key, current_schema
-from oblate.exceptions import FieldError
+from oblate.exceptions import FieldError, SchemaFrozenError
 from oblate.contexts import ErrorContext
 from oblate.configs import config
 
@@ -174,6 +174,9 @@ class Field(Generic[RawValueT, FinalValueT]):
         return instance.get_value_for(self._name)
 
     def __set__(self, instance: Schema, value: RawValueT) -> None:
+        if instance.__config__.frozen:
+            raise SchemaFrozenError(instance)
+
         schema_token = current_schema.set(instance)
         field_name = current_field_key.set(self._name)
         try:

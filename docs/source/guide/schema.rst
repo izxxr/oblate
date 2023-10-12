@@ -231,6 +231,30 @@ would be used.
 
 See :ref:`guide-config-schema-config` for information on manipulating schema configuration.
 
+.. _guide-schema-frozen-schemas:
+
+Frozen Schemas
+--------------
+
+Frozen schemas are schemas whose fields cannot be updated once initialized. In other
+words, these schemas are marked as read only.
+
+In order to mark a schema as "frozen", the :attr:`SchemaConfig.frozen` attribute is set
+to ``True``. Whenever a field is attempted to be updated, a :exc:`SchemaFrozenError` is raised.
+
+Example::
+
+    class User(oblate.Schema):
+        id = fields.Integer()
+        username = fields.String()
+
+        class Config(oblate.SchemaConfig):
+            frozen = True
+
+    user = User({'id': 1, 'username': 'test'})
+    user.update({'id': 2})  # SchemaFrozenError: User schema is frozen and cannot be updated.
+    user.id = 1  # SchemaFrozenError: User schema is frozen and cannot be updated.
+
 .. _guide-schema-passing-unknown-fields:
 
 Passing unknown fields
