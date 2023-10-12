@@ -217,6 +217,21 @@ class ValidationError(OblateException):
 
         return '\n│\n' + '\n'.join(builder)
 
+    def _ensure_string(self, obj: Any) -> Any:
+        if isinstance(obj, FieldError):
+            return self._ensure_string(obj.message)
+        elif isinstance(obj, dict):
+            new_dict: Dict[str, Any] = {}
+            for k, v in obj.items():  # type: ignore
+                new_dict[k] = self._ensure_string(v)  # type: ignore
+            return new_dict
+        elif isinstance(obj, list):
+            new_list: List[Any] = []
+            for item in obj:  # type: ignore
+                new_list.append(self._ensure_string(item))
+            return new_list
+        return str(obj)
+
     @overload
     def _raw_std(
         self,
@@ -232,21 +247,6 @@ class ValidationError(OblateException):
         include_message: Literal[False] = False
     ) -> Dict[str, List[FieldError]]:
         ...
-
-    def _ensure_string(self, obj: Any) -> Any:
-        if isinstance(obj, FieldError):
-            return self._ensure_string(obj.message)
-        elif isinstance(obj, dict):
-            new_dict: Dict[str, Any] = {}
-            for k, v in obj.items():  # type: ignore
-                new_dict[k] = self._ensure_string(v)  # type: ignore
-            return new_dict
-        elif isinstance(obj, list):
-            new_list: List[Any] = []
-            for item in obj:  # type: ignore
-                new_list.append(self._ensure_string(item))
-            return new_list
-        return str(obj)
 
     def _raw_std(self, *, include_message: bool = True) -> Any:
         out: Dict[str, Any] = {}
