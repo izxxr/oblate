@@ -11,7 +11,7 @@ v1.2.0
 New features
 ~~~~~~~~~~~~
 
-- Add support for :ref:`frozen (read only) schemas <guide-schema-frozen-schemas>`.
+- Add support for frozen :ref:`schemas <guide-schema-frozen-schemas>` and :ref:`fields <guide-fields-frozen-fields>`.
 - Add :exc:`FieldNotSet` exception to be raised on accessing fields without values.
 - Add :meth:`Schema.copy` method for copying schema instances.
 - Add :meth:`Schema.preprocess_data` for preprocessing of input data.

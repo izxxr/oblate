@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 __all__ = (
     'OblateException',
     'FieldNotSet',
-    'SchemaFrozenError',
+    'FrozenError',
     'FieldError',
     'ValidationError'
 )
@@ -72,17 +72,23 @@ class FieldNotSet(AttributeError, OblateException):
         super().__init__(f'Field {field._name!r} has no value set', field._name, schema)
 
 
-class SchemaFrozenError(OblateException):
-    """An exception raised when update is performed on a frozen schema.
+class FrozenError(OblateException):
+    """An exception raised when a frozen field or schema is updated.
 
     Attributes
     ----------
-    schema: :class:`Schema`
-        The schema that was attempted to be updated.
+    entity: Union[:class:`Schema`, :class:`Field`]
+        The schema or field that was attempted to be updated.
     """
-    def __init__(self, schema: Schema) -> None:
-        self.schema = schema
-        super().__init__(f'{schema.__class__.__name__} schema is frozen and cannot be updated')
+    def __init__(self, entity: Union[Schema, Field[Any, Any]]) -> None:
+        from oblate.schema import Schema  # circular import
+
+        self.entity = entity
+
+        name = f'{entity.__class__.__name__} schema' if isinstance(entity, Schema) else \
+               f'{entity._schema.__name__}.{entity._name} field'
+
+        super().__init__(f'{name} is frozen and cannot be updated')
 
 
 class FieldError(OblateException):

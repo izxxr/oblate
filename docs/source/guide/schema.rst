@@ -240,7 +240,7 @@ Frozen schemas are schemas whose fields cannot be updated once initialized. In o
 words, these schemas are marked as read only.
 
 In order to mark a schema as "frozen", the :attr:`SchemaConfig.frozen` attribute is set
-to ``True``. Whenever a field is attempted to be updated, a :exc:`SchemaFrozenError` is raised.
+to ``True``. Whenever a field is attempted to be updated, a :exc:`FrozenError` is raised.
 
 Example::
 
@@ -252,8 +252,10 @@ Example::
             frozen = True
 
     user = User({'id': 1, 'username': 'test'})
-    user.update({'id': 2})  # SchemaFrozenError: User schema is frozen and cannot be updated.
-    user.id = 1  # SchemaFrozenError: User schema is frozen and cannot be updated.
+    user.update({'id': 2})  # FrozenError: User schema is frozen and cannot be updated.
+    user.id = 1  # FrozenError: User schema is frozen and cannot be updated.
+
+Individual fields can be marked as frozen too :ref:`in a similar fashion <guide-fields-frozen-fields>`.
 
 .. _guide-schema-passing-unknown-fields:
 

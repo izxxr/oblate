@@ -9,7 +9,7 @@ Exceptions
 .. autoexception:: FieldNotSet
     :members:
 
-.. autoexception:: SchemaFrozenError
+.. autoexception:: FrozenError
     :members:
 
 .. autoexception:: FieldError

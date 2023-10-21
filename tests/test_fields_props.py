@@ -94,3 +94,16 @@ def test_field_data_keys():
 
     assert schema.get_value_for('Id') == 20
     assert schema.get_value_for('id') == 20
+
+def test_field_frozen():
+    class _TestSchema(oblate.Schema):
+        id = fields.Integer(frozen=True)
+        name = fields.String()
+
+    schema = _TestSchema({'id': 20, 'name': 'John'})
+
+    with pytest.raises(oblate.FrozenError, match='_TestSchema.id field is frozen and cannot be updated'):
+        schema.update({'id': 2})
+
+    with pytest.raises(oblate.FrozenError, match='_TestSchema.id field is frozen and cannot be updated'):
+        schema.id = 3

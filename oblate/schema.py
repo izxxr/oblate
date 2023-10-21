@@ -37,7 +37,7 @@ from typing import (
 from typing_extensions import Self
 from oblate.contexts import SchemaContext, LoadContext, DumpContext
 from oblate.utils import MISSING, current_field_key, current_context, current_schema
-from oblate.exceptions import FieldError, FieldNotSet, SchemaFrozenError
+from oblate.exceptions import FieldError, FieldNotSet, FrozenError
 from oblate.configs import config, SchemaConfig
 
 import collections.abc
@@ -400,11 +400,14 @@ class Schema(metaclass=_SchemaMeta):
 
         Raises
         ------
+        FrozenError
+            The schema is read only or one of the fields attempted to
+            be updated is read only and cannot be updated.
         ValidationError
             The validation failed.
         """
         if self.__config__.frozen:
-            raise SchemaFrozenError(self)
+            raise FrozenError(self)
 
         if ignore_extra is MISSING:
             ignore_extra = self.__config__.ignore_extra
@@ -421,6 +424,8 @@ class Schema(metaclass=_SchemaMeta):
                 if not ignore_extra:
                     errors.append(FieldError(f'Invalid or unknown field.'))
             else:
+                if field.frozen:
+                    raise FrozenError(field)
                 errors.extend(self._process_field_value(field, value))
             finally:
                 current_field_key.reset(token)

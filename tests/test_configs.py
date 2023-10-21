@@ -155,8 +155,8 @@ def test_schema_config_frozen():
 
     schema = _SchemaFrozen({'id': 1})
 
-    with pytest.raises(oblate.SchemaFrozenError, match='_SchemaFrozen schema is frozen and cannot be updated'):
+    with pytest.raises(oblate.FrozenError, match='_SchemaFrozen schema is frozen and cannot be updated'):
         schema.update({'id': 2})
 
-    with pytest.raises(oblate.SchemaFrozenError, match='_SchemaFrozen schema is frozen and cannot be updated'):
+    with pytest.raises(oblate.FrozenError, match='_SchemaFrozen schema is frozen and cannot be updated'):
         schema.id = 3
