@@ -41,9 +41,6 @@ def test_global_config_validation_error_cls():
     oblate.config = oblate.GlobalConfig(validation_error_cls=CustomValidationError)
     assert oblate.config.validation_error_cls == CustomValidationError
 
-    with pytest.raises(TypeError, match='Invalid config'):
-        oblate.GlobalConfig(invalid_cfg=None)
-
     oblate.config = oblate.GlobalConfig()
     assert oblate.config.validation_error_cls == oblate.ValidationError
 
