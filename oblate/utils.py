@@ -34,6 +34,7 @@ __all__ = (
     'MISSING',
     'current_context',
     'current_field_key',
+    'current_schema',
 )
 
 
