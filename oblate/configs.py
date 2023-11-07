@@ -67,7 +67,7 @@ class _ConfigOption(Generic[_T]):
             return self._default
         try:
             return instance._values[self._name]
-        except KeyError:
+        except KeyError:  # pragma: no cover
             return self._default
 
     def __set__(self, instance: GlobalConfig, value: _T) -> None:
@@ -97,14 +97,17 @@ class GlobalConfig:
         'validation_error_cls',
     )
 
-    def __init__(self, **options: Any) -> None:
+    def __init__(
+            self,
+            *,
+            warn_unsupported_types: bool = True,
+            validation_error_cls: Type[ValidationError] = ValidationError,
+        ) -> None:
+
         self._values: Dict[str, Any] = {}
 
-        for name, value in options.items():
-            if not name in self.__config_options__:
-                raise TypeError(f'Invalid config {name!r} in GlobalConfig()')
-
-            self._values[name] = value
+        self.warn_unsupported_types = warn_unsupported_types
+        self.validation_error_cls = validation_error_cls
 
     @cfg_option
     def validation_error_cls(self) -> Type[ValidationError]:
@@ -173,4 +176,11 @@ class SchemaConfig:
 
     This configuration can be overriden per initialization/update using the
     ``ignore_extra`` parameter in :class:`Schema` initialization.
+    """
+
+    frozen = False
+    """Whether the schema is read only.
+
+    When set to True, the schema cannot be updated once initialized. Defaults
+    to False.
     """

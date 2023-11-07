@@ -31,6 +31,8 @@ if TYPE_CHECKING:
 
 __all__ = (
     'OblateException',
+    'FieldNotSet',
+    'FrozenError',
     'FieldError',
     'ValidationError'
 )
@@ -38,6 +40,55 @@ __all__ = (
 
 class OblateException(Exception):
     """Base class for all exceptions provided by Oblate."""
+
+
+class FieldNotSet(AttributeError, OblateException):
+    """An exception raised when a field is accessed that has no value set.
+
+    This is raised in following circumstances only:
+
+    - For fields that have :attr:`~oblate.fields.Field.required` set to ``False`` and don't
+      have a value set.
+    - Field accessed in a context when fields are not loaded yet. An example of this is the
+      :meth:`Schema.preprocess_data` method.
+
+    For a more Pythonic handling of this, this exception inherits the :exc:`AttributeError`
+    exception.
+
+    Attributes
+    ----------
+    name: :class:`str`
+        The name that was used to address the field. This could be different from the
+        field's attribute name if the field has a specific load key set.
+    field: :class:`oblate.fields.Field`
+        The field that was accessed but had no value set.
+    schema: :class:`Schema`
+        The schema that accessed the field.
+    """
+    def __init__(self, field: Field[Any, Any], schema: Schema, field_name: str) -> None:
+        self.field_name = field_name
+        self.field = field
+        self.schema = schema
+        super().__init__(f'Field {field._name!r} has no value set', field._name, schema)
+
+
+class FrozenError(OblateException):
+    """An exception raised when a frozen field or schema is updated.
+
+    Attributes
+    ----------
+    entity: Union[:class:`Schema`, :class:`Field`]
+        The schema or field that was attempted to be updated.
+    """
+    def __init__(self, entity: Union[Schema, Field[Any, Any]]) -> None:
+        from oblate.schema import Schema  # circular import
+
+        self.entity = entity
+
+        name = f'{entity.__class__.__name__} schema' if isinstance(entity, Schema) else \
+               f'{entity._schema.__name__}.{entity._name} field'
+
+        super().__init__(f'{name} is frozen and cannot be updated')
 
 
 class FieldError(OblateException):
@@ -186,6 +237,21 @@ class ValidationError(OblateException):
 
         return '\n│\n' + '\n'.join(builder)
 
+    def _ensure_string(self, obj: Any) -> Any:
+        if isinstance(obj, FieldError):
+            return self._ensure_string(obj.message)
+        elif isinstance(obj, dict):
+            new_dict: Dict[str, Any] = {}
+            for k, v in obj.items():  # type: ignore
+                new_dict[k] = self._ensure_string(v)  # type: ignore
+            return new_dict
+        elif isinstance(obj, list):
+            new_list: List[Any] = []
+            for item in obj:  # type: ignore
+                new_list.append(self._ensure_string(item))
+            return new_list
+        return str(obj)
+
     @overload
     def _raw_std(
         self,
@@ -201,21 +267,6 @@ class ValidationError(OblateException):
         include_message: Literal[False] = False
     ) -> Dict[str, List[FieldError]]:
         ...
-
-    def _ensure_string(self, obj: Any) -> Any:
-        if isinstance(obj, FieldError):
-            return self._ensure_string(obj.message)
-        elif isinstance(obj, dict):
-            new_dict: Dict[str, Any] = {}
-            for k, v in obj.items():  # type: ignore
-                new_dict[k] = self._ensure_string(v)  # type: ignore
-            return new_dict
-        elif isinstance(obj, list):
-            new_list: List[Any] = []
-            for item in obj:  # type: ignore
-                new_list.append(self._ensure_string(item))
-            return new_list
-        return str(obj)
 
     def _raw_std(self, *, include_message: bool = True) -> Any:
         out: Dict[str, Any] = {}

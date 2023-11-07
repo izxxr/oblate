@@ -118,6 +118,41 @@ Output::
     The serialized data is not always the same as the data used to initialize (deserialize)
     the schema.
 
+.. _guide-schema-preprocess-data:
+
+Preprocessing data
+------------------
+
+The input data can be preprocessed before it is deserialized. This can be done by overriding
+the :meth:`Schema.preprocess_data` method::
+
+    import random
+
+    class User(Schema):
+        name = fields.String()
+        nickname = fields.String()
+
+        def preprocess_data(self, data):
+            if not ('name' in data and isinstance(data['name'], str)):
+                # invalid data, return it as-is
+                return data
+            if 'nickname' not in data:
+                nick = data["name"].lower().replace(' ', '-')
+                data['nickname'] = f'{nick}-{random.randint(100, 999)}'
+            return data
+
+The output is like this::
+
+    print(User({'name': 'Bob the Builder'}).nickname)  # bob-the-builder-123
+
+It is important to note that the ``data`` passed to the constructor is directly passed
+to the preprocessor method without any prior validation. This essentially means that the
+data could be invalid too. The purpose of first if statement in the example shown is to
+confirm basic validity of fields used in the preprocessor.
+
+If you encounter invalid data in a preprocessor, it is recommended to return the data
+as is so it can be validated by the library.
+
 .. _guide-schema-schema-state:
 
 Schema State
@@ -195,6 +230,32 @@ If you don't want Oblate to add a ``__repr__`` to schema, set :attr:`SchemaConfi
 would be used.
 
 See :ref:`guide-config-schema-config` for information on manipulating schema configuration.
+
+.. _guide-schema-frozen-schemas:
+
+Frozen Schemas
+--------------
+
+Frozen schemas are schemas whose fields cannot be updated once initialized. In other
+words, these schemas are marked as read only.
+
+In order to mark a schema as "frozen", the :attr:`SchemaConfig.frozen` attribute is set
+to ``True``. Whenever a field is attempted to be updated, a :exc:`FrozenError` is raised.
+
+Example::
+
+    class User(oblate.Schema):
+        id = fields.Integer()
+        username = fields.String()
+
+        class Config(oblate.SchemaConfig):
+            frozen = True
+
+    user = User({'id': 1, 'username': 'test'})
+    user.update({'id': 2})  # FrozenError: User schema is frozen and cannot be updated.
+    user.id = 1  # FrozenError: User schema is frozen and cannot be updated.
+
+Individual fields can be marked as frozen too :ref:`in a similar fashion <guide-fields-frozen-fields>`.
 
 .. _guide-schema-passing-unknown-fields:
 

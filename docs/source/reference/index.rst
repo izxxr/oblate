@@ -9,6 +9,7 @@ API Reference
     schema
     fields/index
     validators
+    type_validation
     contexts
     config
     exceptions

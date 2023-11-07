@@ -22,13 +22,27 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, Any, Mapping, List, Optional, Sequence, Tuple, Type
+from typing import (
+    TYPE_CHECKING,
+    Dict,
+    Any,
+    Mapping,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    TypeVar,
+)
+from typing_extensions import Self
 from oblate.contexts import SchemaContext, LoadContext, DumpContext
 from oblate.utils import MISSING, current_field_key, current_context, current_schema
-from oblate.exceptions import FieldError
+from oblate.exceptions import FieldError, FieldNotSet, FrozenError
 from oblate.configs import config, SchemaConfig
 
+import collections.abc
 import inspect
+import copy
 
 if TYPE_CHECKING:
     from oblate.fields.base import Field
@@ -36,6 +50,8 @@ if TYPE_CHECKING:
 __all__ = (
     'Schema',
 )
+
+T = TypeVar('T')
 
 def _schema_repr(self: Schema) -> str:
     attrs = ', '.join((f'{name}={value}' for name, value in self._field_values.items()))  # pragma: no cover
@@ -106,6 +122,9 @@ class Schema(metaclass=_SchemaMeta):
             ignore_extra: bool = MISSING,
         ):
 
+        if not isinstance(data, collections.abc.Mapping):
+            raise TypeError(f'data must be a mapping, not {type(data)}')
+
         token = current_schema.set(self)
         try:
             self._field_values: Dict[str, Any] = {}
@@ -149,6 +168,11 @@ class Schema(metaclass=_SchemaMeta):
             cls.__repr__ = _schema_repr  # type: ignore
 
     def _prepare_from_data(self, data: Mapping[str, Any], *, ignore_extra: bool = MISSING) -> None:
+        data = self.preprocess_data(data)
+        if not isinstance(data, collections.abc.Mapping):
+            raise TypeError(f'{self.__class__.__qualname__}.preprocess_data must return a ' \
+                            f'mapping, not {type(data)}')
+
         if ignore_extra is MISSING:
             ignore_extra = self.__config__.ignore_extra
 
@@ -259,6 +283,39 @@ class Schema(metaclass=_SchemaMeta):
 
         return errors
 
+    def _get_field(self, name: str) -> Field[Any, Any]:
+        try:
+            return self.__fields__[name]
+        except KeyError:
+            try:
+                return self.__load_fields__[name]
+            except KeyError:
+                raise RuntimeError(f'Invalid field name {name!r}') from None
+
+    def preprocess_data(self, data: Mapping[str, Any], /) -> Mapping[str, Any]:
+        """Preprocesses the input data.
+
+        This method is called before the raw data is serialized. The
+        processed data must be returned. By default, this method returns
+        the data as-is.
+
+        .. warning::
+
+            The ``data`` parameter to schema constructor is passed directly
+            to this method without any validation so the data may be invalid.
+
+        Parameters
+        ----------
+        data: Mapping[:class:`str`, Any]
+            The input data.
+
+        Returns
+        -------
+        Mapping[:class:`str`, Any]
+            The processed data.
+        """
+        return data
+
     def __schema_post_init__(self):
         """The post initialization hook.
 
@@ -278,6 +335,19 @@ class Schema(metaclass=_SchemaMeta):
         :type: :class:`SchemaContext`
         """
         return self._context
+
+    def copy(self) -> Self:
+        """Copies the current schema.
+
+        Returns
+        -------
+        :class:`Schema`
+            The copied schema instance.
+        """
+        schema = copy.copy(self)
+        schema._field_values = self._field_values.copy()
+        schema._context = self._context._copy(schema=schema)
+        return schema
 
     def get_value_for(self, field_name: str, default: Any = MISSING, /) -> Any:
         """Returns the value for a field.
@@ -301,20 +371,16 @@ class Schema(metaclass=_SchemaMeta):
         ------
         RuntimeError
             Invalid field name.
-        ValueError
-            Field value not set.
+        FieldNotSet
+            Field value is not set.
         """
-        if field_name not in self.__fields__:
-            if field_name in self.__load_fields__:
-                field_name = self.__load_fields__[field_name]._name
-            else:
-                raise RuntimeError(f'Field name {field_name!r} is invalid.')
+        field = self._get_field(field_name)
         try:
-            return self._field_values[field_name]
+            return self._field_values[field._name]
         except KeyError:
             if default is not MISSING:
                 return default
-            raise ValueError('No value set for this field.') from None
+            raise FieldNotSet(field, self, field_name) from None
 
     def update(self, data: Mapping[str, Any], /, *, ignore_extra: bool = MISSING) -> None:
         """Updates the schema with the given data.
@@ -334,9 +400,15 @@ class Schema(metaclass=_SchemaMeta):
 
         Raises
         ------
+        FrozenError
+            The schema is read only or one of the fields attempted to
+            be updated is read only and cannot be updated.
         ValidationError
             The validation failed.
         """
+        if self.__config__.frozen:
+            raise FrozenError(self)
+
         if ignore_extra is MISSING:
             ignore_extra = self.__config__.ignore_extra
 
@@ -352,6 +424,8 @@ class Schema(metaclass=_SchemaMeta):
                 if not ignore_extra:
                     errors.append(FieldError(f'Invalid or unknown field.'))
             else:
+                if field.frozen:
+                    raise FrozenError(field)
                 errors.extend(self._process_field_value(field, value))
             finally:
                 current_field_key.reset(token)
@@ -403,8 +477,6 @@ class Schema(metaclass=_SchemaMeta):
             try:
                 value = self._field_values[name]
             except KeyError:  # pragma: no cover
-                # This should never happen I guess.
-                # XXX: Raise an error here?
                 continue
 
             context = DumpContext(

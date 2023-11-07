@@ -26,111 +26,176 @@ import oblate
 import pytest
 import typing as t
 
-if t.TYPE_CHECKING:
-    class _Schema(oblate.Schema):
-        t: oblate.fields.TypeExpr[t.Any]
 
-def _make_schema_from_expr(expr: t.Any) -> t.Type[_Schema]:
-    class _Schema(oblate.Schema):
-        t = oblate.fields.TypeExpr(expr)
+def _test_validate_types(types: t.Mapping[str, type], values: t.Mapping[str, t.Any], error: t.Optional[str]):
+    if not error:
+        return oblate.validate_types(types, values)
 
-    return _Schema
+    with pytest.raises(oblate.TypeValidationError) as exc_info:
+        oblate.validate_types(types, values)
 
-def test_union():
-    schema = _make_schema_from_expr(t.Union[str, int])
-    assert schema(dict(t='text')).t == 'text'
-    assert schema(dict(t=1)).t == 1
+    assert exc_info.value.errors['root'][0] == error
 
-    with pytest.raises(oblate.ValidationError, match=r'Type of 3.14 \(float\) is not compatible with types \(str, int\)'):
-        schema(dict(t=3.14))
 
-def test_literal():
-    schema = _make_schema_from_expr(t.Literal['owner', 'admin', 'member'])
-    assert schema(dict(t='owner')).t == 'owner'
-    assert schema(dict(t='admin')).t == 'admin'
-    assert schema(dict(t='member')).t == 'member'
+ERR_UNION = 'Type of {value} ({type}) is not compatible with types ({types})'
+ERR_LITERAL_MULTIPLE = 'Value must be one of: {values}'
+ERR_LITERAL_SINGLE = 'Value must be equal to {value}'
+ERR_SEQUENCE_ELEM = 'Sequence item at index {index}: Must be of type {type}'
+ERR_LIST_ELEM = ERR_SEQUENCE_ELEM
+ERR_LIST_TYPE = 'Must be a valid list'
+ERR_SET_ELEM = 'Set includes an invalid item: Must be of type {type}'
+ERR_SET_TYPE = 'Must be a valid set'
+ERR_TUPLE_ELEM = 'Tuple item at index {index}: Must be of type {type}'
+ERR_TUPLE_LENGTH = 'Tuple length must be {length} (current length: {current})'
+ERR_TUPLE_TYPE = 'Must be a valid tuple'
+ERR_DICT_KEY = 'Dictionary key at index {index}: Must be of type {type}'
+ERR_DICT_VALUE = 'Dictionary value for key \'{key}\': Must be of type {type}'
+ERR_DICT_TYPE = 'Must be a valid dictionary'
 
-    with pytest.raises(oblate.ValidationError, match=r"Value must be one of: 'owner', 'admin', 'member'"):
-        schema(dict(t='test'))
+def test_missing_keys():
+    types = {
+        'name': str,
+        'id': t.Union[int, str]
+    }
 
-def test_any():
-    schema = _make_schema_from_expr(t.Any)
-    assert schema(dict(t='text')).t == 'text'
-    assert schema(dict(t=1)).t == 1
-    assert schema(dict(t=3.14)).t == 3.14
+    with pytest.raises(oblate.TypeValidationError) as exc_info:
+        oblate.validate_types(types, {'name': 'John'})
 
-def test_sequence():
-    schema = _make_schema_from_expr(t.Sequence[str])
-    assert schema(dict(t=['t', 't2', 't3'])).t == ['t', 't2', 't3']
-    assert schema(dict(t=('t', 't2', 't3'))).t == ('t', 't2', 't3')
-    assert schema(dict(t={'t', 't2', 't3'})).t
+    assert exc_info.value.errors['id'][0] == 'This key is missing.'
+    oblate.validate_types(types, {'name': 'John'}, ignore_missing=True)
 
-    with pytest.raises(oblate.ValidationError, match=r"Sequence item at index 2: Must be of type str"):
-        schema(dict(t=['t', 't2', 3]))
+def test_extra_keys():
+    types = {
+        'name': str,
+    }
 
-def test_list():
-    schema = _make_schema_from_expr(t.List[str])
-    assert schema(dict(t=['t', 't2', 't3'])).t == ['t', 't2', 't3']
+    with pytest.raises(oblate.TypeValidationError) as exc_info:
+        oblate.validate_types(types, {'name': 'John', 'id': 'test'})
 
-    with pytest.raises(oblate.ValidationError, match=r"Sequence item at index 2: Must be of type str"):
-        schema(dict(t=['t', 't2', 3]))
+    assert exc_info.value.errors['id'][0] == "Invalid key"
+    oblate.validate_types(types, {'name': 'John', 'id': 'test'}, ignore_extra=True)
 
-    with pytest.raises(oblate.ValidationError, match=r"Must be a valid list"):
-        schema(dict(t=('t', 't2', 't')))
 
-def test_set():
-    schema = _make_schema_from_expr(t.Set[str])
-    assert schema(dict(t={'t', 't2', 't3'})).t == {'t', 't2', 't3'}
+@pytest.mark.parametrize(
+        ['types', 'values', 'error'],
+        [
+            (dict(root=t.Union[str, int]), dict(root='test'), None),
+            (dict(root=t.Union[str, int]), dict(root=1), None),
+            (dict(root=t.Union[str, int]), dict(root=3.14),
+             ERR_UNION.format(value=3.14, type='float', types='str, int')),
+        ]
+)
+def test_union(types: t.Mapping[str, type], values: t.Mapping[str, t.Any], error: t.Optional[str]):
+    _test_validate_types(types, values, error)
 
-    with pytest.raises(oblate.ValidationError, match=r"Set includes an invalid item: Must be of type str"):
-        schema(dict(t={'t', 't2', 3}))
+@pytest.mark.parametrize(
+        ['types', 'values', 'error'],
+        [
+            (dict(root=t.Literal['owner', 'admin']), dict(root='owner'), None),
+            (dict(root=t.Literal['owner', 'admin']), dict(root='admin'), None),
+            (dict(root=t.Literal['owner', 'admin']), dict(root='test'),
+             ERR_LITERAL_MULTIPLE.format(value='test', values="'owner', 'admin'")),
+            (dict(root=t.Literal['owner']), dict(root='admin'),
+             ERR_LITERAL_SINGLE.format(value="'owner'")),
+        ]
+)
+def test_literal(types: t.Mapping[str, type], values: t.Mapping[str, t.Any], error: t.Optional[str]):
+    _test_validate_types(types, values, error)
 
-    with pytest.raises(oblate.ValidationError, match=r"Must be a valid set"):
-        schema(dict(t=('t', 't2', 't')))
+@pytest.mark.parametrize(
+        ['types', 'values', 'error'],
+        [
+            (dict(root=t.Any), dict(root='test'), None),
+            (dict(root=t.Any), dict(root=3.14), None),
+            (dict(root=t.Any), dict(root=1), None),
+        ]
+)
+def test_any(types: t.Mapping[str, type], values: t.Mapping[str, t.Any], error: t.Optional[str]):
+    _test_validate_types(types, values, error)
 
-def test_tuple():
-    schema = _make_schema_from_expr(t.Tuple[str, int, float])
-    assert schema(dict(t=('t', 2, 3.14))).t == ('t', 2, 3.14)
+@pytest.mark.parametrize(
+        ['types', 'values', 'error'],
+        [
+            (dict(root=t.Sequence[str]), dict(root=['t', 't2', 't3']), None),
+            (dict(root=t.Sequence[str]), dict(root=('t', 't2', 't3')), None),
+            (dict(root=t.Sequence[str]), dict(root={'t', 't2', 't3'}), None),
+            (dict(root=t.Sequence[str]), dict(root=['t', 't2', 3]),
+             ERR_SEQUENCE_ELEM.format(index=2, type='str')),
+        ]
+)
+def test_sequence(types: t.Mapping[str, type], values: t.Mapping[str, t.Any], error: t.Optional[str]):
+    _test_validate_types(types, values, error)
 
-    with pytest.raises(oblate.ValidationError, match=r"Tuple item at index 1: Must be of type int"):
-        schema(dict(t=('t', 2.12, 2.3)))
+@pytest.mark.parametrize(
+        ['types', 'values', 'error'],
+        [
+            (dict(root=t.List[str]), dict(root=['t', 't2', 't3']), None),
+            (dict(root=t.List[str]), dict(root=('t', 't2', 't3')), ERR_LIST_TYPE),
+            (dict(root=t.List[str]), dict(root=['t', 't2', 3]),
+             ERR_LIST_ELEM.format(index=2, type='str')),
+        ]
+)
+def test_list(types: t.Mapping[str, type], values: t.Mapping[str, t.Any], error: t.Optional[str]):
+    _test_validate_types(types, values, error)
 
-    with pytest.raises(oblate.ValidationError, match=r"Tuple length must be 3 \(current length: 2\)"):
-        schema(dict(t=('t', 2)))
+@pytest.mark.parametrize(
+        ['types', 'values', 'error'],
+        [
+            (dict(root=t.Set[str]), dict(root={'t', 't2', 't3'}), None),
+            (dict(root=t.Set[str]), dict(root=('t', 't2', 't')), ERR_SET_TYPE),
+            (dict(root=t.Set[str]), dict(root={'t', 't2', 3}),
+             ERR_SET_ELEM.format(type='str')),
+        ]
+)
+def test_set(types: t.Mapping[str, type], values: t.Mapping[str, t.Any], error: t.Optional[str]):
+    _test_validate_types(types, values, error)
 
-    with pytest.raises(oblate.ValidationError, match=r"Must be a valid tuple"):
-        schema(dict(t={'t', 't2', 't'}))
+@pytest.mark.parametrize(
+        ['types', 'values', 'error'],
+        [
+            (dict(root=t.Tuple[str, int, float]), dict(root=('t', 2, 3.14)), None),
+            (dict(root=t.Tuple[str, int, float]), dict(root={'t', 't2', 't'}), ERR_TUPLE_TYPE),
+            (dict(root=t.Tuple[str, int, float]), dict(root=('t', 2.12, 2.3)),
+             ERR_TUPLE_ELEM.format(index='1', type='int')),
+            (dict(root=t.Tuple[str, int, float]), dict(root=('t', 2)),
+             ERR_TUPLE_LENGTH.format(length='3', current='2')),
+            (dict(root=t.Tuple[int, ...]), dict(root=(1, 2, 3, 4, 5)), None),
+            (dict(root=t.Tuple[int, ...]), dict(root=(1, 2, 3, '4', 5)),
+             ERR_TUPLE_ELEM.format(index='3', type='int')),
+        ]
+)
+def test_tuple(types: t.Mapping[str, type], values: t.Mapping[str, t.Any], error: t.Optional[str]):
+    _test_validate_types(types, values, error)
 
-    schema_var_length = _make_schema_from_expr(t.Tuple[int, ...])
-    assert schema_var_length(dict(t=(1, 2, 3, 4, 5))).t == (1, 2, 3, 4, 5)
+@pytest.mark.parametrize(
+        ['types', 'values', 'error'],
+        [
+            (dict(root=t.Dict[str, int]), dict(root={'t': 1}), None),
+            (dict(root=t.Dict[str, int]), dict(root={'t', 't2', 't'}), ERR_DICT_TYPE),
+            (dict(root=t.Dict[str, int]), dict(root={'t': '1'}),
+             ERR_DICT_VALUE.format(key='t', type='int')),
+            (dict(root=t.Dict[str, int]), dict(root={1: 1}),
+             ERR_DICT_KEY.format(index=0, type='str')),
+        ]
+)
+def test_dict(types: t.Mapping[str, type], values: t.Mapping[str, t.Any], error: t.Optional[str]):
+    _test_validate_types(types, values, error)
 
-    with pytest.raises(oblate.ValidationError, match=r"Tuple item at index 3: Must be of type int"):
-        schema_var_length(dict(t=(1, 2, 3, '4', 5)))
+@pytest.mark.parametrize(
+        ['types', 'values', 'error'],
+        [(dict(root=t.Type[int]), dict(root={'t': 1}), None)]
+)
+def test_unknown(types: t.Mapping[str, type], values: t.Mapping[str, t.Any], error: t.Optional[str]):
+    _test_validate_types(types, values, error)
 
-def test_dict():
-    schema = _make_schema_from_expr(t.Dict[str, int])
-    assert schema(dict(t={'t': 1})).t == {'t': 1}
-
-    with pytest.raises(oblate.ValidationError, match=r"Dictionary value for key 't': Must be of type int"):
-        schema(dict(t={'t': '1'}))
-
-    with pytest.raises(oblate.ValidationError, match=r"Dictionary key at index 0: Must be of type str"):
-        schema(dict(t={1: '1'}))
-
-    with pytest.raises(oblate.ValidationError, match=r"Must be a valid dictionary"):
-        schema(dict(t={'t', 't2', 't'}))
-
-def test_unknown():
-    schema = _make_schema_from_expr(t.Type[int])
-    assert schema(dict(t={'t': 1})).t == {'t': 1}
 
 def test_typed_dict():
     # mostly covered in test_fields_struct.test_typed_dict
     class Data(t.TypedDict):
         test: str
 
-    schema = _make_schema_from_expr(Data)
-    assert schema({'t': {'test': '2'}}).t == {'test': '2'}
+    types = {'data': Data}
+    oblate.validate_types(types, {'data': {'test': '2'}})
 
-    with pytest.raises(oblate.ValidationError):
-        schema({'t': {'test': 2}})
+    with pytest.raises(oblate.TypeValidationError):
+        oblate.validate_types(types, {'data': {'test': 2}})

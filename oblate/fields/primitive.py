@@ -58,10 +58,6 @@ class String(Field[str, str]):
     """
     ERR_INVALID_DATATYPE = 'string.invalid_datatype'
 
-    __slots__ = (
-        'strict',
-    )
-
     def __init__(self, strict: bool = True, **kwargs: Any) -> None:
         self.strict = strict
         super().__init__(**kwargs)
@@ -109,10 +105,6 @@ class Integer(Field[int, int]):
     """
     ERR_INVALID_DATATYPE = 'integer.invalid_datatype'
     ERR_COERCION_FAILED  = 'integer.coercion_failed'
-
-    __slots__ = (
-        'strict',
-    )
 
     def __init__(self, strict: bool = True, **kwargs: Any) -> None:
         self.strict = strict
@@ -189,12 +181,6 @@ class Boolean(Field[bool, bool]):
     ERR_INVALID_DATATYPE = 'boolean.invalid_datatype'
     ERR_COERCION_FAILED  = 'boolean.coercion_failed'
 
-    __slots__ = (
-        'strict',
-        '_true_values',
-        '_false_values',
-    )
-
     def __init__(
             self,
             *,
@@ -261,10 +247,6 @@ class Float(Field[float, float]):
     """
     ERR_INVALID_DATATYPE = 'float.invalid_datatype'
     ERR_COERCION_FAILED  = 'float.coercion_failed'
-
-    __slots__ = (
-        'strict',
-    )
 
     def __init__(self, strict: bool = True, **kwargs: Any) -> None:
         self.strict = strict

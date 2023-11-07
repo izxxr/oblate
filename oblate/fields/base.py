@@ -41,7 +41,7 @@ from typing_extensions import Self
 from oblate.schema import Schema
 from oblate.validate import Validator, ValidatorCallbackT, InputT
 from oblate.utils import MISSING, current_field_key, current_schema
-from oblate.exceptions import FieldError
+from oblate.exceptions import FieldError, FrozenError
 from oblate.contexts import ErrorContext
 from oblate.configs import config
 
@@ -92,6 +92,9 @@ class Field(Generic[RawValueT, FinalValueT]):
         Whether this field allows None values to be set.
     required: :class:`bool`
         Whether this field is required.
+    frozen: :class:`bool`
+        Whether the field is frozen. Frozen fields are read only fields
+        that cannot be updated once initialized.
     default:
         The default value for this field. If this is passed, the field is automatically
         marked as optional i.e ``required`` parameter gets ignored.
@@ -122,6 +125,7 @@ class Field(Generic[RawValueT, FinalValueT]):
     __slots__ = (
         'none',
         'required',
+        'frozen',
         'extras',
         '_default',
         '_name',
@@ -137,6 +141,7 @@ class Field(Generic[RawValueT, FinalValueT]):
             *,
             none: bool = False,
             required: bool = True,
+            frozen: bool = False,
             default: Any = MISSING,
             validators: Sequence[ValidatorT[Any, Any]] = MISSING,
             extras: Dict[str, Any] = MISSING,
@@ -146,6 +151,7 @@ class Field(Generic[RawValueT, FinalValueT]):
         ) -> None:
 
         self.none = none
+        self.frozen = frozen
         self.required = required and (default is MISSING)
         self.extras = extras if extras is not MISSING else {}
         self._load_key = data_key if data_key is not MISSING else load_key
@@ -174,6 +180,11 @@ class Field(Generic[RawValueT, FinalValueT]):
         return instance.get_value_for(self._name)
 
     def __set__(self, instance: Schema, value: RawValueT) -> None:
+        if instance.__config__.frozen:
+            raise FrozenError(instance)
+        if self.frozen:
+            raise FrozenError(self)
+
         schema_token = current_schema.set(instance)
         field_name = current_field_key.set(self._name)
         try:
@@ -267,7 +278,7 @@ class Field(Generic[RawValueT, FinalValueT]):
     @property
     def schema(self) -> Type[Schema]:
         """The schema that the field belongs to.
-        
+
         .. versionadded:: 1.1
 
         :type: :class:`Schema`

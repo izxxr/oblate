@@ -52,7 +52,7 @@ Here, ``is_employee`` is marked as optional and won't be required while initiali
 No errors will be raised by the above line. However, when accessing the field, a :exc:`ValueError`
 will be raised as no value is available for this field::
 
-    print(user.is_employee)  # ValueError: No value available for this field.
+    print(user.is_employee)  # FieldNotSet: Field 'is_employee' has no value set.
     user.is_employee = True
     print(user.is_employee)  # Prints True
 
@@ -155,6 +155,29 @@ It is also possible to provide the set of values that correspond to True/False::
 
 By default, ``true_values`` and ``false_values`` default to :attr:`fields.Boolean.TRUE_VALUES` and
 :attr:`fields.Boolean.FALSE_VALUES` respectively.
+
+.. _guide-fields-frozen-fields:
+
+Frozen Fields
+-------------
+
+Frozen fields are, in other words, read only fields. These fields can only be set at initialization
+time and cannot be updated.
+
+This is done by passing ``frozen`` parameter. Whenever a field is attempted to be updated,
+a :exc:`FrozenError` is raised.
+
+Example::
+
+    class User(oblate.Schema):
+        id = fields.Integer(frozen=True)
+        username = fields.String()
+
+    user = User({'id': 1, 'username': 'test'})
+    user.update({'id': 2})  # FrozenError: User.id field is frozen and cannot be updated.
+    user.id = 1  # FrozenError: User.id field is frozen and cannot be updated.
+
+For marking schema (all fields) as frozen, see :ref:`guide-schema-frozen-schemas`.
 
 .. _guide-fields-extra-metadata:
 

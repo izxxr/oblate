@@ -55,7 +55,7 @@ def test_required_fields():
     assert test.default_optional_field == _TestSchema.default_optional_field.default
     assert test.callable_default_optional_field == 'callable default'
 
-    with pytest.raises(ValueError):
+    with pytest.raises(oblate.FieldNotSet):
         assert test.optional_field
 
     test = _TestSchema({
@@ -94,3 +94,16 @@ def test_field_data_keys():
 
     assert schema.get_value_for('Id') == 20
     assert schema.get_value_for('id') == 20
+
+def test_field_frozen():
+    class _TestSchema(oblate.Schema):
+        id = fields.Integer(frozen=True)
+        name = fields.String()
+
+    schema = _TestSchema({'id': 20, 'name': 'John'})
+
+    with pytest.raises(oblate.FrozenError, match='_TestSchema.id field is frozen and cannot be updated'):
+        schema.update({'id': 2})
+
+    with pytest.raises(oblate.FrozenError, match='_TestSchema.id field is frozen and cannot be updated'):
+        schema.id = 3

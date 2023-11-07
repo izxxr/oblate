@@ -5,6 +5,31 @@ Changelog
 
 This page has changelogs for all releases of Oblate.
 
+v1.2.0
+------
+
+New features
+~~~~~~~~~~~~
+
+- Add support for frozen :ref:`schemas <guide-schema-frozen-schemas>` and :ref:`fields <guide-fields-frozen-fields>`.
+- Add :exc:`FieldNotSet` exception to be raised on accessing fields without values.
+- Add :meth:`Schema.copy` method for copying schema instances.
+- Add :meth:`Schema.preprocess_data` for preprocessing of input data.
+- Add :func:`oblate.validate_types` function for type validation.
+
+Improvements
+~~~~~~~~~~~~
+
+- All fields now have relevant attributes to access values passed to constructor.
+- Field accessing now raises a special exception.
+- Schema constructor now raises :exc:`TypeError` if non-mapping type is passed as data.
+
+Bug fixes
+~~~~~~~~~
+
+- Fix :exc:`SyntaxError` in various :class:`~fields.Union` and :class:`~fields.Literal`
+  fields in older Python versions than 3.11.
+
 v1.1.0
 ------
 
