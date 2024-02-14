@@ -34,6 +34,7 @@ __all__ = (
     'MISSING',
     'current_context',
     'current_field_key',
+    'current_schema',
 )
 
 
@@ -55,6 +56,6 @@ MISSING: Any = MissingType()
 
 ### Context variables ###
 
-current_context: ContextVar[_BaseValueContext] = ContextVar('_current_context')
+current_context: ContextVar[_BaseValueContext] = ContextVar('current_context')
 current_field_key: ContextVar[str] = ContextVar('current_field_key')
 current_schema: ContextVar[Schema] = ContextVar('current_schema')
