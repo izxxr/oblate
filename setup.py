@@ -1,10 +1,10 @@
 from setuptools import setup
 
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 GITHUB = "https://github.com/izxxr/oblate"
 DOCUMENTATION = "https://oblate.readthedocs.io"
 LICENSE = "MIT"
-PACKAGES = ["oblate"]
+PACKAGES = ["oblate", "oblate.fields"]
 
 with open("README.MD", "r", encoding="utf-8") as f:
     LONG_DESCRIPTION = f.read()

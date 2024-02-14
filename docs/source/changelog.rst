@@ -5,6 +5,11 @@ Changelog
 
 This page has changelogs for all releases of Oblate.
 
+v1.2.1
+------
+
+- Fix missing `oblate.fields` package during installation of v1.2.0.
+
 v1.2.0
 ------
 
