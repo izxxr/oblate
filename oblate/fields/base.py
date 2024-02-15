@@ -323,6 +323,8 @@ class Field(Generic[RawValueT, FinalValueT]):
             The new field.
         """
         field = copy.copy(self)
+        field._validators = self._validators.copy()
+        field._raw_validators = self._raw_validators.copy()
         field._unbind()
         return field
 

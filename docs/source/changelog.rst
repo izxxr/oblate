@@ -5,6 +5,14 @@ Changelog
 
 This page has changelogs for all releases of Oblate.
 
+v1.3.0
+------
+
+Bug Fixes
+~~~~~~~~~
+
+- Fix :meth:`fields.Field.copy` not properly copying validators.
+
 v1.2.1
 ------
 
