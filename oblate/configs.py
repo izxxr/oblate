@@ -34,10 +34,11 @@ __all__ = (
 )
 
 _T = TypeVar('_T')
+_GC = TypeVar('_GC', bound='GlobalConfig')
 _SPHINX_BUILD = os.environ.get('SPHINX_BUILD', False)
 
 
-class _ConfigOption(Generic[_T]):
+class _ConfigOption(Generic[_T, _GC]):
     __slots__ = (
         '_default',
         '_func',
@@ -46,17 +47,17 @@ class _ConfigOption(Generic[_T]):
         '__doc__',
     )
 
-    def __init__(self, func: Callable[[GlobalConfig], _T]) -> None:
+    def __init__(self, func: Callable[[_GC], _T]) -> None:
         self._default = func(None)  # type: ignore
         self._func = func
         self._name = func.__name__
         self.__doc__ = func.__doc__
         self._setter = None
 
-    def setter(self, func: Callable[[GlobalConfig, Any], _T]) -> None:
+    def setter(self, func: Callable[[_GC, Any], _T]) -> None:
         self._setter = func
 
-    def __get__(self, instance: Optional[GlobalConfig], owner: Type[GlobalConfig]) -> _T:
+    def __get__(self, instance: Optional[_GC], owner: Type[_GC]) -> _T:
         if instance is None:
             # Sphinx needs access to the self.__doc__ attribute to properly document
             # the cfg_option decorated function. This is, unfortunately, not possible
@@ -70,13 +71,13 @@ class _ConfigOption(Generic[_T]):
         except KeyError:  # pragma: no cover
             return self._default
 
-    def __set__(self, instance: GlobalConfig, value: _T) -> None:
+    def __set__(self, instance: _GC, value: _T) -> None:
         if self._setter:
             value = self._setter(instance, value)
 
         instance._values[self._name] = value
 
-def cfg_option(func: Callable[[GlobalConfig], _T]) -> _ConfigOption[_T]:
+def cfg_option(func: Callable[[_GC], _T]) -> _ConfigOption[_T, _GC]:
     return _ConfigOption(func)
 
 
