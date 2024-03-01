@@ -37,6 +37,8 @@ class Author(oblate.Schema):
 class Book(oblate.Schema):
     title = fields.String()
     price = fields.Float()
+
+    # author takes the Author object (raw data or instance)
     author = fields.Object(Author)
 
 data = {
