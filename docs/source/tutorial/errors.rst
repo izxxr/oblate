@@ -45,4 +45,4 @@ Here's the result::
 
 .. TODO: Reference error customization tutorial here
 
-This "raw format" is fully customizable to suit any use case.
+This "raw format" is fully :ref:`customizable <guide-errors-raw-error-formatting>` to suit any use case.
