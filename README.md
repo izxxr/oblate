@@ -25,16 +25,12 @@ is handled using Oblate:
 from oblate import validate, fields
 import oblate
 
-# A schema defines the structure of data
-class Author(oblate.Schema):
-    name = fields.String()  # Field must be a string
-    bio = fields.String(none=True)  # Field allows None to be passed
-    rating = fields.Integer(default=0)  # Optional field that defaults to 0
 
-    # Apply custom validations to a field
-    @validate.field(rating)
-    def validate_rating(self, value, ctx):
-        assert value >= 0 and value <= 10, 'Rating must be in range 0-10 inclusive'
+class Author(oblate.Schema):
+    name = fields.String()  # Value should be of string data type
+    bio = fields.String(none=True)  # Allows None to be passed
+    rating = fields.Integer(default=0, validators=[validate.Range(0, 10)])  # Defaults to 0 and allows values between 0 to 10 (inclusive)
+
 
 class Book(oblate.Schema):
     title = fields.String()
