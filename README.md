@@ -29,8 +29,10 @@ import oblate
 class Author(oblate.Schema):
     name = fields.String()  # Value should be of string data type
     bio = fields.String(none=True)  # Allows None to be passed
-    rating = fields.Integer(default=0, validators=[validate.Range(0, 10)])  # Defaults to 0 and allows values between 0 to 10 (inclusive)
 
+    # rating defaults to 0 if not provided and only allows values
+    # between 0 to 10 (inclusive)
+    rating = fields.Integer(default=0, validators=[validate.Range(0, 10)])
 
 class Book(oblate.Schema):
     title = fields.String()
