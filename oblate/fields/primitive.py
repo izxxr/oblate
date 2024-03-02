@@ -42,6 +42,12 @@ class String(Field[str, str]):
     This class is a subclass of :class:`Field` and supports the features
     documented in that class.
 
+    Parameters
+    ----------
+    strict: :class:`bool`
+        Whether to only allow string data types. If this is set to False,
+        any value is type casted to string. Defaults to True.
+
     Attributes
     ----------
     ERR_INVALID_DATATYPE:
@@ -49,12 +55,6 @@ class String(Field[str, str]):
     ERR_COERCION_FAILED:
         Error code raised when strict mode is disabled and given raw value
         cannot be converted to relevant data type.
-
-    Parameters
-    ----------
-    strict: :class:`bool`
-        Whether to only allow string data types. If this is set to False,
-        any value is type casted to string. Defaults to True.
     """
     ERR_INVALID_DATATYPE = 'string.invalid_datatype'
 
@@ -89,6 +89,12 @@ class Integer(Field[int, int]):
     This class is a subclass of :class:`Field` and supports the features
     documented in that class.
 
+    Parameters
+    ----------
+    strict: :class:`bool`
+        Whether to only allow integer data types. If this is set to False,
+        any integer-castable value is type casted to integer. Defaults to True.
+
     Attributes
     ----------
     ERR_INVALID_DATATYPE:
@@ -96,12 +102,6 @@ class Integer(Field[int, int]):
     ERR_COERCION_FAILED:
         Error code raised when strict mode is disabled and given raw value
         cannot be converted to relevant data type.
-
-    Parameters
-    ----------
-    strict: :class:`bool`
-        Whether to only allow integer data types. If this is set to False,
-        any integer-castable value is type casted to integer. Defaults to True.
     """
     ERR_INVALID_DATATYPE = 'integer.invalid_datatype'
     ERR_COERCION_FAILED  = 'integer.coercion_failed'
@@ -142,19 +142,6 @@ class Boolean(Field[bool, bool]):
     This class is a subclass of :class:`Field` and supports the features
     documented in that class.
 
-    Attributes
-    ----------
-    TRUE_VALUES: Tuple[:class:`str`, ...]
-        The true values used when strict validation is disabled.
-    FALSE_VALUES: Tuple[:class:`str`, ...]
-        The false values used when strict validation is disabled.
-    ERR_INVALID_DATATYPE:
-        Error code raised when invalid data type is given in raw data.
-    ERR_COERCION_FAILED:
-        Error code raised when strict mode is disabled and given raw value
-        cannot be converted to relevant data type.
-
-
     Parameters
     ----------
     true_values: Sequence[:class:`str`]
@@ -167,6 +154,18 @@ class Boolean(Field[bool, bool]):
         when :ref:`strict validation <guide-fields-strict-mode>` is disabled.
 
         Defaults to :attr:`.FALSE_VALUES` if not provided.
+
+    Attributes
+    ----------
+    TRUE_VALUES: Tuple[:class:`str`, ...]
+        The true values used when strict validation is disabled.
+    FALSE_VALUES: Tuple[:class:`str`, ...]
+        The false values used when strict validation is disabled.
+    ERR_INVALID_DATATYPE:
+        Error code raised when invalid data type is given in raw data.
+    ERR_COERCION_FAILED:
+        Error code raised when strict mode is disabled and given raw value
+        cannot be converted to relevant data type.
     """
     TRUE_VALUES: Sequence[str] = (
         'TRUE', 'True', 'true',
@@ -231,6 +230,12 @@ class Float(Field[float, float]):
     This class is a subclass of :class:`Field` and supports the features
     documented in that class.
 
+    Parameters
+    ----------
+    strict: :class:`bool`
+        Whether to only allow float data types. If this is set to False,
+        any float-castable value is type casted to float. Defaults to True.
+
     Attributes
     ----------
     ERR_INVALID_DATATYPE:
@@ -238,12 +243,6 @@ class Float(Field[float, float]):
     ERR_COERCION_FAILED:
         Error code raised when strict mode is disabled and given raw value
         cannot be converted to relevant data type.
-
-    Parameters
-    ----------
-    strict: :class:`bool`
-        Whether to only allow float data types. If this is set to False,
-        any float-castable value is type casted to float. Defaults to True.
     """
     ERR_INVALID_DATATYPE = 'float.invalid_datatype'
     ERR_COERCION_FAILED  = 'float.coercion_failed'

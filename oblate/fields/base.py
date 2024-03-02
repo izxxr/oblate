@@ -76,16 +76,6 @@ class Field(Generic[RawValueT, FinalValueT]):
         raw value type i.e the type of raw value which will be deserialized to final
         value and the type of deserialized value.
 
-    Attributes
-    ----------
-    ERR_FIELD_REQUIRED:
-        Error code raised when a required field is not given in raw data.
-    ERR_NONE_DISALLOWED:
-        Error code raised when a field with ``none=False`` is given a value of ``None``.
-    ERR_VALIDATION_FAILED:
-        Error code raised when a validator fails for a field without an explicit
-        error message.
-
     Parameters
     ----------
     none: :class:`bool`
@@ -117,6 +107,16 @@ class Field(Generic[RawValueT, FinalValueT]):
     data_key: :class:`str`
         A shorthand parameter to control the value of both ``load_key`` and ``dump_key``
         parameters.
+
+    Attributes
+    ----------
+    ERR_FIELD_REQUIRED:
+        Error code raised when a required field is not given in raw data.
+    ERR_NONE_DISALLOWED:
+        Error code raised when a field with ``none=False`` is given a value of ``None``.
+    ERR_VALIDATION_FAILED:
+        Error code raised when a validator fails for a field without an explicit
+        error message.
     """
     ERR_FIELD_REQUIRED = 'field.field_required'
     ERR_NONE_DISALLOWED = 'field.none_disallowed'

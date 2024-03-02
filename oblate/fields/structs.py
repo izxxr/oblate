@@ -88,6 +88,15 @@ class Dict(_BaseStructField[DictT[KT, VT], DictT[KT, VT]]):
 
     .. versionadded:: 1.1
 
+    Parameters
+    ----------
+    key_tp:
+        The type of key of dictionary. This parameter supports
+        passing :ref:`type expressions <guide-type-validation>`.
+    value_tp:
+        The type of value of dictionary. This parameter supports
+        passing :ref:`type expressions <guide-type-validation>`.
+
     Attributes
     ----------
     ERR_INVALID_DATATYPE:
@@ -96,13 +105,6 @@ class Dict(_BaseStructField[DictT[KT, VT], DictT[KT, VT]]):
         Error raised when the type validation fails. In this error's context,
         :attr:`ErrorContext.metadata` has a key ``type_validation_fail_errors``
         which is a list of error messages.
-
-    Parameters
-    ----------
-    key_tp:
-        The type of key of dictionary.
-    value_tp:
-        The type of value of dictionary.
     """
     _struct_name = 'dict'
     _friendly_struct_name = 'dictionary'
@@ -142,6 +144,11 @@ class TypedDict(_BaseStructField[TD, TD]):
 
     .. versionadded:: 1.1
 
+    Parameters
+    ----------
+    typed_dict: :class:`typing.TypedDict`
+        The typed dictionary to validate from.
+
     Attributes
     ----------
     ERR_INVALID_DATATYPE:
@@ -150,11 +157,6 @@ class TypedDict(_BaseStructField[TD, TD]):
         Error raised when the type validation fails. In this error's context,
         :attr:`ErrorContext.metadata` has a key ``type_validation_fail_errors``
         which is a list of error messages.
-
-    Parameters
-    ----------
-    typed_dict: :class:`typing.TypedDict`
-        The typed dictionary to validate from.
     """
     _struct_name = 'typed_dict'
     _friendly_struct_name = 'dictionary'
@@ -184,6 +186,12 @@ class List(_BaseStructField[ListT[KT], ListT[KT]]):
 
     .. versionadded:: 1.1
 
+    Parameters
+    ----------
+    type:
+        The type of list elements. This parameter corresponds to ``T``
+        in ``typing.List[T]`` and supports :ref:`type expressions <guide-type-validation>`.
+
     Attributes
     ----------
     ERR_INVALID_DATATYPE:
@@ -192,12 +200,6 @@ class List(_BaseStructField[ListT[KT], ListT[KT]]):
         Error raised when the type validation fails. In this error's context,
         :attr:`ErrorContext.metadata` has a key ``type_validation_fail_errors``
         which is a list of error messages.
-
-    Parameters
-    ----------
-    type:
-        The type of list elements. This parameter corresponds to ``T``
-        in ``typing.List[T]``.
     """
     _struct_name = 'list'
     _friendly_struct_name = 'list'
@@ -226,6 +228,12 @@ class Set(_BaseStructField[SetT[KT], SetT[KT]]):
 
     .. versionadded:: 1.1
 
+    Parameters
+    ----------
+    type:
+        The type of set elements. This parameter corresponds to ``T``
+        in ``typing.Set[T]`` and supports :ref:`type expressions <guide-type-validation>`.
+
     Attributes
     ----------
     ERR_INVALID_DATATYPE:
@@ -234,12 +242,6 @@ class Set(_BaseStructField[SetT[KT], SetT[KT]]):
         Error raised when the type validation fails. In this error's context,
         :attr:`ErrorContext.metadata` has a key ``type_validation_fail_errors``
         which is a list of error messages.
-
-    Parameters
-    ----------
-    type:
-        The type of set elements. This parameter corresponds to ``T``
-        in ``typing.Set[T]``.
     """
     _struct_name = 'set'
     _friendly_struct_name = 'set'

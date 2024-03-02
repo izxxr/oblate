@@ -68,15 +68,15 @@ class Literal(Field[_T, _T]):
 
     .. versionadded:: 1.1
 
-    Attributes
-    ----------
-    ERR_INVALID_VALUE:
-        Error raised when the given value is not from the provided literal value.
-
     Parameters
     ----------
     *values:
         The literal values.
+
+    Attributes
+    ----------
+    ERR_INVALID_VALUE:
+        Error raised when the given value is not from the provided literal value.
     """
     ERR_INVALID_VALUE = 'literal.invalid_value'
 
@@ -110,15 +110,15 @@ class Union(Field[_T, _T]):
 
     .. versionadded:: 1.1
 
-    Attributes
-    ----------
-    ERR_INVALID_VALUE:
-        Error raised when the given value is not from the provided types.
-
     Parameters
     ----------
     *types: :class:`type`
         The list of types to accept.
+
+    Attributes
+    ----------
+    ERR_INVALID_VALUE:
+        Error raised when the given value is not from the provided types.
     """
     ERR_INVALID_VALUE = 'union.invalid_value'
 
@@ -164,6 +164,12 @@ class TypeExpr(Field[_T, _T]):
     expr:
         The type expression that should be used to validate the type of
         given value.
+
+    Attributes
+    ----------
+    ERR_TYPE_VALIDATION_FAILED:
+        Error raised when the given value does not pass type
+        validation.
     """
     ERR_TYPE_VALIDATION_FAILED = 'type_expr.type_validation_failed'
 

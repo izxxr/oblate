@@ -69,11 +69,6 @@ class Object(Field[Union[Mapping[str, Any], SchemaT], SchemaT]):
 
         Passing :class:`Schema` instances directly is now supported other than raw data.        
 
-    Attributes
-    ----------
-    ERR_INVALID_DATATYPE:
-        Error code raised when invalid data type is given in raw data.
-
     Parameters
     ----------
     schema_cls: Type[:class:`Schema`]
@@ -86,6 +81,11 @@ class Object(Field[Union[Mapping[str, Any], SchemaT], SchemaT]):
         ``schema_cls``. If a ``schema_cls`` instance is passed, this parameter is ignored.
 
         .. versionadded:: 1.1
+
+    Attributes
+    ----------
+    ERR_INVALID_DATATYPE:
+        Error code raised when invalid data type is given in raw data.
     """
     ERR_INVALID_DATATYPE = 'object.invalid_datatype'
 
